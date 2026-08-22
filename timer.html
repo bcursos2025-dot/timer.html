@@ -25,7 +25,6 @@
     padding:28px 24px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,.35);
   }
 
-  /* ---------- TELA DE PAREAMENTO ---------- */
   #telaPareamento h2{ font-size:18px; margin:0 0 6px; }
   #telaPareamento p{ font-size:13px; color:var(--text-dim); margin:0 0 22px; line-height:1.5; }
   #inputCodigo{
@@ -41,7 +40,6 @@
   }
   #btnParear:disabled{ opacity:.4; }
 
-  /* ---------- TELA DO CRONÔMETRO ---------- */
   #telaTimer{ display:none; }
   .status{ display:inline-flex; align-items:center; gap:8px; font-size:14px; color:var(--text-dim); margin-bottom:18px; }
   .dot{ width:9px;height:9px;border-radius:50%; background:var(--gray); transition:background .2s; }
@@ -65,7 +63,6 @@
 
 <div class="card">
 
-  <!-- TELA 1: pareamento (só aparece na primeira vez) -->
   <div id="telaPareamento">
     <h2>Parear com o PC</h2>
     <p>Abra a extensão no computador, vá em <b>Configurações → Celular</b>
@@ -75,7 +72,6 @@
     <button id="btnParear" disabled>Confirmar</button>
   </div>
 
-  <!-- TELA 2: cronômetro (aparece depois de parear) -->
   <div id="telaTimer">
     <div class="status">
       <span class="dot" id="dot"></span>
@@ -93,175 +89,3 @@
   </div>
 
 </div>
-
-<script>
-/* ============================================================
-   CONFIGURAÇÃO DO FIREBASE — troque pelos dados do seu projeto
-   ============================================================ */
-const firebaseConfig = {
-  apiKey: "AIzaSyAqpHJny30HIfedbdwq22Ex1K0QDllO5hw",
-  authDomain: "concurseiro-blindado.firebaseapp.com",
-  databaseURL: "https://concurseiro-blindado-default-rtdb.firebaseio.com", // CONFIRMAR: cole a URL exata mostrada no console
-  projectId: "concurseiro-blindado",
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-const tg = window.Telegram?.WebApp;
-tg?.ready();
-tg?.expand();
-
-/* ============================================================
-   PAREAMENTO
-   - A extensão, ao gerar o código, grava em:
-       pareamentos/{codigo} = { deviceId, criadoEm }
-   - Aqui a gente lê esse nó, pega o deviceId real, e guarda
-     ele localmente (localStorage funciona dentro do Telegram
-     WebView normalmente — só o login do Google que é bloqueado,
-     armazenamento local não tem esse problema).
-   - Os dados de estudo em si moram em: dispositivos/{deviceId}
-   ============================================================ */
-const CHAVE_LOCAL = 'cb_deviceId';
-
-const telaPareamento = document.getElementById('telaPareamento');
-const telaTimer = document.getElementById('telaTimer');
-const inputCodigo = document.getElementById('inputCodigo');
-const btnParear = document.getElementById('btnParear');
-const erroPareamento = document.getElementById('erroPareamento');
-const linkNovo = document.getElementById('linkNovo');
-
-inputCodigo.addEventListener('input', () => {
-  inputCodigo.value = inputCodigo.value.replace(/\D/g, '').slice(0, 6);
-  btnParear.disabled = inputCodigo.value.length !== 6;
-});
-
-btnParear.addEventListener('click', async () => {
-  const codigo = inputCodigo.value;
-  btnParear.disabled = true;
-  erroPareamento.textContent = '';
-  try {
-    const snap = await db.ref('pareamentos/' + codigo).once('value');
-    const dado = snap.val();
-    if (!dado || !dado.deviceId) {
-      erroPareamento.textContent = 'Código inválido ou expirado. Gere um novo na extensão.';
-      btnParear.disabled = false;
-      return;
-    }
-    localStorage.setItem(CHAVE_LOCAL, dado.deviceId);
-    iniciarCronometro(dado.deviceId);
-  } catch (e) {
-    erroPareamento.textContent = 'Falha de conexão. Tente de novo.';
-    btnParear.disabled = false;
-  }
-});
-
-linkNovo.addEventListener('click', () => {
-  localStorage.removeItem(CHAVE_LOCAL);
-  telaTimer.style.display = 'none';
-  telaPareamento.style.display = 'block';
-  inputCodigo.value = '';
-  btnParear.disabled = true;
-});
-
-/* ============================================================
-   TELA DO CRONÔMETRO
-   ============================================================ */
-const elTimer = document.getElementById('timer');
-const elStatus = document.getElementById('statusTexto');
-const elDot = document.getElementById('dot');
-const elBloco = document.getElementById('bloco');
-const elFooter = document.getElementById('footer');
-const btnPrimary = document.getElementById('btnPrimary');
-const btnStop = document.getElementById('btnStop');
-
-let estadoAtual = null;
-let tickInterval = null;
-let refAtual = null;
-
-function fmt(ms){
-  const s = Math.max(0, Math.floor(ms/1000));
-  const h = String(Math.floor(s/3600)).padStart(2,'0');
-  const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
-  const sec = String(s%60).padStart(2,'0');
-  return `${h}:${m}:${sec}`;
-}
-
-function render(){
-  if (!estadoAtual){
-    elStatus.textContent = 'Sem dados ainda';
-    elFooter.textContent = 'abra a extensão no PC pelo menos uma vez';
-    return;
-  }
-  const { sessionState, msHoje, inicioSessao, bloco } = estadoAtual;
-
-  elDot.className = 'dot' + (sessionState === 'running' ? ' running'
-                    : sessionState?.startsWith('paused') ? ' paused' : '');
-  elStatus.textContent = sessionState === 'running' ? 'Estudando agora'
-                        : sessionState?.startsWith('paused') ? 'Pausado' : 'Parado';
-
-  btnPrimary.disabled = false;
-  btnStop.disabled = sessionState === 'stopped';
-  btnPrimary.textContent = sessionState === 'running' ? 'Pausar' : 'Continuar';
-
-  if (bloco){
-    elBloco.style.display = 'block';
-    elBloco.textContent = `📋 ${bloco.materia || bloco.tipo} (${bloco.inicio}–${bloco.fim})`;
-  } else {
-    elBloco.style.display = 'none';
-  }
-
-  let msTotal = msHoje || 0;
-  if (sessionState === 'running' && inicioSessao) msTotal += (Date.now() - inicioSessao);
-  elTimer.textContent = fmt(msTotal);
-
-  elFooter.textContent = 'sincronizado com o PC em tempo real';
-  elFooter.classList.remove('offline');
-
-  clearInterval(tickInterval);
-  if (sessionState === 'running'){
-    tickInterval = setInterval(() => {
-      const ms = (msHoje || 0) + (Date.now() - inicioSessao);
-      elTimer.textContent = fmt(ms);
-    }, 1000);
-  }
-}
-
-function enviarComando(acao){
-  if (!refAtual) return;
-  refAtual.child('comandoRemoto').set({ acao, ts: Date.now() });
-  tg?.HapticFeedback?.impactOccurred('light');
-}
-
-btnPrimary.addEventListener('click', () => {
-  if (!estadoAtual) return;
-  enviarComando(estadoAtual.sessionState === 'running' ? 'pausar' : 'continuar');
-});
-btnStop.addEventListener('click', () => enviarComando('parar'));
-
-function iniciarCronometro(deviceId){
-  telaPareamento.style.display = 'none';
-  telaTimer.style.display = 'block';
-
-  refAtual = db.ref('dispositivos/' + deviceId);
-  refAtual.on('value', (snap) => {
-    estadoAtual = snap.val();
-    render();
-  }, () => {
-    elFooter.textContent = 'sem conexão com o servidor';
-    elFooter.classList.add('offline');
-  });
-}
-
-/* ============================================================
-   BOOT: já pareado antes? pula direto pro cronômetro
-   ============================================================ */
-const deviceIdSalvo = localStorage.getItem(CHAVE_LOCAL);
-if (deviceIdSalvo){
-  iniciarCronometro(deviceIdSalvo);
-} else {
-  telaPareamento.style.display = 'block';
-}
-</script>
-
-</body>
-</html>
