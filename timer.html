@@ -17,110 +17,179 @@
     --bg:#0b0710; --bg-elevated:#151022; --bg-elevated-2:#1c1730;
     --violet:#8b5cf6; --violet-light:#a78bfa; --violet-dark:#6d28d9;
     --violet-glow:rgba(139,92,246,.45); --violet-soft:rgba(139,92,246,.14);
-    --green:#2ecc71; --yellow:#f1c40f; --red:#ff5a5f; --gray:#6b7280;
+    --green:#2ecc71; --yellow:#f1c40f; --red:#ff5a5f; --gray:#6b7280; --gold:#f4b740;
     --text:#f3f4f6; --text-dim:#9aa0b4; --border:rgba(255,255,255,.08);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{
-    height:100%; overscroll-behavior:none;
-  }
+  html,body{ height:100%; overscroll-behavior:none; }
   body{
     margin:0; min-height:100vh; min-height:100dvh;
-    background:
-      radial-gradient(circle at 50% 0%, rgba(139,92,246,.16) 0%, rgba(139,92,246,0) 55%),
-      var(--bg);
-    color:var(--text);
+    background:var(--bg); color:var(--text); position:relative; isolation:isolate;
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    padding:calc(env(safe-area-inset-top) + 16px) 18px calc(env(safe-area-inset-bottom) + 16px);
-    -webkit-user-select:none; user-select:none;
+    display:flex; flex-direction:column; align-items:center;
+    padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 14px);
+    -webkit-user-select:none; user-select:none; overflow-x:hidden;
   }
+
+  /* ---------- FUNDOS ANIMADOS (temas, só CSS/gradientes, sem imagens de terceiros) ---------- */
+  .fundo{ position:fixed; inset:0; z-index:-1; overflow:hidden; }
+  .fundo::before, .fundo::after{ content:""; position:absolute; border-radius:50%; filter:blur(70px); opacity:.55; }
+  .fundo.tema-roxo{ background:radial-gradient(circle at 50% 0%, rgba(139,92,246,.18) 0%, rgba(139,92,246,0) 55%), var(--bg); }
+  .fundo.tema-roxo::before{ width:340px; height:340px; background:var(--violet); top:-80px; left:-60px; animation:flutuar1 16s ease-in-out infinite; }
+  .fundo.tema-roxo::after{ width:280px; height:280px; background:#4f46e5; bottom:-60px; right:-40px; animation:flutuar2 20s ease-in-out infinite; }
+
+  .fundo.tema-aurora{ background:linear-gradient(160deg,#0b0710,#160c2e 60%,#0b0710); }
+  .fundo.tema-aurora::before{ width:420px; height:220px; background:linear-gradient(90deg,#8b5cf6,#22d3ee); top:-40px; left:-30%; animation:aurora1 14s ease-in-out infinite; opacity:.35; }
+  .fundo.tema-aurora::after{ width:420px; height:220px; background:linear-gradient(90deg,#ec4899,#8b5cf6); bottom:-60px; right:-30%; animation:aurora2 18s ease-in-out infinite; opacity:.3; }
+
+  .fundo.tema-meianoite{ background:var(--bg); }
+  .fundo.tema-meianoite .estrela{
+    position:absolute; width:2px; height:2px; background:#fff; border-radius:50%;
+    animation:piscar 3.5s ease-in-out infinite;
+  }
+
+  @keyframes flutuar1{ 0%,100%{ transform:translate(0,0) scale(1);} 50%{ transform:translate(40px,60px) scale(1.15);} }
+  @keyframes flutuar2{ 0%,100%{ transform:translate(0,0) scale(1);} 50%{ transform:translate(-30px,-40px) scale(1.1);} }
+  @keyframes aurora1{ 0%,100%{ transform:translateX(0) rotate(-6deg);} 50%{ transform:translateX(60px) rotate(-2deg);} }
+  @keyframes aurora2{ 0%,100%{ transform:translateX(0) rotate(6deg);} 50%{ transform:translateX(-60px) rotate(2deg);} }
+  @keyframes piscar{ 0%,100%{ opacity:.15;} 50%{ opacity:1;} }
+
+  .seletor-tema{ display:flex; gap:8px; margin-bottom:14px; }
+  .tema-btn{
+    width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer; padding:0;
+  }
+  .tema-btn.ativo{ border-color:#fff; }
+  .tema-btn.roxo{ background:linear-gradient(135deg,#8b5cf6,#4f46e5); }
+  .tema-btn.aurora{ background:linear-gradient(135deg,#8b5cf6,#22d3ee); }
+  .tema-btn.meianoite{ background:#0b0710; box-shadow:inset 0 0 0 1px var(--border); }
+
+  .top-row{ width:100%; max-width:400px; display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .streak-badge{
+    display:inline-flex; align-items:center; gap:5px; font-size:12.5px; font-weight:700;
+    background:rgba(244,183,64,.12); color:var(--gold); border:1px solid rgba(244,183,64,.3);
+    padding:5px 10px; border-radius:20px;
+  }
+  .som-btn{
+    display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600;
+    background:var(--bg-elevated-2); color:var(--text-dim); border:1px solid var(--border);
+    padding:6px 10px; border-radius:20px; cursor:pointer;
+  }
+  .som-btn.ligado{ color:var(--violet-light); border-color:rgba(139,92,246,.35); background:var(--violet-soft); }
+
   .card{
-    width:100%; max-width:400px; background:var(--bg-elevated);
+    width:100%; max-width:400px; background:rgba(21,16,34,.75); backdrop-filter:blur(18px);
     border:1px solid var(--border); border-radius:28px;
-    padding:30px 22px calc(24px + env(safe-area-inset-bottom));
+    padding:26px 22px calc(22px + env(safe-area-inset-bottom));
     text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.5);
   }
 
-  /* ---------- TELA DE PAREAMENTO ---------- */
+  /* ---------- PAREAMENTO ---------- */
   #telaPareamento h2{ font-size:20px; margin:0 0 8px; }
   #telaPareamento p{ font-size:14px; color:var(--text-dim); margin:0 0 24px; line-height:1.55; }
   #inputCodigo{
     width:100%; font-size:28px; letter-spacing:10px; text-align:center;
     padding:16px 0; border-radius:14px; border:1px solid var(--border);
-    background:var(--bg); color:var(--text); margin-bottom:16px;
-    -webkit-appearance:none;
+    background:var(--bg); color:var(--text); margin-bottom:16px; -webkit-appearance:none;
   }
   #inputCodigo:focus{ outline:none; border-color:var(--violet); }
   #erroPareamento{ color:var(--red); font-size:13px; min-height:18px; margin-bottom:10px; }
   #btnParear{
-    width:100%; border:none; border-radius:16px; padding:16px 0;
-    font-size:16px; font-weight:700; cursor:pointer;
+    width:100%; border:none; border-radius:16px; padding:16px 0; font-size:16px; font-weight:700; cursor:pointer;
     background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); color:#fff;
   }
   #btnParear:disabled{ opacity:.35; }
 
-  /* ---------- TELA DO CRONÔMETRO ---------- */
-  #telaTimer{ display:none; }
-  .status{ display:inline-flex; align-items:center; gap:8px; font-size:14px; color:var(--text-dim); margin-bottom:20px; }
+  /* ---------- CRONÔMETRO ---------- */
+  #telaTimer{ display:none; width:100%; max-width:400px; }
+  .status{ display:inline-flex; align-items:center; gap:8px; font-size:14px; color:var(--text-dim); margin-bottom:18px; }
   .dot{ width:9px;height:9px;border-radius:50%; background:var(--gray); transition:background .2s; }
   .dot.running{ background:var(--green); box-shadow:0 0 8px var(--green); }
   .dot.paused{ background:var(--yellow); box-shadow:0 0 8px var(--yellow); }
 
-  .abas{ display:flex; gap:8px; justify-content:center; margin-bottom:26px; flex-wrap:wrap; }
-  .aba{
-    padding:8px 14px; border-radius:20px; font-size:12.5px; font-weight:700;
-    background:var(--bg-elevated-2); color:var(--text-dim); border:1px solid transparent;
-  }
+  .abas{ display:flex; gap:8px; justify-content:center; margin-bottom:24px; flex-wrap:wrap; }
+  .aba{ padding:8px 14px; border-radius:20px; font-size:12.5px; font-weight:700;
+        background:var(--bg-elevated-2); color:var(--text-dim); border:1px solid transparent; }
   .aba.ativa{ background:var(--violet-soft); color:var(--violet-light); border-color:rgba(139,92,246,.35); }
 
-  /* Anel circular (mesmo visual/gradiente da extensão) */
-  .anel-wrap{ position:relative; width:240px; height:240px; margin:0 auto 28px; }
+  .anel-wrap{ position:relative; width:230px; height:230px; margin:0 auto 22px; }
   .anel-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); overflow:visible; }
-  .anel-aura{
-    position:absolute; inset:6px; border-radius:50%;
+  .anel-aura{ position:absolute; inset:6px; border-radius:50%;
     background:radial-gradient(circle, var(--violet-glow) 0%, rgba(139,92,246,0) 70%);
-    filter:blur(2px); animation:auraPulse 3.4s ease-in-out infinite; pointer-events:none;
-  }
+    filter:blur(2px); animation:auraPulse 3.4s ease-in-out infinite; pointer-events:none; }
   .is-running .anel-aura{ animation-duration:1.8s; }
   .is-paused .anel-progresso{ opacity:.55; filter:none; }
   @keyframes auraPulse{ 0%,100%{opacity:.55; transform:scale(1);} 50%{opacity:1; transform:scale(1.04);} }
   .anel-fundo{ fill:none; stroke:var(--bg-elevated-2); stroke-width:12; }
-  .anel-progresso{
-    fill:none; stroke:url(#cbGrad); stroke-width:12; stroke-linecap:round;
-    filter:drop-shadow(0 0 6px var(--violet-glow));
-    transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1);
-  }
+  .anel-progresso{ fill:none; stroke:url(#cbGrad); stroke-width:12; stroke-linecap:round;
+    filter:drop-shadow(0 0 6px var(--violet-glow)); transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1); }
   .is-running .anel-progresso{ animation:ringGlow 3s linear infinite; }
   @keyframes ringGlow{ 0%,100%{filter:drop-shadow(0 0 6px var(--violet-glow));} 50%{filter:drop-shadow(0 0 14px var(--violet-glow));} }
-  .anel-conteudo{
-    position:absolute; inset:0; display:flex; flex-direction:column;
-    align-items:center; justify-content:center;
-  }
-  .timer{ font-size:46px; font-weight:700; letter-spacing:.5px; font-variant-numeric:tabular-nums;
+  .anel-conteudo{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .timer{ font-size:44px; font-weight:700; letter-spacing:.5px; font-variant-numeric:tabular-nums;
           font-family:'SF Mono','Cascadia Code',Consolas,monospace; }
   .label{ color:var(--violet-light); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
           font-weight:700; margin-top:6px; opacity:.85; }
 
   .bloco{ background:var(--violet-soft); color:var(--violet-light); font-size:13px; padding:9px 12px;
-          border-radius:12px; margin-bottom:18px; display:none; border:1px solid rgba(139,92,246,.25); }
-  .btns{ display:flex; gap:12px; }
+          border-radius:12px; margin-bottom:14px; display:none; border:1px solid rgba(139,92,246,.25); }
+
+  /* Meta diária */
+  .meta-diaria{ margin-bottom:18px; }
+  .meta-topo{ display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-dim); margin-bottom:6px; }
+  .meta-barra{ height:7px; border-radius:4px; background:var(--bg-elevated-2); overflow:hidden; }
+  .meta-barra-fill{ height:100%; background:linear-gradient(90deg,var(--violet-light),var(--violet)); border-radius:4px; transition:width .4s; }
+
+  .btns{ display:flex; gap:12px; margin-bottom:8px; }
   button{ flex:1; border:none; border-radius:16px; padding:16px 0; font-size:16px; font-weight:700;
           cursor:pointer; transition:opacity .15s, transform .1s; -webkit-appearance:none; }
   button:active{ transform:scale(.96); }
   #btnPrimary{ background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); color:#fff; }
   #btnStop{ background:var(--bg-elevated-2); color:var(--text); border:1px solid var(--border); }
   button:disabled{ opacity:.35; cursor:default; }
-  .footer{ margin-top:18px; font-size:11.5px; color:var(--text-dim); min-height:14px; }
+  .footer{ margin-top:14px; font-size:11.5px; color:var(--text-dim); min-height:14px; }
   .offline{ color:var(--yellow); }
-  .linkNovo{ margin-top:16px; font-size:11.5px; color:var(--text-dim); text-decoration:underline; }
+  .linkNovo{ margin-top:14px; font-size:11.5px; color:var(--text-dim); text-decoration:underline; }
+
+  /* Tarefas */
+  .tarefas-card{ width:100%; max-width:400px; margin-top:14px; background:rgba(21,16,34,.75);
+    backdrop-filter:blur(18px); border:1px solid var(--border); border-radius:22px; padding:16px 16px calc(14px + env(safe-area-inset-bottom)); }
+  .tarefas-titulo{ font-size:11.5px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:.05em; margin-bottom:10px; text-align:left; }
+  .tarefas-lista{ display:flex; flex-direction:column; gap:2px; max-height:180px; overflow-y:auto; margin-bottom:10px; }
+  .tarefas-vazio{ font-size:12px; color:var(--text-dim); text-align:left; padding:6px 2px; }
+  .tarefa-item{ display:flex; align-items:center; gap:10px; padding:8px 2px; text-align:left; border-bottom:1px solid var(--border); }
+  .tarefa-item:last-child{ border-bottom:none; }
+  .tarefa-check{ width:20px; height:20px; flex-shrink:0; border-radius:6px; border:1.5px solid var(--violet);
+    background:transparent; color:#fff; font-size:12px; }
+  .tarefa-item.feita .tarefa-check{ background:var(--violet); }
+  .tarefa-texto{ flex:1; font-size:13.5px; word-break:break-word; }
+  .tarefa-item.feita .tarefa-texto{ text-decoration:line-through; color:var(--text-dim); }
+  .tarefa-del{ background:none; border:none; color:var(--text-dim); font-size:18px; padding:0 4px; }
+  .tarefas-add-row{ display:flex; gap:8px; }
+  .tarefas-add-row input{ flex:1; background:var(--bg); border:1px solid var(--border); border-radius:12px;
+    color:var(--text); font-size:14px; padding:10px 12px; -webkit-appearance:none; }
+  .tarefas-add-row input:focus{ outline:none; border-color:var(--violet); }
+  .tarefas-add-row button{ flex:none; width:42px; background:linear-gradient(135deg, var(--violet-light), var(--violet-dark));
+    color:#fff; border-radius:12px; font-size:18px; padding:0; }
 </style>
 </head>
 <body>
 
-<div class="card">
+<div class="fundo tema-roxo" id="fundo"></div>
 
-  <!-- TELA 1: pareamento -->
+<div class="top-row">
+  <span class="streak-badge" id="streakBadge">🔥 0 dias</span>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <button class="som-btn" id="btnSom">🔈 Som</button>
+  </div>
+</div>
+
+<div class="seletor-tema">
+  <button class="tema-btn roxo ativo" data-tema="roxo" title="Roxo profundo"></button>
+  <button class="tema-btn aurora" data-tema="aurora" title="Aurora"></button>
+  <button class="tema-btn meianoite" data-tema="meianoite" title="Meia-noite"></button>
+</div>
+
+<div class="card">
   <div id="telaPareamento">
     <h2>Parear com o PC</h2>
     <p>Abra a extensão no computador, vá em <b>Configurações → Celular</b>
@@ -130,7 +199,6 @@
     <button id="btnParear" disabled>Confirmar</button>
   </div>
 
-  <!-- TELA 2: cronômetro -->
   <div id="telaTimer">
     <div class="status">
       <span class="dot" id="dot"></span>
@@ -162,6 +230,12 @@
     </div>
 
     <div class="bloco" id="bloco"></div>
+
+    <div class="meta-diaria">
+      <div class="meta-topo"><span>Meta diária</span><span id="metaTexto">0h / 2h</span></div>
+      <div class="meta-barra"><div class="meta-barra-fill" id="metaBarraFill" style="width:0%;"></div></div>
+    </div>
+
     <div class="btns">
       <button id="btnPrimary" disabled>Iniciar</button>
       <button id="btnStop" disabled>Parar</button>
@@ -169,7 +243,15 @@
     <div class="footer" id="footer">sincronizando com o PC…</div>
     <div class="linkNovo" id="linkNovo">parear com outro PC</div>
   </div>
+</div>
 
+<div class="tarefas-card" id="tarefasCard" style="display:none;">
+  <div class="tarefas-titulo">✅ Tarefas rápidas · sincroniza com o PC</div>
+  <div class="tarefas-lista" id="tarefasLista"></div>
+  <div class="tarefas-add-row">
+    <input id="tarefasInput" type="text" placeholder="nova tarefa..." maxlength="80">
+    <button id="tarefasAdd">+</button>
+  </div>
 </div>
 
 <script>
@@ -186,14 +268,97 @@ const tg = window.Telegram?.WebApp;
 tg?.ready();
 tg?.expand();
 
-const CHAVE_LOCAL = 'cb_deviceId';
+/* ============================================================
+   TEMA DE FUNDO
+   ============================================================ */
+const fundo = document.getElementById('fundo');
+const CHAVE_TEMA = 'cb_tema';
+function aplicarTema(nome){
+  fundo.className = 'fundo tema-' + nome;
+  fundo.innerHTML = '';
+  if (nome === 'meianoite') {
+    for (let i = 0; i < 60; i++) {
+      const e = document.createElement('div');
+      e.className = 'estrela';
+      e.style.left = Math.random() * 100 + '%';
+      e.style.top = Math.random() * 100 + '%';
+      e.style.animationDelay = (Math.random() * 3.5) + 's';
+      fundo.appendChild(e);
+    }
+  }
+  document.querySelectorAll('.tema-btn').forEach(b => b.classList.toggle('ativo', b.dataset.tema === nome));
+  localStorage.setItem(CHAVE_TEMA, nome);
+}
+document.querySelectorAll('.tema-btn').forEach(b => {
+  b.addEventListener('click', () => aplicarTema(b.dataset.tema));
+});
+aplicarTema(localStorage.getItem(CHAVE_TEMA) || 'roxo');
 
+/* ============================================================
+   SOM AMBIENTE — gerado por Web Audio (chuva sintetizada a partir
+   de ruído filtrado), sem depender de nenhum arquivo de áudio externo
+   (evita travar por rede e evita qualquer questão de direitos autorais).
+   ============================================================ */
+let audioCtx = null, somNode = null, somGain = null, somLigado = false;
+const btnSom = document.getElementById('btnSom');
+
+function criarRuidoChuva(){
+  const bufferSize = 2 * audioCtx.sampleRate;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+  const fonte = audioCtx.createBufferSource();
+  fonte.buffer = buffer;
+  fonte.loop = true;
+
+  const passaAlta = audioCtx.createBiquadFilter();
+  passaAlta.type = 'highpass';
+  passaAlta.frequency.value = 700;
+
+  const passaBaixa = audioCtx.createBiquadFilter();
+  passaBaixa.type = 'lowpass';
+  passaBaixa.frequency.value = 4000;
+
+  const ganho = audioCtx.createGain();
+  ganho.gain.value = 0.18;
+
+  fonte.connect(passaAlta).connect(passaBaixa).connect(ganho).connect(audioCtx.destination);
+  fonte.start();
+  return { fonte, ganho };
+}
+
+function alternarSom(){
+  if (!somLigado) {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const { fonte, ganho } = criarRuidoChuva();
+    somNode = fonte; somGain = ganho;
+    somLigado = true;
+    btnSom.textContent = '🔊 Som';
+    btnSom.classList.add('ligado');
+  } else {
+    somNode?.stop();
+    somLigado = false;
+    btnSom.textContent = '🔈 Som';
+    btnSom.classList.remove('ligado');
+  }
+}
+btnSom.addEventListener('click', alternarSom);
+// iOS exige que áudio comece dentro de um gesto do usuário — o botão já
+// garante isso; não tentamos autoplay.
+
+/* ============================================================
+   PAREAMENTO
+   ============================================================ */
+const CHAVE_LOCAL = 'cb_deviceId';
 const telaPareamento = document.getElementById('telaPareamento');
 const telaTimer = document.getElementById('telaTimer');
 const inputCodigo = document.getElementById('inputCodigo');
 const btnParear = document.getElementById('btnParear');
 const erroPareamento = document.getElementById('erroPareamento');
 const linkNovo = document.getElementById('linkNovo');
+const tarefasCard = document.getElementById('tarefasCard');
 
 inputCodigo.addEventListener('input', () => {
   inputCodigo.value = inputCodigo.value.replace(/\D/g, '').slice(0, 6);
@@ -223,11 +388,15 @@ btnParear.addEventListener('click', async () => {
 linkNovo.addEventListener('click', () => {
   localStorage.removeItem(CHAVE_LOCAL);
   telaTimer.style.display = 'none';
+  tarefasCard.style.display = 'none';
   telaPareamento.style.display = 'block';
   inputCodigo.value = '';
   btnParear.disabled = true;
 });
 
+/* ============================================================
+   CRONÔMETRO
+   ============================================================ */
 const elTimer = document.getElementById('timer');
 const elTimerLabel = document.getElementById('timerLabel');
 const elStatus = document.getElementById('statusTexto');
@@ -240,6 +409,11 @@ const elAbaFoco = document.getElementById('aba-foco');
 const elAbaPausaCurta = document.getElementById('aba-pausa-curta');
 const btnPrimary = document.getElementById('btnPrimary');
 const btnStop = document.getElementById('btnStop');
+const elStreakBadge = document.getElementById('streakBadge');
+const elMetaTexto = document.getElementById('metaTexto');
+const elMetaBarra = document.getElementById('metaBarraFill');
+
+const META_DIARIA_MS = 2 * 60 * 60 * 1000; // meta fixa de 2h/dia — ajuste aqui se quiser outro valor
 
 const RAIO = 98;
 const CIRCUNFERENCIA = 2 * Math.PI * RAIO;
@@ -254,7 +428,6 @@ function fmtCurto(totalSegundos){
   const sec = String(s % 60).padStart(2, '0');
   return `${m}:${sec}`;
 }
-
 function fmt(ms){
   const s = Math.max(0, Math.floor(ms/1000));
   const h = String(Math.floor(s/3600)).padStart(2,'0');
@@ -262,10 +435,14 @@ function fmt(ms){
   const sec = String(s%60).padStart(2,'0');
   return `${h}:${m}:${sec}`;
 }
-
 function definirProgressoAnel(fracao){
   const offset = CIRCUNFERENCIA * (1 - Math.max(0, Math.min(1, fracao)));
   elAnel.style.strokeDashoffset = offset;
+}
+function atualizarMeta(msHoje){
+  const horas = (msHoje / 3600000).toFixed(1);
+  elMetaTexto.textContent = `${horas}h / ${(META_DIARIA_MS/3600000)}h`;
+  elMetaBarra.style.width = Math.min(100, (msHoje / META_DIARIA_MS) * 100) + '%';
 }
 
 function render(){
@@ -274,7 +451,7 @@ function render(){
     elFooter.textContent = 'abra a extensão no PC pelo menos uma vez';
     return;
   }
-  const { sessionState, msHoje, inicioSessao, bloco, pomodoroMode, pomodoroState, pomodoroEndAt, pomodoroTimeLeft } = estadoAtual;
+  const { sessionState, msHoje, inicioSessao, bloco, pomodoroMode, pomodoroState, pomodoroEndAt, pomodoroTimeLeft, streakCount } = estadoAtual;
 
   const emExecucao = sessionState === 'running';
   const emPausa = typeof sessionState === 'string' && sessionState.startsWith('paused');
@@ -282,6 +459,7 @@ function render(){
   elDot.className = 'dot' + (emExecucao ? ' running' : emPausa ? ' paused' : '');
   elStatus.textContent = emExecucao ? 'Estudando agora' : emPausa ? 'Pausado' : 'Parado';
   elAnelWrap.className = 'anel-wrap' + (emExecucao ? ' is-running' : emPausa ? ' is-paused' : '');
+  elStreakBadge.textContent = `🔥 ${streakCount || 0} dia${(streakCount||0) === 1 ? '' : 's'}`;
 
   btnPrimary.disabled = false;
   btnStop.disabled = sessionState === 'stopped';
@@ -294,6 +472,7 @@ function render(){
     elBloco.style.display = 'none';
   }
 
+  atualizarMeta(msHoje || 0);
   clearInterval(tickInterval);
 
   if (pomodoroMode) {
@@ -316,7 +495,6 @@ function render(){
         restanteSeg = pomodoroTimeLeft || 0;
       }
       elTimer.textContent = fmtCurto(restanteSeg);
-
       if (!window.__cbCicloRef || window.__cbCicloRef < restanteSeg) {
         window.__cbCicloRef = restanteSeg || 1;
       }
@@ -325,9 +503,7 @@ function render(){
 
     window.__cbAtualizarTick = atualizarPomodoro;
     atualizarPomodoro();
-    if (emExecucao) {
-      tickInterval = setInterval(atualizarPomodoro, 1000);
-    }
+    if (emExecucao) tickInterval = setInterval(atualizarPomodoro, 1000);
 
   } else {
     document.getElementById('abas').style.display = 'none';
@@ -343,23 +519,13 @@ function render(){
 
     window.__cbAtualizarTick = atualizarSimples;
     atualizarSimples();
-    if (emExecucao) {
-      tickInterval = setInterval(atualizarSimples, 1000);
-    }
+    if (emExecucao) tickInterval = setInterval(atualizarSimples, 1000);
   }
 
   elFooter.textContent = 'sincronizado com o PC em tempo real';
   elFooter.classList.remove('offline');
 }
 
-// --------------------------------------------------------------------
-// iOS (Safari) suspende/atrasa setInterval quando a tela é bloqueada ou
-// o app fica em segundo plano por alguns segundos. O relógio "trava" na
-// tela, mesmo com o resto (status, blocos) chegando certinho pelo
-// listener do Firebase. Ao voltar (visibilitychange/pageshow/focus),
-// forçamos um recálculo imediato usando os timestamps reais (inicioSessao
-// / pomodoroEndAt), então o número pula direto pro valor correto em vez
-// de ficar atrasado.
 function forcarResync(){
   if (typeof window.__cbAtualizarTick === 'function') window.__cbAtualizarTick();
 }
@@ -393,9 +559,71 @@ btnPrimary.addEventListener('click', () => {
 });
 btnStop.addEventListener('click', () => enviarComando('parar'));
 
+/* ============================================================
+   TAREFAS RÁPIDAS — mesmo nó do Firebase usado pela extensão
+   (dispositivos/{deviceId}/tarefas), em tempo real via onValue.
+   ============================================================ */
+const elTarefasLista = document.getElementById('tarefasLista');
+const elTarefasInput = document.getElementById('tarefasInput');
+const elTarefasAdd = document.getElementById('tarefasAdd');
+let refTarefas = null;
+let tarefasAtuais = [];
+
+function renderTarefas(){
+  elTarefasLista.innerHTML = '';
+  if (!tarefasAtuais.length){
+    const vazio = document.createElement('div');
+    vazio.className = 'tarefas-vazio';
+    vazio.textContent = 'nenhuma tarefa por aqui ainda';
+    elTarefasLista.appendChild(vazio);
+    return;
+  }
+  tarefasAtuais.forEach((t) => {
+    const item = document.createElement('div');
+    item.className = 'tarefa-item' + (t.feita ? ' feita' : '');
+
+    const check = document.createElement('button');
+    check.className = 'tarefa-check';
+    check.textContent = t.feita ? '✓' : '';
+    check.addEventListener('click', () => {
+      t.feita = !t.feita;
+      salvarTarefas();
+    });
+
+    const texto = document.createElement('span');
+    texto.className = 'tarefa-texto';
+    texto.textContent = t.texto;
+
+    const del = document.createElement('button');
+    del.className = 'tarefa-del';
+    del.textContent = '×';
+    del.addEventListener('click', () => {
+      tarefasAtuais = tarefasAtuais.filter(x => x.id !== t.id);
+      salvarTarefas();
+    });
+
+    item.appendChild(check); item.appendChild(texto); item.appendChild(del);
+    elTarefasLista.appendChild(item);
+  });
+}
+function salvarTarefas(){
+  renderTarefas();
+  if (refTarefas) refTarefas.set(tarefasAtuais);
+}
+function adicionarTarefa(){
+  const texto = elTarefasInput.value.trim();
+  if (!texto) return;
+  tarefasAtuais.push({ id: 't_' + Date.now(), texto, feita: false });
+  elTarefasInput.value = '';
+  salvarTarefas();
+}
+elTarefasAdd.addEventListener('click', adicionarTarefa);
+elTarefasInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') adicionarTarefa(); });
+
 function iniciarCronometro(deviceId){
   telaPareamento.style.display = 'none';
   telaTimer.style.display = 'block';
+  tarefasCard.style.display = 'block';
 
   let recebeuAlgumaResposta = false;
   const timeoutConexao = setTimeout(() => {
@@ -419,6 +647,13 @@ function iniciarCronometro(deviceId){
     elFooter.textContent = 'As regras do Realtime Database não foram publicadas ainda (aba Regras no console do Firebase).';
     elFooter.classList.add('offline');
     console.error('Erro Firebase:', erro);
+  });
+
+  refTarefas = db.ref('dispositivos/' + deviceId + '/tarefas');
+  refTarefas.on('value', (snap) => {
+    const val = snap.val();
+    tarefasAtuais = Array.isArray(val) ? val.filter(Boolean) : [];
+    renderTarefas();
   });
 }
 
