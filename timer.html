@@ -25,6 +25,7 @@
     padding:28px 24px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,.35);
   }
 
+  /* ---------- TELA DE PAREAMENTO ---------- */
   #telaPareamento h2{ font-size:18px; margin:0 0 6px; }
   #telaPareamento p{ font-size:13px; color:var(--text-dim); margin:0 0 22px; line-height:1.5; }
   #inputCodigo{
@@ -40,6 +41,7 @@
   }
   #btnParear:disabled{ opacity:.4; }
 
+  /* ---------- TELA DO CRONÔMETRO ---------- */
   #telaTimer{ display:none; }
   .status{ display:inline-flex; align-items:center; gap:8px; font-size:14px; color:var(--text-dim); margin-bottom:18px; }
   .dot{ width:9px;height:9px;border-radius:50%; background:var(--gray); transition:background .2s; }
@@ -63,6 +65,7 @@
 
 <div class="card">
 
+  <!-- TELA 1: pareamento (só aparece na primeira vez) -->
   <div id="telaPareamento">
     <h2>Parear com o PC</h2>
     <p>Abra a extensão no computador, vá em <b>Configurações → Celular</b>
@@ -72,6 +75,7 @@
     <button id="btnParear" disabled>Confirmar</button>
   </div>
 
+  <!-- TELA 2: cronômetro (aparece depois de parear) -->
   <div id="telaTimer">
     <div class="status">
       <span class="dot" id="dot"></span>
@@ -91,10 +95,13 @@
 </div>
 
 <script>
+/* ============================================================
+   CONFIGURAÇÃO DO FIREBASE — troque pelos dados do seu projeto
+   ============================================================ */
 const firebaseConfig = {
   apiKey: "AIzaSyAqpHJny30HIfedbdwq22Ex1K0QDllO5hw",
   authDomain: "concurseiro-blindado.firebaseapp.com",
-  databaseURL: "https://concurseiro-blindado-default-rtdb.firebaseio.com",
+  databaseURL: "https://concurseiro-blindado-default-rtdb.firebaseio.com", // CONFIRMAR: cole a URL exata mostrada no console
   projectId: "concurseiro-blindado",
 };
 firebase.initializeApp(firebaseConfig);
@@ -104,6 +111,16 @@ const tg = window.Telegram?.WebApp;
 tg?.ready();
 tg?.expand();
 
+/* ============================================================
+   PAREAMENTO
+   - A extensão, ao gerar o código, grava em:
+       pareamentos/{codigo} = { deviceId, criadoEm }
+   - Aqui a gente lê esse nó, pega o deviceId real, e guarda
+     ele localmente (localStorage funciona dentro do Telegram
+     WebView normalmente — só o login do Google que é bloqueado,
+     armazenamento local não tem esse problema).
+   - Os dados de estudo em si moram em: dispositivos/{deviceId}
+   ============================================================ */
 const CHAVE_LOCAL = 'cb_deviceId';
 
 const telaPareamento = document.getElementById('telaPareamento');
@@ -146,6 +163,9 @@ linkNovo.addEventListener('click', () => {
   btnParear.disabled = true;
 });
 
+/* ============================================================
+   TELA DO CRONÔMETRO
+   ============================================================ */
 const elTimer = document.getElementById('timer');
 const elStatus = document.getElementById('statusTexto');
 const elDot = document.getElementById('dot');
@@ -207,8 +227,21 @@ function render(){
 }
 
 function enviarComando(acao){
-  if (!refAtual) return;
-  refAtual.child('comandoRemoto').set({ acao, ts: Date.now() });
+  if (!refAtual) {
+    elFooter.textContent = 'Erro: ainda não conectado ao dispositivo (refAtual vazio).';
+    elFooter.classList.add('offline');
+    return;
+  }
+  elFooter.textContent = 'enviando comando...';
+  refAtual.child('comandoRemoto').set({ acao, ts: Date.now() })
+    .then(() => {
+      elFooter.textContent = 'comando enviado ✓ (aguardando o PC aplicar, ~10s)';
+      elFooter.classList.remove('offline');
+    })
+    .catch((erro) => {
+      elFooter.textContent = 'Falha ao enviar: ' + (erro && erro.message ? erro.message : erro);
+      elFooter.classList.add('offline');
+    });
   tg?.HapticFeedback?.impactOccurred('light');
 }
 
@@ -222,16 +255,34 @@ function iniciarCronometro(deviceId){
   telaPareamento.style.display = 'none';
   telaTimer.style.display = 'block';
 
+  let recebeuAlgumaResposta = false;
+  const timeoutConexao = setTimeout(() => {
+    if (!recebeuAlgumaResposta) {
+      elStatus.textContent = 'Sem resposta do servidor';
+      elFooter.textContent = 'Verifique: extensão recarregada no PC? Regras do Firebase publicadas? Sessão de estudo já foi iniciada ao menos 1x?';
+      elFooter.classList.add('offline');
+    }
+  }, 8000);
+
   refAtual = db.ref('dispositivos/' + deviceId);
   refAtual.on('value', (snap) => {
+    recebeuAlgumaResposta = true;
+    clearTimeout(timeoutConexao);
     estadoAtual = snap.val();
     render();
-  }, () => {
-    elFooter.textContent = 'sem conexão com o servidor';
+  }, (erro) => {
+    recebeuAlgumaResposta = true;
+    clearTimeout(timeoutConexao);
+    elStatus.textContent = 'Erro de permissão';
+    elFooter.textContent = 'As regras do Realtime Database não foram publicadas ainda (aba Regras no console do Firebase).';
     elFooter.classList.add('offline');
+    console.error('Erro Firebase:', erro);
   });
 }
 
+/* ============================================================
+   BOOT: já pareado antes? pula direto pro cronômetro
+   ============================================================ */
 const deviceIdSalvo = localStorage.getItem(CHAVE_LOCAL);
 if (deviceIdSalvo){
   iniciarCronometro(deviceIdSalvo);
