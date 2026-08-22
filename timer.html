@@ -47,9 +47,33 @@
   .dot{ width:9px;height:9px;border-radius:50%; background:var(--gray); transition:background .2s; }
   .dot.running{ background:var(--green); box-shadow:0 0 8px var(--green); }
   .dot.paused{ background:var(--yellow); box-shadow:0 0 8px var(--yellow); }
-  .timer{ font-size:56px; font-weight:700; letter-spacing:1px; font-variant-numeric:tabular-nums; margin:8px 0 4px; }
-  .label{ color:var(--text-dim); font-size:13px; margin-bottom:26px; }
-  .bloco{ background:var(--accent-soft); color:var(--accent); font-size:13px; padding:8px 12px; border-radius:10px; margin-bottom:22px; display:none; }
+
+  /* Abas Foco / Pausa curta / Pausa longa */
+  .abas{ display:flex; gap:8px; justify-content:center; margin-bottom:28px; flex-wrap:wrap; }
+  .aba{
+    padding:8px 14px; border-radius:20px; font-size:12px; font-weight:600;
+    background:#1e222b; color:var(--text-dim); border:1px solid transparent;
+    display:flex; align-items:center; gap:6px;
+  }
+  .aba.ativa{ background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
+  .aba .contador{
+    background:rgba(255,255,255,0.08); border-radius:10px; padding:1px 7px; font-size:11px;
+  }
+  .aba.ativa .contador{ background:var(--accent); color:#fff; }
+
+  /* Anel circular */
+  .anel-wrap{ position:relative; width:220px; height:220px; margin:0 auto 26px; }
+  .anel-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .anel-fundo{ fill:none; stroke:#20242d; stroke-width:10; }
+  .anel-progresso{ fill:none; stroke:var(--accent); stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset 0.3s linear; }
+  .anel-conteudo{
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+  }
+  .timer{ font-size:44px; font-weight:700; letter-spacing:1px; font-variant-numeric:tabular-nums; }
+  .label{ color:var(--text-dim); font-size:11px; letter-spacing:1px; text-transform:uppercase; margin-top:4px; }
+
+  .bloco{ background:var(--accent-soft); color:var(--accent); font-size:13px; padding:8px 12px; border-radius:10px; margin-bottom:18px; display:none; }
   .btns{ display:flex; gap:12px; }
   button{ flex:1; border:none; border-radius:14px; padding:14px 0; font-size:15px; font-weight:600; cursor:pointer; transition:opacity .15s, transform .1s; }
   button:active{ transform:scale(.97); }
@@ -81,8 +105,24 @@
       <span class="dot" id="dot"></span>
       <span id="statusTexto">Conectando…</span>
     </div>
-    <div class="timer" id="timer">00:00:00</div>
-    <div class="label">tempo estudado hoje</div>
+
+    <div class="abas" id="abas">
+      <span class="aba" id="aba-foco">Foco</span>
+      <span class="aba" id="aba-pausa-curta">Pausa curta</span>
+    </div>
+
+    <div class="anel-wrap">
+      <svg viewBox="0 0 220 220">
+        <circle class="anel-fundo" cx="110" cy="110" r="98"></circle>
+        <circle class="anel-progresso" id="anelProgresso" cx="110" cy="110" r="98"
+                stroke-dasharray="615.75" stroke-dashoffset="0"></circle>
+      </svg>
+      <div class="anel-conteudo">
+        <div class="timer" id="timer">00:00</div>
+        <div class="label" id="timerLabel">tempo estudado hoje</div>
+      </div>
+    </div>
+
     <div class="bloco" id="bloco"></div>
     <div class="btns">
       <button id="btnPrimary" disabled>Iniciar</button>
@@ -167,16 +207,30 @@ linkNovo.addEventListener('click', () => {
    TELA DO CRONÔMETRO
    ============================================================ */
 const elTimer = document.getElementById('timer');
+const elTimerLabel = document.getElementById('timerLabel');
 const elStatus = document.getElementById('statusTexto');
 const elDot = document.getElementById('dot');
 const elBloco = document.getElementById('bloco');
 const elFooter = document.getElementById('footer');
+const elAnel = document.getElementById('anelProgresso');
+const elAbaFoco = document.getElementById('aba-foco');
+const elAbaPausa = document.getElementById('aba-pausa-curta');
 const btnPrimary = document.getElementById('btnPrimary');
 const btnStop = document.getElementById('btnStop');
+
+const RAIO = 98;
+const CIRCUNFERENCIA = 2 * Math.PI * RAIO; // ~615.75
 
 let estadoAtual = null;
 let tickInterval = null;
 let refAtual = null;
+
+function fmtCurto(totalSegundos){
+  const s = Math.max(0, Math.floor(totalSegundos));
+  const m = String(Math.floor(s / 60)).padStart(2, '0');
+  const sec = String(s % 60).padStart(2, '0');
+  return `${m}:${sec}`;
+}
 
 function fmt(ms){
   const s = Math.max(0, Math.floor(ms/1000));
@@ -186,13 +240,20 @@ function fmt(ms){
   return `${h}:${m}:${sec}`;
 }
 
+function definirProgressoAnel(fracao){
+  // fracao: 0 (vazio) a 1 (cheio). O anel desenha de forma decrescente
+  // (como um Pomodoro esvaziando), por isso invertemos o offset.
+  const offset = CIRCUNFERENCIA * (1 - fracao);
+  elAnel.style.strokeDashoffset = offset;
+}
+
 function render(){
   if (!estadoAtual){
     elStatus.textContent = 'Sem dados ainda';
     elFooter.textContent = 'abra a extensão no PC pelo menos uma vez';
     return;
   }
-  const { sessionState, msHoje, inicioSessao, bloco } = estadoAtual;
+  const { sessionState, msHoje, inicioSessao, bloco, pomodoroMode, pomodoroState, pomodoroEndAt, pomodoroTimeLeft } = estadoAtual;
 
   elDot.className = 'dot' + (sessionState === 'running' ? ' running'
                     : sessionState?.startsWith('paused') ? ' paused' : '');
@@ -210,20 +271,74 @@ function render(){
     elBloco.style.display = 'none';
   }
 
-  let msTotal = msHoje || 0;
-  if (sessionState === 'running' && inicioSessao) msTotal += (Date.now() - inicioSessao);
-  elTimer.textContent = fmt(msTotal);
+  clearInterval(tickInterval);
+
+  if (pomodoroMode) {
+    // MODO POMODORO: mostra a MESMA contagem regressiva do PC (não uma
+    // simulação local) — os números vêm de pomodoroEndAt, que é o
+    // timestamp real de quando o ciclo termina, calculado no PC.
+    document.getElementById('abas').style.display = 'flex';
+    const emFoco = pomodoroState !== 'rest';
+    elAbaFoco.classList.toggle('ativa', emFoco);
+    elAbaPausa.classList.toggle('ativa', !emFoco);
+    elTimerLabel.textContent = emFoco ? 'sessão de foco' : 'pausa';
+
+    const duracaoTotal = emFoco
+      ? (pomodoroEndAt && sessionState === 'running' ? null : pomodoroTimeLeft) // fallback quando pausado
+      : pomodoroTimeLeft;
+
+    if (window.__cbUltimaFase !== pomodoroState) {
+      window.__cbUltimaFase = pomodoroState;
+      window.__cbCicloRef = null;
+    }
+
+    function atualizarPomodoro(){
+      let restanteSeg;
+      if (sessionState === 'running' && pomodoroEndAt) {
+        restanteSeg = Math.max(0, Math.round((pomodoroEndAt - Date.now()) / 1000));
+      } else {
+        restanteSeg = pomodoroTimeLeft || 0;
+      }
+      elTimer.textContent = fmtCurto(restanteSeg);
+
+      // Progresso do anel: precisa saber a duração total do ciclo atual
+      // pra calcular a fração restante — como não temos esse número
+      // exato aqui (só o "tempo restante"), usamos o maior valor já
+      // visto no ciclo como referência aproximada de 100%.
+      if (!window.__cbCicloRef || window.__cbCicloRef < restanteSeg) {
+        window.__cbCicloRef = restanteSeg || 1;
+      }
+      definirProgressoAnel(restanteSeg / (window.__cbCicloRef || 1));
+    }
+
+    atualizarPomodoro();
+    if (sessionState === 'running') {
+      tickInterval = setInterval(atualizarPomodoro, 1000);
+    }
+
+  } else {
+    // MODO SIMPLES (sem Pomodoro): mostra tempo total estudado hoje,
+    // contando pra frente — o anel vai enchendo (não esvaziando).
+    document.getElementById('abas').style.display = 'none';
+    elTimerLabel.textContent = 'tempo estudado hoje';
+
+    function atualizarSimples(){
+      let msTotal = msHoje || 0;
+      if (sessionState === 'running' && inicioSessao) msTotal += (Date.now() - inicioSessao);
+      elTimer.textContent = fmt(msTotal).slice(0, 5); // mm:ss visual no anel; texto completo teria hh
+      // Referência visual: enche o anel a cada hora completa.
+      const fracaoHora = (msTotal % (60 * 60 * 1000)) / (60 * 60 * 1000);
+      definirProgressoAnel(fracaoHora);
+    }
+
+    atualizarSimples();
+    if (sessionState === 'running') {
+      tickInterval = setInterval(atualizarSimples, 1000);
+    }
+  }
 
   elFooter.textContent = 'sincronizado com o PC em tempo real';
   elFooter.classList.remove('offline');
-
-  clearInterval(tickInterval);
-  if (sessionState === 'running'){
-    tickInterval = setInterval(() => {
-      const ms = (msHoje || 0) + (Date.now() - inicioSessao);
-      elTimer.textContent = fmt(ms);
-    }, 1000);
-  }
 }
 
 function enviarComando(acao){
