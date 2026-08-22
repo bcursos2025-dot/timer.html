@@ -209,6 +209,7 @@
       <span class="aba" id="aba-foco">Foco</span>
       <span class="aba" id="aba-pausa-curta">Pausa</span>
     </div>
+    <div style="font-size:10.5px; color:var(--text-dim); margin:-14px 0 20px; opacity:.75;" id="avisoAlerta"></div>
 
     <div class="anel-wrap" id="anelWrap">
       <div class="anel-aura"></div>
@@ -348,6 +349,50 @@ btnSom.addEventListener('click', alternarSom);
 // iOS exige que áudio comece dentro de um gesto do usuário — o botão já
 // garante isso; não tentamos autoplay.
 
+/* ------------------------------------------------------------
+   Desbloqueio do áudio no primeiro toque na tela: o alerta de troca
+   de fase do Pomodoro (abaixo) só consegue tocar se o AudioContext já
+   tiver sido "destravado" por um gesto do usuário em algum momento —
+   então aproveitamos qualquer primeiro toque na página pra isso,
+   mesmo que a pessoa nunca tenha ligado o som ambiente.
+   ------------------------------------------------------------ */
+function destravarAudio(){
+  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  document.removeEventListener('touchstart', destravarAudio);
+  document.removeEventListener('click', destravarAudio);
+}
+document.addEventListener('touchstart', destravarAudio, { once: true });
+document.addEventListener('click', destravarAudio, { once: true });
+
+/* ------------------------------------------------------------
+   ALERTA de troca de fase do Pomodoro (foco→pausa / pausa→foco):
+   3 beeps + vibração. Só funciona com a tela ligada e a aba em primeiro
+   plano — o iOS suspende JS de página web com a tela bloqueada, então
+   isso não é um alarme de verdade (precisaria de push notification com
+   servidor, o que é um projeto à parte).
+   ------------------------------------------------------------ */
+function tocarAlertaFase(){
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const agora = audioCtx.currentTime;
+    [0, 0.28, 0.56].forEach((atraso) => {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 880;
+      g.gain.setValueAtTime(0.0001, agora + atraso);
+      g.gain.exponentialRampToValueAtTime(0.35, agora + atraso + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, agora + atraso + 0.22);
+      osc.connect(g).connect(audioCtx.destination);
+      osc.start(agora + atraso);
+      osc.stop(agora + atraso + 0.25);
+    });
+  } catch (e) { console.warn('[Alerta] falha ao tocar som:', e); }
+  if (navigator.vibrate) navigator.vibrate([180, 90, 180, 90, 180]);
+}
+
 /* ============================================================
    PAREAMENTO
    ============================================================ */
@@ -477,12 +522,18 @@ function render(){
 
   if (pomodoroMode) {
     document.getElementById('abas').style.display = 'flex';
+    document.getElementById('avisoAlerta').textContent = '🔔 avisa com som/vibração ao trocar de fase (só com a tela ligada)';
     const emFoco = pomodoroState !== 'rest';
     elAbaFoco.classList.toggle('ativa', emFoco);
     elAbaPausaCurta.classList.toggle('ativa', !emFoco);
     elTimerLabel.textContent = emFoco ? 'sessão de foco' : 'pausa';
 
     if (window.__cbUltimaFase !== pomodoroState) {
+      // Só toca alerta se já existia uma fase anterior (evita disparar
+      // som logo na primeira vez que o celular conecta / dá reload).
+      if (window.__cbUltimaFase !== undefined && window.__cbUltimaFase !== null) {
+        tocarAlertaFase();
+      }
       window.__cbUltimaFase = pomodoroState;
       window.__cbCicloRef = null;
     }
@@ -507,6 +558,7 @@ function render(){
 
   } else {
     document.getElementById('abas').style.display = 'none';
+    document.getElementById('avisoAlerta').textContent = '';
     elTimerLabel.textContent = 'tempo estudado hoje';
 
     function atualizarSimples(){
