@@ -2,7 +2,11 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b0710">
 <title>Cronômetro de Estudo</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -10,96 +14,123 @@
 
 <style>
   :root{
-    --bg:#0f1115; --card:#171a21; --accent:#ff5a5f; --accent-soft:#ff5a5f22;
-    --green:#2ecc71; --yellow:#f1c40f; --gray:#6b7280;
-    --text:#f3f4f6; --text-dim:#9ca3af;
+    --bg:#0b0710; --bg-elevated:#151022; --bg-elevated-2:#1c1730;
+    --violet:#8b5cf6; --violet-light:#a78bfa; --violet-dark:#6d28d9;
+    --violet-glow:rgba(139,92,246,.45); --violet-soft:rgba(139,92,246,.14);
+    --green:#2ecc71; --yellow:#f1c40f; --red:#ff5a5f; --gray:#6b7280;
+    --text:#f3f4f6; --text-dim:#9aa0b4; --border:rgba(255,255,255,.08);
   }
-  *{box-sizing:border-box;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    height:100%; overscroll-behavior:none;
+  }
   body{
-    margin:0; min-height:100vh; background:var(--bg); color:var(--text);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    display:flex; align-items:center; justify-content:center; padding:24px;
+    margin:0; min-height:100vh; min-height:100dvh;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(139,92,246,.16) 0%, rgba(139,92,246,0) 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:calc(env(safe-area-inset-top) + 16px) 18px calc(env(safe-area-inset-bottom) + 16px);
+    -webkit-user-select:none; user-select:none;
   }
   .card{
-    width:100%; max-width:360px; background:var(--card); border-radius:20px;
-    padding:28px 24px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,.35);
+    width:100%; max-width:400px; background:var(--bg-elevated);
+    border:1px solid var(--border); border-radius:28px;
+    padding:30px 22px calc(24px + env(safe-area-inset-bottom));
+    text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.5);
   }
 
   /* ---------- TELA DE PAREAMENTO ---------- */
-  #telaPareamento h2{ font-size:18px; margin:0 0 6px; }
-  #telaPareamento p{ font-size:13px; color:var(--text-dim); margin:0 0 22px; line-height:1.5; }
+  #telaPareamento h2{ font-size:20px; margin:0 0 8px; }
+  #telaPareamento p{ font-size:14px; color:var(--text-dim); margin:0 0 24px; line-height:1.55; }
   #inputCodigo{
-    width:100%; font-size:26px; letter-spacing:8px; text-align:center;
-    padding:14px 0; border-radius:12px; border:1px solid #2a2d36;
-    background:#0f1115; color:var(--text); margin-bottom:14px;
+    width:100%; font-size:28px; letter-spacing:10px; text-align:center;
+    padding:16px 0; border-radius:14px; border:1px solid var(--border);
+    background:var(--bg); color:var(--text); margin-bottom:16px;
+    -webkit-appearance:none;
   }
-  #inputCodigo:focus{ outline:none; border-color:var(--accent); }
-  #erroPareamento{ color:var(--accent); font-size:12px; min-height:16px; margin-bottom:10px; }
+  #inputCodigo:focus{ outline:none; border-color:var(--violet); }
+  #erroPareamento{ color:var(--red); font-size:13px; min-height:18px; margin-bottom:10px; }
   #btnParear{
-    width:100%; border:none; border-radius:14px; padding:14px 0;
-    font-size:15px; font-weight:600; cursor:pointer; background:var(--accent); color:#fff;
+    width:100%; border:none; border-radius:16px; padding:16px 0;
+    font-size:16px; font-weight:700; cursor:pointer;
+    background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); color:#fff;
   }
-  #btnParear:disabled{ opacity:.4; }
+  #btnParear:disabled{ opacity:.35; }
 
   /* ---------- TELA DO CRONÔMETRO ---------- */
   #telaTimer{ display:none; }
-  .status{ display:inline-flex; align-items:center; gap:8px; font-size:14px; color:var(--text-dim); margin-bottom:18px; }
+  .status{ display:inline-flex; align-items:center; gap:8px; font-size:14px; color:var(--text-dim); margin-bottom:20px; }
   .dot{ width:9px;height:9px;border-radius:50%; background:var(--gray); transition:background .2s; }
   .dot.running{ background:var(--green); box-shadow:0 0 8px var(--green); }
   .dot.paused{ background:var(--yellow); box-shadow:0 0 8px var(--yellow); }
 
-  /* Abas Foco / Pausa curta / Pausa longa */
-  .abas{ display:flex; gap:8px; justify-content:center; margin-bottom:28px; flex-wrap:wrap; }
+  .abas{ display:flex; gap:8px; justify-content:center; margin-bottom:26px; flex-wrap:wrap; }
   .aba{
-    padding:8px 14px; border-radius:20px; font-size:12px; font-weight:600;
-    background:#1e222b; color:var(--text-dim); border:1px solid transparent;
-    display:flex; align-items:center; gap:6px;
+    padding:8px 14px; border-radius:20px; font-size:12.5px; font-weight:700;
+    background:var(--bg-elevated-2); color:var(--text-dim); border:1px solid transparent;
   }
-  .aba.ativa{ background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
-  .aba .contador{
-    background:rgba(255,255,255,0.08); border-radius:10px; padding:1px 7px; font-size:11px;
-  }
-  .aba.ativa .contador{ background:var(--accent); color:#fff; }
+  .aba.ativa{ background:var(--violet-soft); color:var(--violet-light); border-color:rgba(139,92,246,.35); }
 
-  /* Anel circular */
-  .anel-wrap{ position:relative; width:220px; height:220px; margin:0 auto 26px; }
-  .anel-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); }
-  .anel-fundo{ fill:none; stroke:#20242d; stroke-width:10; }
-  .anel-progresso{ fill:none; stroke:var(--accent); stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset 0.3s linear; }
+  /* Anel circular (mesmo visual/gradiente da extensão) */
+  .anel-wrap{ position:relative; width:240px; height:240px; margin:0 auto 28px; }
+  .anel-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); overflow:visible; }
+  .anel-aura{
+    position:absolute; inset:6px; border-radius:50%;
+    background:radial-gradient(circle, var(--violet-glow) 0%, rgba(139,92,246,0) 70%);
+    filter:blur(2px); animation:auraPulse 3.4s ease-in-out infinite; pointer-events:none;
+  }
+  .is-running .anel-aura{ animation-duration:1.8s; }
+  .is-paused .anel-progresso{ opacity:.55; filter:none; }
+  @keyframes auraPulse{ 0%,100%{opacity:.55; transform:scale(1);} 50%{opacity:1; transform:scale(1.04);} }
+  .anel-fundo{ fill:none; stroke:var(--bg-elevated-2); stroke-width:12; }
+  .anel-progresso{
+    fill:none; stroke:url(#cbGrad); stroke-width:12; stroke-linecap:round;
+    filter:drop-shadow(0 0 6px var(--violet-glow));
+    transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1);
+  }
+  .is-running .anel-progresso{ animation:ringGlow 3s linear infinite; }
+  @keyframes ringGlow{ 0%,100%{filter:drop-shadow(0 0 6px var(--violet-glow));} 50%{filter:drop-shadow(0 0 14px var(--violet-glow));} }
   .anel-conteudo{
     position:absolute; inset:0; display:flex; flex-direction:column;
     align-items:center; justify-content:center;
   }
-  .timer{ font-size:44px; font-weight:700; letter-spacing:1px; font-variant-numeric:tabular-nums; }
-  .label{ color:var(--text-dim); font-size:11px; letter-spacing:1px; text-transform:uppercase; margin-top:4px; }
+  .timer{ font-size:46px; font-weight:700; letter-spacing:.5px; font-variant-numeric:tabular-nums;
+          font-family:'SF Mono','Cascadia Code',Consolas,monospace; }
+  .label{ color:var(--violet-light); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+          font-weight:700; margin-top:6px; opacity:.85; }
 
-  .bloco{ background:var(--accent-soft); color:var(--accent); font-size:13px; padding:8px 12px; border-radius:10px; margin-bottom:18px; display:none; }
+  .bloco{ background:var(--violet-soft); color:var(--violet-light); font-size:13px; padding:9px 12px;
+          border-radius:12px; margin-bottom:18px; display:none; border:1px solid rgba(139,92,246,.25); }
   .btns{ display:flex; gap:12px; }
-  button{ flex:1; border:none; border-radius:14px; padding:14px 0; font-size:15px; font-weight:600; cursor:pointer; transition:opacity .15s, transform .1s; }
-  button:active{ transform:scale(.97); }
-  #btnPrimary{ background:var(--accent); color:#fff; }
-  #btnStop{ background:#2a2d36; color:var(--text); }
-  button:disabled{ opacity:.4; cursor:default; }
-  .footer{ margin-top:20px; font-size:11px; color:var(--text-dim); }
+  button{ flex:1; border:none; border-radius:16px; padding:16px 0; font-size:16px; font-weight:700;
+          cursor:pointer; transition:opacity .15s, transform .1s; -webkit-appearance:none; }
+  button:active{ transform:scale(.96); }
+  #btnPrimary{ background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); color:#fff; }
+  #btnStop{ background:var(--bg-elevated-2); color:var(--text); border:1px solid var(--border); }
+  button:disabled{ opacity:.35; cursor:default; }
+  .footer{ margin-top:18px; font-size:11.5px; color:var(--text-dim); min-height:14px; }
   .offline{ color:var(--yellow); }
-  .linkNovo{ margin-top:16px; font-size:11px; color:var(--text-dim); text-decoration:underline; cursor:pointer; }
+  .linkNovo{ margin-top:16px; font-size:11.5px; color:var(--text-dim); text-decoration:underline; }
 </style>
 </head>
 <body>
 
 <div class="card">
 
-  <!-- TELA 1: pareamento (só aparece na primeira vez) -->
+  <!-- TELA 1: pareamento -->
   <div id="telaPareamento">
     <h2>Parear com o PC</h2>
     <p>Abra a extensão no computador, vá em <b>Configurações → Celular</b>
        e digite aqui o código de 6 dígitos mostrado lá.</p>
-    <input id="inputCodigo" inputmode="numeric" maxlength="6" placeholder="000000">
+    <input id="inputCodigo" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
     <div id="erroPareamento"></div>
     <button id="btnParear" disabled>Confirmar</button>
   </div>
 
-  <!-- TELA 2: cronômetro (aparece depois de parear) -->
+  <!-- TELA 2: cronômetro -->
   <div id="telaTimer">
     <div class="status">
       <span class="dot" id="dot"></span>
@@ -108,11 +139,18 @@
 
     <div class="abas" id="abas">
       <span class="aba" id="aba-foco">Foco</span>
-      <span class="aba" id="aba-pausa-curta">Pausa curta</span>
+      <span class="aba" id="aba-pausa-curta">Pausa</span>
     </div>
 
-    <div class="anel-wrap">
+    <div class="anel-wrap" id="anelWrap">
+      <div class="anel-aura"></div>
       <svg viewBox="0 0 220 220">
+        <defs>
+          <linearGradient id="cbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#a78bfa"/>
+            <stop offset="100%" stop-color="#6d28d9"/>
+          </linearGradient>
+        </defs>
         <circle class="anel-fundo" cx="110" cy="110" r="98"></circle>
         <circle class="anel-progresso" id="anelProgresso" cx="110" cy="110" r="98"
                 stroke-dasharray="615.75" stroke-dashoffset="0"></circle>
@@ -135,13 +173,10 @@
 </div>
 
 <script>
-/* ============================================================
-   CONFIGURAÇÃO DO FIREBASE — troque pelos dados do seu projeto
-   ============================================================ */
 const firebaseConfig = {
   apiKey: "AIzaSyAqpHJny30HIfedbdwq22Ex1K0QDllO5hw",
   authDomain: "concurseiro-blindado.firebaseapp.com",
-  databaseURL: "https://concurseiro-blindado-default-rtdb.firebaseio.com", // CONFIRMAR: cole a URL exata mostrada no console
+  databaseURL: "https://concurseiro-blindado-default-rtdb.firebaseio.com",
   projectId: "concurseiro-blindado",
 };
 firebase.initializeApp(firebaseConfig);
@@ -151,16 +186,6 @@ const tg = window.Telegram?.WebApp;
 tg?.ready();
 tg?.expand();
 
-/* ============================================================
-   PAREAMENTO
-   - A extensão, ao gerar o código, grava em:
-       pareamentos/{codigo} = { deviceId, criadoEm }
-   - Aqui a gente lê esse nó, pega o deviceId real, e guarda
-     ele localmente (localStorage funciona dentro do Telegram
-     WebView normalmente — só o login do Google que é bloqueado,
-     armazenamento local não tem esse problema).
-   - Os dados de estudo em si moram em: dispositivos/{deviceId}
-   ============================================================ */
 const CHAVE_LOCAL = 'cb_deviceId';
 
 const telaPareamento = document.getElementById('telaPareamento');
@@ -203,9 +228,6 @@ linkNovo.addEventListener('click', () => {
   btnParear.disabled = true;
 });
 
-/* ============================================================
-   TELA DO CRONÔMETRO
-   ============================================================ */
 const elTimer = document.getElementById('timer');
 const elTimerLabel = document.getElementById('timerLabel');
 const elStatus = document.getElementById('statusTexto');
@@ -213,13 +235,14 @@ const elDot = document.getElementById('dot');
 const elBloco = document.getElementById('bloco');
 const elFooter = document.getElementById('footer');
 const elAnel = document.getElementById('anelProgresso');
+const elAnelWrap = document.getElementById('anelWrap');
 const elAbaFoco = document.getElementById('aba-foco');
-const elAbaPausa = document.getElementById('aba-pausa-curta');
+const elAbaPausaCurta = document.getElementById('aba-pausa-curta');
 const btnPrimary = document.getElementById('btnPrimary');
 const btnStop = document.getElementById('btnStop');
 
 const RAIO = 98;
-const CIRCUNFERENCIA = 2 * Math.PI * RAIO; // ~615.75
+const CIRCUNFERENCIA = 2 * Math.PI * RAIO;
 
 let estadoAtual = null;
 let tickInterval = null;
@@ -241,9 +264,7 @@ function fmt(ms){
 }
 
 function definirProgressoAnel(fracao){
-  // fracao: 0 (vazio) a 1 (cheio). O anel desenha de forma decrescente
-  // (como um Pomodoro esvaziando), por isso invertemos o offset.
-  const offset = CIRCUNFERENCIA * (1 - fracao);
+  const offset = CIRCUNFERENCIA * (1 - Math.max(0, Math.min(1, fracao)));
   elAnel.style.strokeDashoffset = offset;
 }
 
@@ -255,14 +276,16 @@ function render(){
   }
   const { sessionState, msHoje, inicioSessao, bloco, pomodoroMode, pomodoroState, pomodoroEndAt, pomodoroTimeLeft } = estadoAtual;
 
-  elDot.className = 'dot' + (sessionState === 'running' ? ' running'
-                    : sessionState?.startsWith('paused') ? ' paused' : '');
-  elStatus.textContent = sessionState === 'running' ? 'Estudando agora'
-                        : sessionState?.startsWith('paused') ? 'Pausado' : 'Parado';
+  const emExecucao = sessionState === 'running';
+  const emPausa = typeof sessionState === 'string' && sessionState.startsWith('paused');
+
+  elDot.className = 'dot' + (emExecucao ? ' running' : emPausa ? ' paused' : '');
+  elStatus.textContent = emExecucao ? 'Estudando agora' : emPausa ? 'Pausado' : 'Parado';
+  elAnelWrap.className = 'anel-wrap' + (emExecucao ? ' is-running' : emPausa ? ' is-paused' : '');
 
   btnPrimary.disabled = false;
   btnStop.disabled = sessionState === 'stopped';
-  btnPrimary.textContent = sessionState === 'running' ? 'Pausar' : 'Continuar';
+  btnPrimary.textContent = emExecucao ? 'Pausar' : 'Continuar';
 
   if (bloco){
     elBloco.style.display = 'block';
@@ -274,18 +297,11 @@ function render(){
   clearInterval(tickInterval);
 
   if (pomodoroMode) {
-    // MODO POMODORO: mostra a MESMA contagem regressiva do PC (não uma
-    // simulação local) — os números vêm de pomodoroEndAt, que é o
-    // timestamp real de quando o ciclo termina, calculado no PC.
     document.getElementById('abas').style.display = 'flex';
     const emFoco = pomodoroState !== 'rest';
     elAbaFoco.classList.toggle('ativa', emFoco);
-    elAbaPausa.classList.toggle('ativa', !emFoco);
+    elAbaPausaCurta.classList.toggle('ativa', !emFoco);
     elTimerLabel.textContent = emFoco ? 'sessão de foco' : 'pausa';
-
-    const duracaoTotal = emFoco
-      ? (pomodoroEndAt && sessionState === 'running' ? null : pomodoroTimeLeft) // fallback quando pausado
-      : pomodoroTimeLeft;
 
     if (window.__cbUltimaFase !== pomodoroState) {
       window.__cbUltimaFase = pomodoroState;
@@ -294,45 +310,40 @@ function render(){
 
     function atualizarPomodoro(){
       let restanteSeg;
-      if (sessionState === 'running' && pomodoroEndAt) {
+      if (emExecucao && pomodoroEndAt) {
         restanteSeg = Math.max(0, Math.round((pomodoroEndAt - Date.now()) / 1000));
       } else {
         restanteSeg = pomodoroTimeLeft || 0;
       }
       elTimer.textContent = fmtCurto(restanteSeg);
 
-      // Progresso do anel: precisa saber a duração total do ciclo atual
-      // pra calcular a fração restante — como não temos esse número
-      // exato aqui (só o "tempo restante"), usamos o maior valor já
-      // visto no ciclo como referência aproximada de 100%.
       if (!window.__cbCicloRef || window.__cbCicloRef < restanteSeg) {
         window.__cbCicloRef = restanteSeg || 1;
       }
       definirProgressoAnel(restanteSeg / (window.__cbCicloRef || 1));
     }
 
+    window.__cbAtualizarTick = atualizarPomodoro;
     atualizarPomodoro();
-    if (sessionState === 'running') {
+    if (emExecucao) {
       tickInterval = setInterval(atualizarPomodoro, 1000);
     }
 
   } else {
-    // MODO SIMPLES (sem Pomodoro): mostra tempo total estudado hoje,
-    // contando pra frente — o anel vai enchendo (não esvaziando).
     document.getElementById('abas').style.display = 'none';
     elTimerLabel.textContent = 'tempo estudado hoje';
 
     function atualizarSimples(){
       let msTotal = msHoje || 0;
-      if (sessionState === 'running' && inicioSessao) msTotal += (Date.now() - inicioSessao);
-      elTimer.textContent = fmt(msTotal).slice(0, 5); // mm:ss visual no anel; texto completo teria hh
-      // Referência visual: enche o anel a cada hora completa.
+      if (emExecucao && inicioSessao) msTotal += (Date.now() - inicioSessao);
+      elTimer.textContent = fmt(msTotal).slice(0, 5);
       const fracaoHora = (msTotal % (60 * 60 * 1000)) / (60 * 60 * 1000);
       definirProgressoAnel(fracaoHora);
     }
 
+    window.__cbAtualizarTick = atualizarSimples;
     atualizarSimples();
-    if (sessionState === 'running') {
+    if (emExecucao) {
       tickInterval = setInterval(atualizarSimples, 1000);
     }
   }
@@ -341,16 +352,31 @@ function render(){
   elFooter.classList.remove('offline');
 }
 
+// --------------------------------------------------------------------
+// iOS (Safari) suspende/atrasa setInterval quando a tela é bloqueada ou
+// o app fica em segundo plano por alguns segundos. O relógio "trava" na
+// tela, mesmo com o resto (status, blocos) chegando certinho pelo
+// listener do Firebase. Ao voltar (visibilitychange/pageshow/focus),
+// forçamos um recálculo imediato usando os timestamps reais (inicioSessao
+// / pomodoroEndAt), então o número pula direto pro valor correto em vez
+// de ficar atrasado.
+function forcarResync(){
+  if (typeof window.__cbAtualizarTick === 'function') window.__cbAtualizarTick();
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) forcarResync(); });
+window.addEventListener('pageshow', forcarResync);
+window.addEventListener('focus', forcarResync);
+
 function enviarComando(acao){
   if (!refAtual) {
-    elFooter.textContent = 'Erro: ainda não conectado ao dispositivo (refAtual vazio).';
+    elFooter.textContent = 'Erro: ainda não conectado ao dispositivo.';
     elFooter.classList.add('offline');
     return;
   }
   elFooter.textContent = 'enviando comando...';
   refAtual.child('comandoRemoto').set({ acao, ts: Date.now() })
     .then(() => {
-      elFooter.textContent = 'comando enviado ✓ (aguardando o PC aplicar, ~10s)';
+      elFooter.textContent = 'comando enviado ✓ (o PC aplica em alguns segundos)';
       elFooter.classList.remove('offline');
     })
     .catch((erro) => {
@@ -358,6 +384,7 @@ function enviarComando(acao){
       elFooter.classList.add('offline');
     });
   tg?.HapticFeedback?.impactOccurred('light');
+  if (navigator.vibrate) navigator.vibrate(10);
 }
 
 btnPrimary.addEventListener('click', () => {
@@ -395,9 +422,6 @@ function iniciarCronometro(deviceId){
   });
 }
 
-/* ============================================================
-   BOOT: já pareado antes? pula direto pro cronômetro
-   ============================================================ */
 const deviceIdSalvo = localStorage.getItem(CHAVE_LOCAL);
 if (deviceIdSalvo){
   iniciarCronometro(deviceIdSalvo);
