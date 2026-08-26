@@ -111,19 +111,40 @@
         background:var(--bg-elevated-2); color:var(--text-dim); border:1px solid transparent; }
   .aba.ativa{ background:var(--violet-soft); color:var(--violet-light); border-color:rgba(139,92,246,.35); }
 
-  .anel-wrap{ position:relative; width:230px; height:230px; margin:0 auto 22px; }
+  .anel-wrap{ position:relative; width:230px; height:230px; margin:0 auto 22px; cursor:pointer; }
   .anel-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); overflow:visible; }
   .anel-aura{ position:absolute; inset:6px; border-radius:50%;
     background:radial-gradient(circle, var(--violet-glow) 0%, rgba(139,92,246,0) 70%);
     filter:blur(2px); animation:auraPulse 3.4s ease-in-out infinite; pointer-events:none; }
   .is-running .anel-aura{ animation-duration:1.8s; }
   .is-paused .anel-progresso{ opacity:.55; filter:none; }
-  @keyframes auraPulse{ 0%,100%{opacity:.55; transform:scale(1);} 50%{opacity:1; transform:scale(1.04);} }
+  .is-paused .anel-spin{ animation-play-state:paused; opacity:.25; }
+  @keyframes auraPulse{ 0%,100%{opacity:.45; transform:scale(1);} 50%{opacity:1; transform:scale(1.08);} }
+  /* Segunda camada: brilho girando devagar ao redor do anel — animação bem
+     mais perceptível que só o pulso de opacidade/escala. */
+  .anel-spin{ position:absolute; inset:-4px; border-radius:50%; pointer-events:none;
+    background:conic-gradient(from 0deg, transparent 0%, var(--violet-glow) 14%, transparent 30%, transparent 100%);
+    filter:blur(9px); opacity:.7; animation:anelSpinRotate 4.5s linear infinite; }
+  @keyframes anelSpinRotate{ to{ transform:rotate(360deg); } }
   .anel-fundo{ fill:none; stroke:var(--bg-elevated-2); stroke-width:12; }
   .anel-progresso{ fill:none; stroke:url(#cbGrad); stroke-width:12; stroke-linecap:round;
     filter:drop-shadow(0 0 6px var(--violet-glow)); transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1); }
   .is-running .anel-progresso{ animation:ringGlow 3s linear infinite; }
   @keyframes ringGlow{ 0%,100%{filter:drop-shadow(0 0 6px var(--violet-glow));} 50%{filter:drop-shadow(0 0 14px var(--violet-glow));} }
+
+  /* Modo Pomodoro do anel (contagem regressiva) em branco/prateado, pra
+     diferenciar do modo Total (violeta) — os dois no mesmo anel, alternando
+     ao toque. A aura fica menor/mais contida que a violeta: um branco
+     "cheio" na mesma intensidade vira uma mancha só num fundo escuro. */
+  .anel-wrap.modo-branco .anel-aura{ inset:30px; background:radial-gradient(circle, rgba(205,211,230,.4) 0%, rgba(205,211,230,0) 72%); }
+  .anel-wrap.modo-branco .anel-spin{ background:conic-gradient(from 0deg, transparent 0%, rgba(210,215,232,.65) 14%, transparent 30%, transparent 100%); }
+  .anel-wrap.modo-branco .anel-progresso{ stroke:url(#cbGradBranco); filter:drop-shadow(0 0 6px rgba(205,211,230,.6)); }
+  .anel-wrap.modo-branco.is-running .anel-progresso{ animation:ringGlowBranco 3s linear infinite; }
+  @keyframes ringGlowBranco{ 0%,100%{filter:drop-shadow(0 0 6px rgba(205,211,230,.6));} 50%{filter:drop-shadow(0 0 14px rgba(205,211,230,.85));} }
+  .anel-wrap.modo-branco .label{ color:var(--text-dim); }
+  .modo-dots{ display:flex; align-items:center; justify-content:center; gap:7px; margin:0 0 18px; padding:4px; }
+  .modo-dot{ width:7px; height:7px; border-radius:50%; background:var(--border); cursor:pointer; transition:all .2s ease; }
+  .modo-dot.ativo{ width:18px; border-radius:3px; background:var(--violet); }
   .anel-conteudo{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
   .timer{ font-size:44px; font-weight:700; letter-spacing:.5px; font-variant-numeric:tabular-nums;
           font-family:'SF Mono','Cascadia Code',Consolas,monospace; }
@@ -212,12 +233,17 @@
     <div style="font-size:10.5px; color:var(--text-dim); margin:-14px 0 20px; opacity:.75;" id="avisoAlerta"></div>
 
     <div class="anel-wrap" id="anelWrap">
+      <div class="anel-spin"></div>
       <div class="anel-aura"></div>
       <svg viewBox="0 0 220 220">
         <defs>
           <linearGradient id="cbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stop-color="#a78bfa"/>
             <stop offset="100%" stop-color="#6d28d9"/>
+          </linearGradient>
+          <linearGradient id="cbGradBranco" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff"/>
+            <stop offset="100%" stop-color="#cfd4e2"/>
           </linearGradient>
         </defs>
         <circle class="anel-fundo" cx="110" cy="110" r="98"></circle>
@@ -228,6 +254,10 @@
         <div class="timer" id="timer">00:00</div>
         <div class="label" id="timerLabel">tempo estudado hoje</div>
       </div>
+    </div>
+    <div class="modo-dots" id="modoDots" title="Toque no anel para alternar">
+      <span class="modo-dot" data-modo="total"></span>
+      <span class="modo-dot" data-modo="pomodoro"></span>
     </div>
 
     <div class="bloco" id="bloco"></div>
@@ -466,6 +496,7 @@ const CIRCUNFERENCIA = 2 * Math.PI * RAIO;
 let estadoAtual = null;
 let tickInterval = null;
 let refAtual = null;
+let modoAnelManual = null; // null = automático (segue pomodoroMode); 'total' = usuário forçou o modo Total tocando no anel
 
 function fmtCurto(totalSegundos){
   const s = Math.max(0, Math.floor(totalSegundos));
@@ -520,7 +551,15 @@ function render(){
   atualizarMeta(msHoje || 0);
   clearInterval(tickInterval);
 
-  if (pomodoroMode) {
+  const modoDots = document.getElementById('modoDots');
+  const modoEfetivo = (pomodoroMode && modoAnelManual !== 'total') ? 'pomodoro' : 'total';
+  elAnelWrap.classList.toggle('modo-branco', modoEfetivo === 'pomodoro');
+  if (modoDots) {
+    modoDots.style.display = pomodoroMode ? 'flex' : 'none';
+    modoDots.querySelectorAll('.modo-dot').forEach(d => d.classList.toggle('ativo', d.dataset.modo === modoEfetivo));
+  }
+
+  if (modoEfetivo === 'pomodoro') {
     document.getElementById('abas').style.display = 'flex';
     document.getElementById('avisoAlerta').textContent = '🔔 avisa com som/vibração ao trocar de fase (só com a tela ligada)';
     const emFoco = pomodoroState !== 'rest';
@@ -577,6 +616,20 @@ function render(){
   elFooter.textContent = 'sincronizado com o PC em tempo real';
   elFooter.classList.remove('offline');
 }
+
+elAnelWrap.addEventListener('click', () => {
+  if (!estadoAtual || !estadoAtual.pomodoroMode) return; // nada pra alternar sem Pomodoro ativo
+  modoAnelManual = (modoAnelManual === 'total') ? null : 'total';
+  render();
+});
+document.getElementById('modoDots')?.querySelectorAll('.modo-dot').forEach(dot => {
+  dot.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!estadoAtual || !estadoAtual.pomodoroMode) return;
+    modoAnelManual = dot.dataset.modo === 'total' ? 'total' : null;
+    render();
+  });
+});
 
 function forcarResync(){
   if (typeof window.__cbAtualizarTick === 'function') window.__cbAtualizarTick();
