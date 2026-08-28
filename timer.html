@@ -6,191 +6,373 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0b0710">
-<title>Cronômetro de Estudo</title>
+<meta name="theme-color" content="#08090c">
+<title>Concurseiro Blindado — Cronômetro</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <style>
-  :root{
-    --bg:#0b0710; --bg-elevated:#151022; --bg-elevated-2:#1c1730;
-    --violet:#8b5cf6; --violet-light:#a78bfa; --violet-dark:#6d28d9;
-    --violet-glow:rgba(139,92,246,.45); --violet-soft:rgba(139,92,246,.14);
-    --green:#2ecc71; --yellow:#f1c40f; --red:#ff5a5f; --gray:#6b7280; --gold:#f4b740;
-    --text:#f3f4f6; --text-dim:#9aa0b4; --border:rgba(255,255,255,.08);
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{ height:100%; overscroll-behavior:none; }
-  body{
-    margin:0; min-height:100vh; min-height:100dvh;
-    background:var(--bg); color:var(--text); position:relative; isolation:isolate;
-    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
-    display:flex; flex-direction:column; align-items:center;
-    padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 14px);
-    -webkit-user-select:none; user-select:none; overflow-x:hidden;
-  }
+:root{
+  --bg:#08090c; --bg-elevated:#131520; --bg-elevated-2:#191c29; --bg-elevated-3:#20233355;
+  --violet:#8b5cf6; --violet-light:#a78bfa; --violet-dark:#6d28d9;
+  --violet-glow:rgba(139,92,246,.32); --violet-soft:rgba(139,92,246,.12);
+  --green:#3ddc84; --yellow:#f0a742; --red:#f2566d; --gray:#565b70; --gold:#e6bb6f; --gold-dark:#b9853c;
+  --gold-glow:rgba(230,187,111,.35); --gold-soft:rgba(230,187,111,.12);
+  --danger-soft:rgba(242,86,109,.12); --warning-soft:rgba(240,167,66,.12);
+  --text:#f2f3f7; --text-dim:#8b90a6; --text-faint:#565b70; --border:#262a3b; --border-soft:#1b1e2b;
+  --radius-lg:20px; --radius-md:14px; --radius-sm:10px; --radius-pill:30px;
+  --shadow-card:0 6px 24px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.02) inset;
+  --shadow-btn:0 4px 14px rgba(0,0,0,.35);
+  --shadow-pop:0 24px 60px rgba(0,0,0,.55);
+}
+.icon{ width:16px; height:16px; flex-shrink:0; }
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{ height:100%; overscroll-behavior:none; }
+body{
+  margin:0; min-height:100vh; min-height:100dvh;
+  background:var(--bg); color:var(--text); position:relative; isolation:isolate;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  display:flex; flex-direction:column; align-items:center;
+  padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 14px);
+  -webkit-user-select:none; user-select:none; overflow-x:hidden;
+}
 
-  /* ---------- FUNDOS ANIMADOS (temas, só CSS/gradientes, sem imagens de terceiros) ---------- */
-  .fundo{ position:fixed; inset:0; z-index:-1; overflow:hidden; }
-  .fundo::before, .fundo::after{ content:""; position:absolute; border-radius:50%; filter:blur(70px); opacity:.55; }
-  .fundo.tema-roxo{ background:radial-gradient(circle at 50% 0%, rgba(139,92,246,.18) 0%, rgba(139,92,246,0) 55%), var(--bg); }
-  .fundo.tema-roxo::before{ width:340px; height:340px; background:var(--violet); top:-80px; left:-60px; animation:flutuar1 16s ease-in-out infinite; }
-  .fundo.tema-roxo::after{ width:280px; height:280px; background:#4f46e5; bottom:-60px; right:-40px; animation:flutuar2 20s ease-in-out infinite; }
+/* ---------- FUNDOS ANIMADOS ---------- */
+.fundo{ position:fixed; inset:0; z-index:-1; overflow:hidden; }
+.fundo::before, .fundo::after{ content:""; position:absolute; border-radius:50%; filter:blur(70px); opacity:.55; }
+.fundo.tema-roxo{ background:radial-gradient(circle at 50% 0%, rgba(139,92,246,.18) 0%, rgba(139,92,246,0) 55%), var(--bg); }
+.fundo.tema-roxo::before{ width:340px; height:340px; background:var(--violet); top:-80px; left:-60px; animation:flutuar1 16s ease-in-out infinite; }
+.fundo.tema-roxo::after{ width:280px; height:280px; background:#4f46e5; bottom:-60px; right:-40px; animation:flutuar2 20s ease-in-out infinite; }
 
-  .fundo.tema-aurora{ background:linear-gradient(160deg,#0b0710,#160c2e 60%,#0b0710); }
-  .fundo.tema-aurora::before{ width:420px; height:220px; background:linear-gradient(90deg,#8b5cf6,#22d3ee); top:-40px; left:-30%; animation:aurora1 14s ease-in-out infinite; opacity:.35; }
-  .fundo.tema-aurora::after{ width:420px; height:220px; background:linear-gradient(90deg,#ec4899,#8b5cf6); bottom:-60px; right:-30%; animation:aurora2 18s ease-in-out infinite; opacity:.3; }
+.fundo.tema-aurora{ background:linear-gradient(160deg,#0b0710,#160c2e 60%,#0b0710); }
+.fundo.tema-aurora::before{ width:420px; height:220px; background:linear-gradient(90deg,#8b5cf6,#22d3ee); top:-40px; left:-30%; animation:aurora1 14s ease-in-out infinite; opacity:.35; }
+.fundo.tema-aurora::after{ width:420px; height:220px; background:linear-gradient(90deg,#ec4899,#8b5cf6); bottom:-60px; right:-30%; animation:aurora2 18s ease-in-out infinite; opacity:.3; }
 
-  .fundo.tema-meianoite{ background:var(--bg); }
-  .fundo.tema-meianoite .estrela{
-    position:absolute; width:2px; height:2px; background:#fff; border-radius:50%;
-    animation:piscar 3.5s ease-in-out infinite;
-  }
+.fundo.tema-meianoite{ background:var(--bg); }
+.fundo.tema-meianoite .estrela{
+  position:absolute; width:2px; height:2px; background:#fff; border-radius:50%;
+  animation:piscar 3.5s ease-in-out infinite;
+}
 
-  @keyframes flutuar1{ 0%,100%{ transform:translate(0,0) scale(1);} 50%{ transform:translate(40px,60px) scale(1.15);} }
-  @keyframes flutuar2{ 0%,100%{ transform:translate(0,0) scale(1);} 50%{ transform:translate(-30px,-40px) scale(1.1);} }
-  @keyframes aurora1{ 0%,100%{ transform:translateX(0) rotate(-6deg);} 50%{ transform:translateX(60px) rotate(-2deg);} }
-  @keyframes aurora2{ 0%,100%{ transform:translateX(0) rotate(6deg);} 50%{ transform:translateX(-60px) rotate(2deg);} }
-  @keyframes piscar{ 0%,100%{ opacity:.15;} 50%{ opacity:1;} }
+@keyframes flutuar1{ 0%,100%{ transform:translate(0,0) scale(1);} 50%{ transform:translate(40px,60px) scale(1.15);} }
+@keyframes flutuar2{ 0%,100%{ transform:translate(0,0) scale(1);} 50%{ transform:translate(-30px,-40px) scale(1.1);} }
+@keyframes aurora1{ 0%,100%{ transform:translateX(0) rotate(-6deg);} 50%{ transform:translateX(60px) rotate(-2deg);} }
+@keyframes aurora2{ 0%,100%{ transform:translateX(0) rotate(6deg);} 50%{ transform:translateX(-60px) rotate(2deg);} }
+@keyframes piscar{ 0%,100%{ opacity:.15;} 50%{ opacity:1;} }
+@keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
 
-  .seletor-tema{ display:flex; gap:8px; margin-bottom:14px; }
-  .tema-btn{
-    width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer; padding:0;
-  }
-  .tema-btn.ativo{ border-color:#fff; }
-  .tema-btn.roxo{ background:linear-gradient(135deg,#8b5cf6,#4f46e5); }
-  .tema-btn.aurora{ background:linear-gradient(135deg,#8b5cf6,#22d3ee); }
-  .tema-btn.meianoite{ background:#0b0710; box-shadow:inset 0 0 0 1px var(--border); }
+.seletor-tema{ display:flex; gap:8px; margin-bottom:14px; }
+.tema-btn{ width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer; padding:0; }
+.tema-btn.ativo{ border-color:#fff; }
+.tema-btn.roxo{ background:linear-gradient(135deg,#8b5cf6,#4f46e5); }
+.tema-btn.aurora{ background:linear-gradient(135deg,#8b5cf6,#22d3ee); }
+.tema-btn.meianoite{ background:#0b0710; box-shadow:inset 0 0 0 1px var(--border); }
 
-  .top-row{ width:100%; max-width:400px; display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-  .streak-badge{
-    display:inline-flex; align-items:center; gap:5px; font-size:12.5px; font-weight:700;
-    background:rgba(244,183,64,.12); color:var(--gold); border:1px solid rgba(244,183,64,.3);
-    padding:5px 10px; border-radius:20px;
-  }
-  .som-btn{
-    display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600;
-    background:var(--bg-elevated-2); color:var(--text-dim); border:1px solid var(--border);
-    padding:6px 10px; border-radius:20px; cursor:pointer;
-  }
-  .som-btn.ligado{ color:var(--violet-light); border-color:rgba(139,92,246,.35); background:var(--violet-soft); }
+.top-row{ width:100%; max-width:420px; display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.streak-badge{
+  display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:.01em;
+  background:var(--gold-soft); color:var(--gold); border:1px solid rgba(185,133,60,.35);
+  padding:5px 11px; border-radius:var(--radius-pill); white-space:nowrap; cursor:pointer; font-family:inherit;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.streak-badge:active{ transform:translateY(1px); }
+.streak-badge .icon{ width:12px; height:12px; color:var(--gold); overflow:visible; }
+.icon-btn{
+  position:relative; display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px;
+  background:var(--bg-elevated-2); color:var(--text-dim); border:1px solid var(--border-soft);
+  border-radius:var(--radius-sm); cursor:pointer; padding:0; transition:color .15s, border-color .15s;
+}
+.icon-btn .icon{ width:16px; height:16px; }
+.icon-btn:active{ color:var(--violet-light); border-color:var(--violet); }
+.icon-btn.tem-status::after{
+  content:""; position:absolute; top:1px; right:1px; width:9px; height:9px; border-radius:50%;
+  background:var(--green); box-shadow:0 0 0 2px var(--bg-elevated-2);
+}
 
-  .card{
-    width:100%; max-width:400px; background:rgba(21,16,34,.75); backdrop-filter:blur(18px);
-    border:1px solid var(--border); border-radius:28px;
-    padding:26px 22px calc(22px + env(safe-area-inset-bottom));
-    text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.5);
-  }
+.card{
+  width:100%; max-width:420px; background:var(--bg-elevated);
+  border:1px solid var(--border-soft); border-radius:var(--radius-lg);
+  padding:22px 20px calc(20px + env(safe-area-inset-bottom));
+  text-align:center; box-shadow:var(--shadow-card);
+}
 
-  /* ---------- PAREAMENTO ---------- */
-  #telaPareamento h2{ font-size:20px; margin:0 0 8px; }
-  #telaPareamento p{ font-size:14px; color:var(--text-dim); margin:0 0 24px; line-height:1.55; }
-  #inputCodigo{
-    width:100%; font-size:28px; letter-spacing:10px; text-align:center;
-    padding:16px 0; border-radius:14px; border:1px solid var(--border);
-    background:var(--bg); color:var(--text); margin-bottom:16px; -webkit-appearance:none;
-  }
-  #inputCodigo:focus{ outline:none; border-color:var(--violet); }
-  #erroPareamento{ color:var(--red); font-size:13px; min-height:18px; margin-bottom:10px; }
-  #btnParear{
-    width:100%; border:none; border-radius:16px; padding:16px 0; font-size:16px; font-weight:700; cursor:pointer;
-    background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); color:#fff;
-  }
-  #btnParear:disabled{ opacity:.35; }
+/* ---------- SHEET DE AJUSTES (tema, som, meta, pomodoro, pareamento) ---------- */
+.sheet-overlay{
+  position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.55);
+  display:flex; align-items:flex-end; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.sheet-overlay.aberto{ opacity:1; pointer-events:auto; }
+.sheet{
+  width:100%; max-width:460px; max-height:86vh; overflow-y:auto;
+  background:var(--bg-elevated); border-radius:26px 26px 0 0; border:1px solid var(--border); border-bottom:none;
+  padding:18px 20px calc(28px + env(safe-area-inset-bottom));
+  transform:translateY(100%); transition:transform .25s cubic-bezier(.32,.72,0,1); text-align:left;
+}
+.sheet-overlay.aberto .sheet{ transform:translateY(0); }
+.sheet-topo{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.sheet-topo h2{ font-size:17px; margin:0; }
+.sheet-fechar{ width:30px; height:30px; border-radius:50%; border:none; background:var(--bg-elevated-2);
+  color:var(--text-dim); font-size:16px; cursor:pointer; }
+.sheet-secao{ margin-bottom:22px; }
+.sheet-secao h3{ margin:0 0 12px; font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); font-weight:700; }
+.linha-ajuste{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.linha-ajuste label{ font-size:14px; }
+.stepper{ display:flex; align-items:center; gap:10px; }
+.stepper button{ width:32px; height:32px; border-radius:10px; border:1px solid var(--border); background:var(--bg-elevated-2);
+  color:var(--text); font-size:17px; cursor:pointer; padding:0; }
+.stepper span{ min-width:44px; text-align:center; font-variant-numeric:tabular-nums; font-weight:700; }
+.switch{ position:relative; display:inline-block; width:34px; height:19px; flex-shrink:0; }
+.switch input{ opacity:0; width:0; height:0; position:absolute; }
+.switch-track{ position:absolute; inset:0; background:var(--bg-elevated-2); border:1px solid var(--border); border-radius:20px; transition:background .2s, border-color .2s; }
+.switch-track::before{ content:""; position:absolute; height:13px; width:13px; left:2px; top:2px; background:var(--text-dim); border-radius:50%; transition:transform .2s, background .2s; }
+.switch input:checked + .switch-track{ background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); border-color:transparent; }
+.switch input:checked + .switch-track::before{ transform:translateX(15px); background:#fff; }
 
-  /* ---------- CRONÔMETRO ---------- */
-  #telaTimer{ display:none; width:100%; max-width:400px; }
-  .status{ display:inline-flex; align-items:center; gap:8px; font-size:14px; color:var(--text-dim); margin-bottom:18px; }
-  .dot{ width:9px;height:9px;border-radius:50%; background:var(--gray); transition:background .2s; }
-  .dot.running{ background:var(--green); box-shadow:0 0 8px var(--green); }
-  .dot.paused{ background:var(--yellow); box-shadow:0 0 8px var(--yellow); }
+.pareamento-secao input{
+  width:100%; font-size:22px; letter-spacing:8px; text-align:center;
+  padding:12px 0; border-radius:12px; border:1px solid var(--border);
+  background:var(--bg); color:var(--text); margin-bottom:10px; -webkit-appearance:none;
+}
+.pareamento-secao input:focus{ outline:none; border-color:var(--violet); }
+.pareamento-secao button{ width:100%; border:none; border-radius:14px; padding:13px 0; font-size:14.5px; font-weight:700; cursor:pointer;
+  background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); color:#fff; }
+.pareamento-secao button:disabled{ opacity:.35; }
+.pareamento-secao button.secundario{ background:var(--bg-elevated-2); color:var(--text); border:1px solid var(--border); }
+.pareamento-erro{ color:var(--red); font-size:12.5px; min-height:16px; margin-bottom:8px; }
+.pareamento-status{ display:flex; align-items:center; gap:8px; font-size:13.5px; background:rgba(46,204,113,.12);
+  color:var(--green); border:1px solid rgba(46,204,113,.3); padding:10px 12px; border-radius:12px; margin-bottom:12px; }
+.pareamento-ajuda{ font-size:12px; color:var(--text-dim); line-height:1.5; margin:0 0 14px; }
 
-  .abas{ display:flex; gap:8px; justify-content:center; margin-bottom:24px; flex-wrap:wrap; }
-  .aba{ padding:8px 14px; border-radius:20px; font-size:12.5px; font-weight:700;
-        background:var(--bg-elevated-2); color:var(--text-dim); border:1px solid transparent; }
-  .aba.ativa{ background:var(--violet-soft); color:var(--violet-light); border-color:rgba(139,92,246,.35); }
+/* ---------- APP / NAVEGAÇÃO ---------- */
+#appShell{ width:100%; display:flex; flex-direction:column; align-items:center; }
+.paginas{ width:100%; max-width:420px; padding-bottom:88px; }
+.pagina{ display:none; }
+.pagina.ativa{ display:block; animation:fadeIn .25s ease; }
 
-  .anel-wrap{ position:relative; width:230px; height:230px; margin:0 auto 22px; cursor:pointer; }
-  .anel-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); overflow:visible; }
-  .anel-aura{ position:absolute; inset:6px; border-radius:50%;
-    background:radial-gradient(circle, var(--violet-glow) 0%, rgba(139,92,246,0) 70%);
-    filter:blur(2px); animation:auraPulse 3.4s ease-in-out infinite; pointer-events:none; }
-  .is-running .anel-aura{ animation-duration:1.8s; }
-  .is-paused .anel-progresso{ opacity:.55; filter:none; }
-  .is-paused .anel-spin{ animation-play-state:paused; opacity:.25; }
-  @keyframes auraPulse{ 0%,100%{opacity:.45; transform:scale(1);} 50%{opacity:1; transform:scale(1.08);} }
-  /* Segunda camada: brilho girando devagar ao redor do anel — animação bem
-     mais perceptível que só o pulso de opacidade/escala. */
-  .anel-spin{ position:absolute; inset:-4px; border-radius:50%; pointer-events:none;
-    background:conic-gradient(from 0deg, transparent 0%, var(--violet-glow) 14%, transparent 30%, transparent 100%);
-    filter:blur(9px); opacity:.7; animation:anelSpinRotate 4.5s linear infinite; }
-  @keyframes anelSpinRotate{ to{ transform:rotate(360deg); } }
-  .anel-fundo{ fill:none; stroke:var(--bg-elevated-2); stroke-width:12; }
-  .anel-progresso{ fill:none; stroke:url(#cbGrad); stroke-width:12; stroke-linecap:round;
-    filter:drop-shadow(0 0 6px var(--violet-glow)); transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1); }
-  .is-running .anel-progresso{ animation:ringGlow 3s linear infinite; }
-  @keyframes ringGlow{ 0%,100%{filter:drop-shadow(0 0 6px var(--violet-glow));} 50%{filter:drop-shadow(0 0 14px var(--violet-glow));} }
+.tabbar{
+  position:fixed; left:0; right:0; bottom:0; z-index:20;
+  display:flex; justify-content:center; gap:4px;
+  padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+  background:rgba(11,7,16,.85); backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+}
+.tab-btn{
+  flex:1; max-width:110px; display:flex; flex-direction:column; align-items:center; gap:4px;
+  background:none; border:none; color:var(--text-dim); font-size:10.5px; font-weight:700;
+  padding:6px 4px; border-radius:14px; cursor:pointer;
+}
+.tab-btn .icon{ width:19px; height:19px; opacity:.7; transition:all .2s; }
+.tab-btn.ativa{ color:var(--violet-light); }
+.tab-btn.ativa .icon{ opacity:1; transform:translateY(-1px); color:var(--violet-light); }
 
-  /* Modo Pomodoro do anel (contagem regressiva) em branco/prateado, pra
-     diferenciar do modo Total (violeta) — os dois no mesmo anel, alternando
-     ao toque. A aura fica menor/mais contida que a violeta: um branco
-     "cheio" na mesma intensidade vira uma mancha só num fundo escuro. */
-  .anel-wrap.modo-branco .anel-aura{ inset:30px; background:radial-gradient(circle, rgba(205,211,230,.4) 0%, rgba(205,211,230,0) 72%); }
-  .anel-wrap.modo-branco .anel-spin{ background:conic-gradient(from 0deg, transparent 0%, rgba(210,215,232,.65) 14%, transparent 30%, transparent 100%); }
-  .anel-wrap.modo-branco .anel-progresso{ stroke:url(#cbGradBranco); filter:drop-shadow(0 0 6px rgba(205,211,230,.6)); }
-  .anel-wrap.modo-branco.is-running .anel-progresso{ animation:ringGlowBranco 3s linear infinite; }
-  @keyframes ringGlowBranco{ 0%,100%{filter:drop-shadow(0 0 6px rgba(205,211,230,.6));} 50%{filter:drop-shadow(0 0 14px rgba(205,211,230,.85));} }
-  .anel-wrap.modo-branco .label{ color:var(--text-dim); }
-  .modo-dots{ display:flex; align-items:center; justify-content:center; gap:7px; margin:0 0 18px; padding:4px; }
-  .modo-dot{ width:7px; height:7px; border-radius:50%; background:var(--border); cursor:pointer; transition:all .2s ease; }
-  .modo-dot.ativo{ width:18px; border-radius:3px; background:var(--violet); }
-  .anel-conteudo{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-  .timer{ font-size:44px; font-weight:700; letter-spacing:.5px; font-variant-numeric:tabular-nums;
-          font-family:'SF Mono','Cascadia Code',Consolas,monospace; }
-  .label{ color:var(--violet-light); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
-          font-weight:700; margin-top:6px; opacity:.85; }
+/* ---------- CRONÔMETRO ---------- */
+/* ---------- STATUS DA SESSÃO (tag, igual à extensão) ---------- */
+.tag{
+  display:inline-flex; align-items:center; gap:7px; padding:6px 13px; border-radius:var(--radius-pill);
+  font-size:12px; font-weight:700; letter-spacing:.02em; border:1px solid transparent; margin-bottom:20px;
+}
+.tag::before{ content:""; width:7px; height:7px; border-radius:50%; background:currentColor; flex-shrink:0; }
+.tag.stopped{ background:var(--bg-elevated-2); color:var(--text-dim); border-color:var(--border); }
+.tag.running{ background:var(--violet-soft); color:var(--violet-light); border-color:rgba(139,92,246,.32); }
+.tag.running::before{ box-shadow:0 0 8px var(--violet-glow); }
+.tag.paused{ background:var(--warning-soft); color:#f8bf5c; border-color:rgba(240,167,66,.32); }
 
-  .bloco{ background:var(--violet-soft); color:var(--violet-light); font-size:13px; padding:9px 12px;
-          border-radius:12px; margin-bottom:14px; display:none; border:1px solid rgba(139,92,246,.25); }
+.abas{ display:flex; gap:8px; justify-content:center; margin-bottom:24px; flex-wrap:wrap; }
+.aba{ padding:8px 14px; border-radius:var(--radius-pill); font-size:12.5px; font-weight:700;
+      background:var(--bg-elevated-2); color:var(--text-dim); border:1px solid transparent; }
+.aba.ativa{ background:var(--violet-soft); color:var(--violet-light); border-color:rgba(139,92,246,.35); }
 
-  /* Meta diária */
-  .meta-diaria{ margin-bottom:18px; }
-  .meta-topo{ display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-dim); margin-bottom:6px; }
-  .meta-barra{ height:7px; border-radius:4px; background:var(--bg-elevated-2); overflow:hidden; }
-  .meta-barra-fill{ height:100%; background:linear-gradient(90deg,var(--violet-light),var(--violet)); border-radius:4px; transition:width .4s; }
+.anel-wrap{ position:relative; width:230px; height:230px; margin:0 auto 22px; cursor:pointer; }
+.anel-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); overflow:visible; }
+.anel-aura{ position:absolute; inset:6px; border-radius:50%;
+  background:radial-gradient(circle, var(--violet-glow) 0%, rgba(139,92,246,0) 70%);
+  filter:blur(2px); animation:auraPulse 3.4s ease-in-out infinite; pointer-events:none; }
+.is-running .anel-aura{ animation-duration:1.8s; }
+.is-paused .anel-progresso{ opacity:.55; filter:none; }
+.is-paused .anel-spin{ animation-play-state:paused; opacity:.25; }
+@keyframes auraPulse{ 0%,100%{opacity:.45; transform:scale(1);} 50%{opacity:1; transform:scale(1.08);} }
+.anel-spin{ position:absolute; inset:-4px; border-radius:50%; pointer-events:none;
+  background:conic-gradient(from 0deg, transparent 0%, var(--violet-glow) 14%, transparent 30%, transparent 100%);
+  filter:blur(9px); opacity:.7; animation:anelSpinRotate 4.5s linear infinite; }
+@keyframes anelSpinRotate{ to{ transform:rotate(360deg); } }
+.anel-fundo{ fill:none; stroke:var(--bg-elevated-2); stroke-width:12; }
+.anel-progresso{ fill:none; stroke:url(#cbGrad); stroke-width:12; stroke-linecap:round;
+  filter:drop-shadow(0 0 6px var(--violet-glow)); transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1); }
+.is-running .anel-progresso{ animation:ringGlow 3s linear infinite; }
+@keyframes ringGlow{ 0%,100%{filter:drop-shadow(0 0 6px var(--violet-glow));} 50%{filter:drop-shadow(0 0 14px var(--violet-glow));} }
 
-  .btns{ display:flex; gap:12px; margin-bottom:8px; }
-  button{ flex:1; border:none; border-radius:16px; padding:16px 0; font-size:16px; font-weight:700;
-          cursor:pointer; transition:opacity .15s, transform .1s; -webkit-appearance:none; }
-  button:active{ transform:scale(.96); }
-  #btnPrimary{ background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); color:#fff; }
-  #btnStop{ background:var(--bg-elevated-2); color:var(--text); border:1px solid var(--border); }
-  button:disabled{ opacity:.35; cursor:default; }
-  .footer{ margin-top:14px; font-size:11.5px; color:var(--text-dim); min-height:14px; }
-  .offline{ color:var(--yellow); }
-  .linkNovo{ margin-top:14px; font-size:11.5px; color:var(--text-dim); text-decoration:underline; }
+.anel-wrap.modo-branco .anel-aura{ inset:30px; background:radial-gradient(circle, rgba(205,211,230,.4) 0%, rgba(205,211,230,0) 72%); }
+.anel-wrap.modo-branco .anel-spin{ background:conic-gradient(from 0deg, transparent 0%, rgba(210,215,232,.65) 14%, transparent 30%, transparent 100%); }
+.anel-wrap.modo-branco .anel-progresso{ stroke:url(#cbGradBranco); filter:drop-shadow(0 0 6px rgba(205,211,230,.6)); }
+.anel-wrap.modo-branco.is-running .anel-progresso{ animation:ringGlowBranco 3s linear infinite; }
+@keyframes ringGlowBranco{ 0%,100%{filter:drop-shadow(0 0 6px rgba(205,211,230,.6));} 50%{filter:drop-shadow(0 0 14px rgba(205,211,230,.85));} }
+.anel-wrap.modo-branco .label{ color:var(--text-dim); }
+.modo-toggle{ display:flex; gap:6px; background:var(--bg-elevated-2); border-radius:var(--radius-md); padding:4px; margin:0 0 18px; }
+.modo-opcao{ flex:1; border:none; background:none; color:var(--text-dim); font-size:12.5px; font-weight:700;
+  padding:9px 0; border-radius:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
+.modo-opcao .icon{ width:14px; height:14px; }
+.modo-opcao.ativo{ background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); color:#fff; }
+.anel-conteudo{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.timer{ font-size:44px; font-weight:700; letter-spacing:.5px; font-variant-numeric:tabular-nums;
+        font-family:'SF Mono','Cascadia Code',Consolas,monospace; }
+.label{ color:var(--violet-light); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+        font-weight:700; margin-top:6px; opacity:.85; }
 
-  /* Tarefas */
-  .tarefas-card{ width:100%; max-width:400px; margin-top:14px; background:rgba(21,16,34,.75);
-    backdrop-filter:blur(18px); border:1px solid var(--border); border-radius:22px; padding:16px 16px calc(14px + env(safe-area-inset-bottom)); }
-  .tarefas-titulo{ font-size:11.5px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:.05em; margin-bottom:10px; text-align:left; }
-  .tarefas-lista{ display:flex; flex-direction:column; gap:2px; max-height:180px; overflow-y:auto; margin-bottom:10px; }
-  .tarefas-vazio{ font-size:12px; color:var(--text-dim); text-align:left; padding:6px 2px; }
-  .tarefa-item{ display:flex; align-items:center; gap:10px; padding:8px 2px; text-align:left; border-bottom:1px solid var(--border); }
-  .tarefa-item:last-child{ border-bottom:none; }
-  .tarefa-check{ width:20px; height:20px; flex-shrink:0; border-radius:6px; border:1.5px solid var(--violet);
-    background:transparent; color:#fff; font-size:12px; }
-  .tarefa-item.feita .tarefa-check{ background:var(--violet); }
-  .tarefa-texto{ flex:1; font-size:13.5px; word-break:break-word; }
-  .tarefa-item.feita .tarefa-texto{ text-decoration:line-through; color:var(--text-dim); }
-  .tarefa-del{ background:none; border:none; color:var(--text-dim); font-size:18px; padding:0 4px; }
-  .tarefas-add-row{ display:flex; gap:8px; }
-  .tarefas-add-row input{ flex:1; background:var(--bg); border:1px solid var(--border); border-radius:12px;
-    color:var(--text); font-size:14px; padding:10px 12px; -webkit-appearance:none; }
-  .tarefas-add-row input:focus{ outline:none; border-color:var(--violet); }
-  .tarefas-add-row button{ flex:none; width:42px; background:linear-gradient(135deg, var(--violet-light), var(--violet-dark));
-    color:#fff; border-radius:12px; font-size:18px; padding:0; }
+.bloco{ background:var(--violet-soft); color:var(--violet-light); font-size:13px; padding:9px 12px;
+        border-radius:12px; margin-bottom:14px; display:none; border:1px solid rgba(139,92,246,.25); }
+
+.meta-diaria{ margin-bottom:18px; }
+.meta-topo{ display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-dim); margin-bottom:6px; }
+.meta-barra{ height:7px; border-radius:4px; background:var(--bg-elevated-2); overflow:hidden; }
+.meta-barra-fill{ height:100%; background:linear-gradient(90deg,var(--violet-light),var(--violet)); border-radius:4px; transition:width .4s; }
+
+.btns{ display:flex; gap:10px; margin-bottom:8px; }
+button{ font-family:inherit; }
+.btns button, #btnParear{ flex:1; border:none; border-radius:var(--radius-md); padding:14px 0; font-size:13.5px; font-weight:700;
+        cursor:pointer; transition:filter .12s, transform .1s, box-shadow .12s; -webkit-appearance:none;
+        box-shadow:var(--shadow-btn); letter-spacing:.01em; }
+.btns button:active{ transform:scale(.97); }
+#btnPrimary{ background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); color:#fff; }
+#btnStop{ background:linear-gradient(135deg, #f5566b, var(--red)); color:#fff; }
+.btns button:disabled{ opacity:.35; cursor:default; }
+.footer{ margin-top:14px; font-size:11.5px; color:var(--text-dim); min-height:14px; }
+.offline{ color:var(--yellow); }
+
+/* ---------- TAREFAS (tela própria) ---------- */
+.tarefas-titulo{ font-size:11.5px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:.05em; margin-bottom:12px; text-align:left; display:flex; align-items:center; gap:7px; }
+.tarefas-titulo .icon{ width:13px; height:13px; color:var(--text-faint); }
+.tarefas-lista{ display:flex; flex-direction:column; gap:2px; max-height:52vh; overflow-y:auto; margin-bottom:12px; }
+.tarefas-vazio{ font-size:13px; color:var(--text-dim); text-align:left; padding:16px 2px; }
+.tarefa-item{ display:flex; align-items:center; gap:10px; padding:10px 2px; text-align:left; border-bottom:1px solid var(--border); }
+.tarefa-item:last-child{ border-bottom:none; }
+.tarefa-check{ width:22px; height:22px; flex-shrink:0; border-radius:7px; border:1.5px solid var(--violet);
+  background:transparent; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+.tarefa-check .icon{ width:13px; height:13px; opacity:0; transition:opacity .15s; }
+.tarefa-item.feita .tarefa-check{ background:var(--violet); }
+.tarefa-item.feita .tarefa-check .icon{ opacity:1; }
+.tarefa-texto{ flex:1; font-size:14.5px; word-break:break-word; }
+.tarefa-item.feita .tarefa-texto{ text-decoration:line-through; color:var(--text-dim); }
+.tarefa-del{ background:none; border:none; color:var(--text-faint); padding:0 2px; cursor:pointer; display:flex; align-items:center; }
+.tarefa-del .icon{ width:15px; height:15px; }
+.tarefas-add-row{ display:flex; gap:8px; }
+.tarefas-add-row input{ flex:1; background:var(--bg); border:1px solid var(--border); border-radius:12px;
+  color:var(--text); font-size:15px; padding:12px 14px; -webkit-appearance:none; }
+.tarefas-add-row input:focus{ outline:none; border-color:var(--violet); }
+.tarefas-add-row button{ flex:none; width:46px; border:none; background:linear-gradient(135deg, var(--violet-light), var(--violet-dark));
+  color:#fff; border-radius:12px; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.tarefas-add-row button .icon{ width:18px; height:18px; }
+
+/* ---------- CARDS GENÉRICOS (Painel / Agenda) ---------- */
+.subcard{ width:100%; background:var(--bg-elevated);
+  border:1px solid var(--border-soft); border-radius:var(--radius-lg); padding:18px; margin-bottom:14px; text-align:left;
+  box-shadow:var(--shadow-card); }
+.subcard h3{ margin:0 0 14px; font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); font-weight:700;
+  display:flex; align-items:center; gap:7px; }
+.subcard h3 .icon{ width:13px; height:13px; color:var(--text-faint); }
+
+/* Painel — nível */
+.nivel-topo{ display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+.nivel-emblema{ width:52px; height:52px; border-radius:16px; display:flex; align-items:center; justify-content:center;
+  color:#fff; background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); box-shadow:0 6px 18px var(--violet-glow); flex-shrink:0; }
+.nivel-nome{ font-size:18px; font-weight:800; }
+.nivel-horas{ font-size:12.5px; color:var(--text-dim); }
+.nivel-barra{ height:9px; border-radius:5px; background:var(--bg-elevated-2); overflow:hidden; margin-bottom:6px; }
+.nivel-barra-fill{ height:100%; border-radius:5px; background:linear-gradient(90deg,var(--violet-light),var(--violet)); transition:width .5s; width:0%; }
+.nivel-prox{ font-size:11.5px; color:var(--text-dim); }
+
+/* Painel — streak */
+.streak-linha{ display:flex; align-items:center; gap:14px; }
+.streak-fogo{ width:44px; height:44px; border-radius:14px; background:var(--gold-soft); color:var(--gold);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.streak-texto b{ font-size:16px; }
+.streak-texto span{ display:block; font-size:11.5px; color:var(--text-dim); }
+
+/* Painel — semana */
+.semana-chart{ display:flex; align-items:flex-end; gap:8px; height:120px; }
+.semana-col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:6px; }
+.semana-barra{ width:100%; max-width:26px; height:70px; border-radius:6px 6px 3px 3px; background:var(--bg-elevated-2); position:relative; overflow:hidden; }
+.semana-barra-fill{ position:absolute; bottom:0; left:0; right:0; border-radius:6px 6px 3px 3px; background:linear-gradient(180deg,var(--violet-light),var(--violet-dark)); transition:height .5s; }
+.semana-label{ font-size:10px; color:var(--text-dim); font-weight:700; text-transform:uppercase; }
+.semana-col.hoje .semana-label{ color:var(--violet-light); }
+
+/* Painel — heatmap */
+.heat-scroll{ overflow-x:auto; padding-bottom:2px; }
+.heat-grid{ display:grid; grid-template-rows:repeat(7,1fr); grid-auto-flow:column; gap:3px; width:max-content; }
+.heat-cell{ width:13px; height:13px; border-radius:3px; background:var(--bg-elevated-2); }
+.heat-cell.vazia{ background:transparent; }
+.heat-cell[data-nivel="1"]{ background:rgba(139,92,246,.3); }
+.heat-cell[data-nivel="2"]{ background:rgba(139,92,246,.55); }
+.heat-cell[data-nivel="3"]{ background:rgba(139,92,246,.8); }
+.heat-cell[data-nivel="4"]{ background:var(--violet); box-shadow:0 0 6px var(--violet-glow); }
+.heat-legenda{ display:flex; align-items:center; gap:5px; margin-top:10px; font-size:10px; color:var(--text-dim); justify-content:flex-end; }
+.heat-legenda .heat-cell{ width:10px; height:10px; }
+
+/* Painel — bloqueio */
+.chips-linha{ display:flex; flex-wrap:wrap; gap:8px; }
+.chip-site{ font-size:12px; font-weight:600; background:var(--bg-elevated-2); color:var(--text-dim); border:1px solid var(--border);
+  padding:6px 11px; border-radius:var(--radius-pill); display:inline-flex; align-items:center; gap:6px; }
+.chip-site .icon{ width:12px; height:12px; color:var(--text-faint); }
+
+/* Agenda */
+.dias-scroll{ display:flex; gap:8px; overflow-x:auto; padding:2px 2px 4px; margin-bottom:16px; }
+.dia-chip{ flex:none; width:50px; display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 0 8px;
+  border-radius:16px; background:var(--bg-elevated-2); border:1px solid transparent; color:var(--text-dim); cursor:pointer; }
+.dia-chip .dow{ font-size:10px; text-transform:uppercase; font-weight:700; opacity:.8; }
+.dia-chip .dnum{ font-size:16px; font-weight:800; color:var(--text); }
+.dia-chip .ddot{ width:4px; height:4px; border-radius:50%; background:transparent; }
+.dia-chip.tem-bloco .ddot{ background:var(--violet-light); }
+.dia-chip.hoje{ border-color:rgba(139,92,246,.4); }
+.dia-chip.selecionada{ background:var(--violet-soft); border-color:var(--violet); color:var(--violet-light); }
+.dia-chip.selecionada .dnum{ color:var(--violet-light); }
+
+.bloco-card{ display:flex; gap:12px; padding:14px; border-radius:16px; background:var(--bg-elevated-2); margin-bottom:10px;
+  border-left:4px solid var(--cat-cor, var(--violet)); }
+.bloco-card.agora{ background:var(--violet-soft); box-shadow:0 0 0 1px rgba(139,92,246,.35), 0 0 18px var(--violet-glow); }
+.bloco-hora{ font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; color:var(--text); min-width:42px; line-height:1.5; }
+.bloco-info{ flex:1; }
+.bloco-titulo{ font-size:14px; font-weight:700; margin-bottom:3px; }
+.bloco-sub{ font-size:11.5px; color:var(--text-dim); display:flex; align-items:center; gap:6px; }
+.bloco-prio{ width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.bloco-tag-agora{ font-size:10px; font-weight:800; color:var(--violet-light); text-transform:uppercase; letter-spacing:.05em; }
+.vazio-msg{ text-align:center; color:var(--text-dim); font-size:13px; padding:26px 6px; line-height:1.6; }
+
+.aviso-dados{ font-size:11px; color:var(--text-dim); background:var(--bg-elevated-2); border:1px solid var(--border);
+  border-radius:12px; padding:10px 12px; margin-bottom:14px; line-height:1.5; display:none; }
+.aviso-dados.mostrar{ display:block; }
+
+/* ---------- BLOQUEADO ATÉ PAREAR (Painel/Agenda) ---------- */
+.bloqueado-card{ width:100%; text-align:center; padding:40px 22px; }
+.bloqueado-card .ic{ width:52px; height:52px; margin:0 auto 16px; border-radius:16px; display:flex; align-items:center; justify-content:center;
+  background:var(--violet-soft); color:var(--violet-light); }
+.bloqueado-card .ic svg{ width:24px; height:24px; }
+.bloqueado-card h3{ font-size:16px; margin:0 0 8px; justify-content:center; }
+.bloqueado-card p{ font-size:13px; color:var(--text-dim); line-height:1.6; margin:0 0 18px; }
+.bloqueado-card button{ border:none; border-radius:14px; padding:12px 22px; font-size:14px; font-weight:700; cursor:pointer;
+  background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); color:#fff; }
+
+/* ---------- SHEET DE SEQUÊNCIA ---------- */
+.streak-destaque{ text-align:center; padding:8px 0 22px; }
+.streak-destaque-icone{ width:60px; height:60px; margin:0 auto 12px; border-radius:18px; background:var(--gold-soft); color:var(--gold);
+  display:flex; align-items:center; justify-content:center; }
+.streak-destaque-numero{ font-size:44px; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; }
+.streak-destaque-label{ font-size:12.5px; color:var(--text-dim); margin-top:6px; }
+.streak-info-linha{ display:flex; justify-content:space-between; align-items:center; padding:12px 2px; font-size:13.5px;
+  color:var(--text-dim); border-bottom:1px solid var(--border-soft); }
+.streak-info-linha b{ color:var(--text); font-size:14px; }
+.marcos-grid{ display:flex; flex-wrap:wrap; gap:8px; }
+.marco-chip{ display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:var(--radius-pill);
+  font-size:12px; font-weight:700; background:var(--bg-elevated-2); color:var(--text-faint); border:1px solid var(--border-soft); }
+.marco-chip .icon{ width:12px; height:12px; }
+.marco-chip.conquistado{ background:var(--gold-soft); color:var(--gold-dark); border-color:rgba(185,133,60,.35); }
+
+/* ---------- TIPOS DE SOM AMBIENTE ---------- */
+.som-tipos{ display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+.som-tipo-btn{ padding:8px 13px; border-radius:var(--radius-pill); font-size:12px; font-weight:700;
+  background:var(--bg-elevated-2); color:var(--text-dim); border:1px solid var(--border-soft); cursor:pointer; }
+.som-tipo-btn.ativo{ background:var(--violet-soft); color:var(--violet-light); border-color:rgba(139,92,246,.35); }
+
 </style>
 </head>
 <body>
@@ -198,112 +380,386 @@
 <div class="fundo tema-roxo" id="fundo"></div>
 
 <div class="top-row">
-  <span class="streak-badge" id="streakBadge">🔥 0 dias</span>
-  <div style="display:flex; align-items:center; gap:8px;">
-    <button class="som-btn" id="btnSom">🔈 Som</button>
-  </div>
+  <button class="streak-badge" id="streakBadge" title="Ver sequência">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 17a2.5 2.5 0 0 0 2.5-2.5c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7.5 7.5 0 1 1-15 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5"/></svg>
+    <span id="streakTexto">0 dias</span>
+  </button>
+  <button class="icon-btn" id="btnAjustes" title="Ajustes">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+  </button>
 </div>
 
-<div class="seletor-tema">
-  <button class="tema-btn roxo ativo" data-tema="roxo" title="Roxo profundo"></button>
-  <button class="tema-btn aurora" data-tema="aurora" title="Aurora"></button>
-  <button class="tema-btn meianoite" data-tema="meianoite" title="Meia-noite"></button>
-</div>
+<div id="appShell">
+  <div class="paginas">
 
-<div class="card">
-  <div id="telaPareamento">
-    <h2>Parear com o PC</h2>
-    <p>Abra a extensão no computador, vá em <b>Configurações → Celular</b>
-       e digite aqui o código de 6 dígitos mostrado lá.</p>
-    <input id="inputCodigo" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
-    <div id="erroPareamento"></div>
-    <button id="btnParear" disabled>Confirmar</button>
-  </div>
+    <!-- ================= CRONÔMETRO ================= -->
+    <div class="pagina ativa" data-pagina="timer">
+      <div class="card">
+        <span class="tag stopped" id="statusTag">
+          <span id="statusTexto">Parado</span>
+        </span>
 
-  <div id="telaTimer">
-    <div class="status">
-      <span class="dot" id="dot"></span>
-      <span id="statusTexto">Conectando…</span>
-    </div>
+        <div class="modo-toggle">
+          <button class="modo-opcao ativo" id="modoTotalBtn">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            Cronômetro
+          </button>
+          <button class="modo-opcao" id="modoPomodoroBtn">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg>
+            Pomodoro
+          </button>
+        </div>
 
-    <div class="abas" id="abas">
-      <span class="aba" id="aba-foco">Foco</span>
-      <span class="aba" id="aba-pausa-curta">Pausa</span>
-    </div>
-    <div style="font-size:10.5px; color:var(--text-dim); margin:-14px 0 20px; opacity:.75;" id="avisoAlerta"></div>
+        <div class="abas" id="abas" style="display:none;">
+          <span class="aba" id="aba-foco">Foco</span>
+          <span class="aba" id="aba-pausa-curta">Pausa</span>
+        </div>
+        <div style="font-size:10.5px; color:var(--text-dim); margin:-14px 0 20px; opacity:.75;" id="avisoAlerta"></div>
 
-    <div class="anel-wrap" id="anelWrap">
-      <div class="anel-spin"></div>
-      <div class="anel-aura"></div>
-      <svg viewBox="0 0 220 220">
-        <defs>
-          <linearGradient id="cbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#a78bfa"/>
-            <stop offset="100%" stop-color="#6d28d9"/>
-          </linearGradient>
-          <linearGradient id="cbGradBranco" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#ffffff"/>
-            <stop offset="100%" stop-color="#cfd4e2"/>
-          </linearGradient>
-        </defs>
-        <circle class="anel-fundo" cx="110" cy="110" r="98"></circle>
-        <circle class="anel-progresso" id="anelProgresso" cx="110" cy="110" r="98"
-                stroke-dasharray="615.75" stroke-dashoffset="0"></circle>
-      </svg>
-      <div class="anel-conteudo">
-        <div class="timer" id="timer">00:00</div>
-        <div class="label" id="timerLabel">tempo estudado hoje</div>
+        <div class="anel-wrap" id="anelWrap" title="Toque para alternar Cronômetro/Pomodoro">
+          <div class="anel-spin"></div>
+          <div class="anel-aura"></div>
+          <svg viewBox="0 0 220 220">
+            <defs>
+              <linearGradient id="cbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#a78bfa"/>
+                <stop offset="100%" stop-color="#6d28d9"/>
+              </linearGradient>
+              <linearGradient id="cbGradBranco" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffffff"/>
+                <stop offset="100%" stop-color="#cfd4e2"/>
+              </linearGradient>
+            </defs>
+            <circle class="anel-fundo" cx="110" cy="110" r="98"></circle>
+            <circle class="anel-progresso" id="anelProgresso" cx="110" cy="110" r="98"
+                    stroke-dasharray="615.75" stroke-dashoffset="0"></circle>
+          </svg>
+          <div class="anel-conteudo">
+            <div class="timer" id="timer">00:00</div>
+            <div class="label" id="timerLabel">tempo estudado hoje</div>
+          </div>
+        </div>
+
+        <div class="meta-diaria">
+          <div class="meta-topo"><span>Meta diária</span><span id="metaTexto">0h / 4h</span></div>
+          <div class="meta-barra"><div class="meta-barra-fill" id="metaBarraFill" style="width:0%;"></div></div>
+        </div>
+
+        <div class="btns">
+          <button id="btnPrimary">Iniciar</button>
+          <button id="btnStop" disabled>Parar</button>
+        </div>
+        <div class="footer" id="footer">funciona sem internet — os dados ficam salvos neste aparelho</div>
       </div>
     </div>
-    <div class="modo-dots" id="modoDots" title="Toque no anel para alternar">
-      <span class="modo-dot" data-modo="total"></span>
-      <span class="modo-dot" data-modo="pomodoro"></span>
+
+    <!-- ================= TAREFAS ================= -->
+    <div class="pagina" data-pagina="tarefas">
+      <div class="card" style="text-align:left;">
+        <div class="tarefas-titulo">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 12 3 3 5-6"/></svg>
+          Tarefas rápidas
+        </div>
+        <div class="tarefas-lista" id="tarefasLista"></div>
+        <div class="tarefas-add-row">
+          <input id="tarefasInput" type="text" placeholder="nova tarefa..." maxlength="80">
+          <button id="tarefasAdd">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
     </div>
 
-    <div class="bloco" id="bloco"></div>
+    <!-- ================= PAINEL ================= -->
+    <div class="pagina" data-pagina="painel">
+      <div class="subcard">
+        <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Hoje, neste cronômetro</h3>
+        <div class="meta-topo"><span id="painelHojeTexto">0.0h estudadas hoje neste cronômetro</span></div>
+        <div class="meta-barra"><div class="meta-barra-fill" id="painelHojeBarra" style="width:0%;"></div></div>
+      </div>
 
-    <div class="meta-diaria">
-      <div class="meta-topo"><span>Meta diária</span><span id="metaTexto">0h / 2h</span></div>
-      <div class="meta-barra"><div class="meta-barra-fill" id="metaBarraFill" style="width:0%;"></div></div>
+      <div id="painelExtensaoBloqueado" class="subcard bloqueado-card" style="display:none;">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></span>
+        <h3>Progresso da extensão</h3>
+        <p>Pareie com a extensão no PC pra ver aqui seu nível, ofensiva e histórico
+           de estudo de verdade — o que já está registrado lá.</p>
+        <button class="btn-abrir-pareamento">Parear agora</button>
+      </div>
+
+      <div id="painelExtensaoConteudo" style="display:none;">
+        <div class="subcard">
+          <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>Nível</h3>
+          <div class="nivel-topo">
+            <div class="nivel-emblema" id="nivelEmblema">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+            </div>
+            <div>
+              <div class="nivel-nome" id="nivelNome">Calouro</div>
+              <div class="nivel-horas" id="nivelHoras">0.0h estudadas no total</div>
+            </div>
+          </div>
+          <div class="nivel-barra"><div class="nivel-barra-fill" id="nivelBarraFill"></div></div>
+          <div class="nivel-prox" id="nivelProx">Faltam 50.0h para "Iniciante"</div>
+        </div>
+
+        <div class="subcard">
+          <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 17a2.5 2.5 0 0 0 2.5-2.5c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7.5 7.5 0 1 1-15 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5"/></svg>Ofensiva na extensão</h3>
+          <div class="streak-linha">
+            <span class="streak-fogo"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 17a2.5 2.5 0 0 0 2.5-2.5c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7.5 7.5 0 1 1-15 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5"/></svg></span>
+            <span class="streak-texto"><b id="streakNumero">0 dias seguidos</b><span>batendo a meta diária no PC</span></span>
+          </div>
+        </div>
+
+        <div class="subcard">
+          <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Últimos 7 dias (extensão)</h3>
+          <div class="semana-chart" id="semanaChart"></div>
+        </div>
+
+        <div class="subcard">
+          <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Últimos 35 dias (extensão)</h3>
+          <div class="heat-scroll"><div class="heat-grid" id="heatGrid"></div></div>
+          <div class="heat-legenda">
+            menos <span class="heat-cell"></span><span class="heat-cell" data-nivel="1"></span><span class="heat-cell" data-nivel="2"></span><span class="heat-cell" data-nivel="3"></span><span class="heat-cell" data-nivel="4"></span> mais
+          </div>
+        </div>
+
+        <div class="subcard">
+          <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Bloqueio ativo agora</h3>
+          <div class="chips-linha" id="bloqueioLista"></div>
+        </div>
+      </div>
     </div>
 
-    <div class="btns">
-      <button id="btnPrimary" disabled>Iniciar</button>
-      <button id="btnStop" disabled>Parar</button>
+    <!-- ================= AGENDA ================= -->
+    <div class="pagina" data-pagina="agenda">
+      <div id="agendaBloqueado" class="subcard bloqueado-card" style="display:none;">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+        <h3>Agenda da extensão</h3>
+        <p>Pareie com a extensão no PC pra ver aqui os blocos de estudo que
+           você organiza na aba Cronograma.</p>
+        <button class="btn-abrir-pareamento">Parear agora</button>
+      </div>
+      <div id="agendaConteudo" style="display:none;">
+        <div class="subcard">
+          <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Sua semana</h3>
+          <div class="dias-scroll" id="diasAgenda"></div>
+          <div id="blocosLista"></div>
+        </div>
+      </div>
     </div>
-    <div class="footer" id="footer">sincronizando com o PC…</div>
-    <div class="linkNovo" id="linkNovo">parear com outro PC</div>
+
+  </div>
+
+  <div class="tabbar">
+    <button class="tab-btn ativa" data-tab="timer">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      Cronômetro
+    </button>
+    <button class="tab-btn" data-tab="tarefas">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 12 3 3 5-6"/></svg>
+      Tarefas
+    </button>
+    <button class="tab-btn" data-tab="painel">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Painel
+    </button>
+    <button class="tab-btn" data-tab="agenda">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Agenda
+    </button>
   </div>
 </div>
 
-<div class="tarefas-card" id="tarefasCard" style="display:none;">
-  <div class="tarefas-titulo">✅ Tarefas rápidas · sincroniza com o PC</div>
-  <div class="tarefas-lista" id="tarefasLista"></div>
-  <div class="tarefas-add-row">
-    <input id="tarefasInput" type="text" placeholder="nova tarefa..." maxlength="80">
-    <button id="tarefasAdd">+</button>
+<!-- ================= SHEET DE AJUSTES ================= -->
+<div class="sheet-overlay" id="sheetOverlay">
+  <div class="sheet">
+    <div class="sheet-topo">
+      <h2>Ajustes</h2>
+      <button class="sheet-fechar" id="sheetFechar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="sheet-secao">
+      <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>Tema</h3>
+      <div class="seletor-tema">
+        <button class="tema-btn roxo ativo" data-tema="roxo" title="Roxo profundo"></button>
+        <button class="tema-btn aurora" data-tema="aurora" title="Aurora"></button>
+        <button class="tema-btn meianoite" data-tema="meianoite" title="Meia-noite"></button>
+      </div>
+    </div>
+
+    <div class="sheet-secao">
+      <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Som ambiente</h3>
+      <div class="linha-ajuste">
+        <label><span id="somLabelTexto">Som ambiente: desligado</span></label>
+        <label class="switch">
+          <input type="checkbox" id="somSwitch">
+          <span class="switch-track"></span>
+        </label>
+      </div>
+      <div class="som-tipos" id="somTipos">
+        <button class="som-tipo-btn ativo" data-tipo="chuva">Chuva</button>
+        <button class="som-tipo-btn" data-tipo="branco">Ruído branco</button>
+        <button class="som-tipo-btn" data-tipo="marrom">Ruído marrom</button>
+        <button class="som-tipo-btn" data-tipo="ondas">Ondas do mar</button>
+      </div>
+    </div>
+
+    <div class="sheet-secao">
+      <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg>Meta diária</h3>
+      <div class="linha-ajuste">
+        <label>Horas de estudo por dia</label>
+        <div class="stepper">
+          <button id="metaMenos">−</button>
+          <span id="metaValor">4h</span>
+          <button id="metaMais">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sheet-secao">
+      <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Durações do Pomodoro</h3>
+      <div class="linha-ajuste">
+        <label>Foco</label>
+        <div class="stepper">
+          <button id="focoMenos">−</button>
+          <span id="focoValor">25 min</span>
+          <button id="focoMais">+</button>
+        </div>
+      </div>
+      <div class="linha-ajuste">
+        <label>Pausa</label>
+        <div class="stepper">
+          <button id="pausaMenos">−</button>
+          <span id="pausaValor">5 min</span>
+          <button id="pausaMais">+</button>
+        </div>
+      </div>
+      <p class="pareamento-ajuda">
+        Enquanto o Pomodoro está rodando, o site pede pro aparelho não apagar
+        a tela sozinho por inatividade — assim o alarme sonoro toca certinho
+        no fim de cada fase. Isso funciona se a tela ficar ligada (ex: iPhone
+        com iOS 16.4+); se você travar a tela manualmente pelo botão lateral,
+        nenhum site consegue tocar som — e vibração por navegador não existe
+        no Safari do iPhone em nenhuma hipótese, é uma limitação da Apple.
+      </p>
+    </div>
+
+    <div class="sheet-secao">
+      <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Pareamento com o PC (opcional)</h3>
+      <p class="pareamento-ajuda">
+        Parear é opcional — o cronômetro já funciona sem isso. Se parear, seus
+        dados deste aparelho ficam salvos na nuvem (dá pra abrir em outro
+        celular com o mesmo código) e as abas Painel/Agenda passam a mostrar
+        o progresso real registrado na extensão do PC.
+      </p>
+      <div id="secaoParear" class="pareamento-secao">
+        <input id="inputCodigo" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
+        <div id="erroPareamento" class="pareamento-erro"></div>
+        <button id="btnParear" disabled>Parear com o código da extensão</button>
+      </div>
+      <div id="secaoPareado" class="pareamento-secao" style="display:none;">
+        <div class="pareamento-status">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 17.01"/></svg>
+          Pareado com a extensão do PC
+        </div>
+        <button id="btnDesparear" class="secundario">Desparear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= SHEET DE SEQUÊNCIA ================= -->
+<div class="sheet-overlay" id="streakOverlay">
+  <div class="sheet">
+    <div class="sheet-topo">
+      <h2>Sequência</h2>
+      <button class="sheet-fechar" id="streakFechar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="streak-destaque">
+      <div class="streak-destaque-icone">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 17a2.5 2.5 0 0 0 2.5-2.5c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7.5 7.5 0 1 1-15 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5"/></svg>
+      </div>
+      <div class="streak-destaque-numero" id="streakGrandeNumero">0</div>
+      <div class="streak-destaque-label">dias seguidos batendo a meta diária</div>
+    </div>
+
+    <div class="streak-info-linha">
+      <span>Melhor sequência</span>
+      <b id="streakMelhorTexto">0 dias</b>
+    </div>
+    <div class="streak-info-linha">
+      <span>Próxima marca</span>
+      <b id="streakProximaTexto">—</b>
+    </div>
+
+    <div class="sheet-secao" style="margin-top:20px;">
+      <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>Marcos</h3>
+      <div class="marcos-grid" id="marcosGrid"></div>
+    </div>
   </div>
 </div>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyAqpHJny30HIfedbdwq22Ex1K0QDllO5hw",
-  authDomain: "concurseiro-blindado.firebaseapp.com",
-  databaseURL: "https://concurseiro-blindado-default-rtdb.firebaseio.com",
-  projectId: "concurseiro-blindado",
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+/* ============================================================
+   UTILITÁRIOS DE DATA
+   ============================================================ */
+function pad2(n){ return String(n).padStart(2, '0'); }
+function chaveData(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+function hojeChave(){ return chaveData(new Date()); }
 
-const tg = window.Telegram?.WebApp;
-tg?.ready();
-tg?.expand();
+/* ============================================================
+   ARMAZENAMENTO LOCAL — tudo funciona sem internet e sem parear.
+   ============================================================ */
+const LS = {
+  historico:  'cb2_historico',   // { "AAAA-MM-DD": ms }
+  tarefas:    'cb2_tarefas',     // [{id, texto, feita}]
+  config:     'cb2_config',      // { dailyGoalMs, pomodoroWorkMin, pomodoroRestMin, somTipo }
+  sessao:     'cb2_sessao',      // { sessionState, inicioSessao, pomodoroMode, pomodoroPhase, pomodoroPhaseEndAt, pomodoroRemainingMs }
+  deviceId:   'cb_deviceId',
+  tema:       'cb_tema',
+};
+
+function lerJSON(chave, padrao){
+  try {
+    const bruto = localStorage.getItem(chave);
+    return bruto ? JSON.parse(bruto) : padrao;
+  } catch (e) { return padrao; }
+}
+function salvarJSON(chave, valor){
+  try { localStorage.setItem(chave, JSON.stringify(valor)); } catch (e) { /* armazenamento indisponível — segue só em memória */ }
+}
+
+let historico = lerJSON(LS.historico, {});
+let tarefas = lerJSON(LS.tarefas, []);
+let config = Object.assign({
+  dailyGoalMs: 4 * 60 * 60 * 1000,
+  pomodoroWorkMin: 25,
+  pomodoroRestMin: 5,
+  somTipo: 'chuva',
+}, lerJSON(LS.config, {}));
+let sessao = Object.assign({
+  sessionState: 'stopped',       // 'stopped' | 'running' | 'paused'
+  inicioSessao: null,
+  pomodoroMode: false,
+  pomodoroPhase: 'work',         // 'work' | 'rest'
+  pomodoroPhaseEndAt: null,      // timestamp, só quando running
+  pomodoroRemainingMs: null,     // ms restantes, só quando paused/stopped
+}, lerJSON(LS.sessao, {}));
+
+function salvarHistorico(){ salvarJSON(LS.historico, historico); sincronizarComPC(); }
+function salvarTarefas(){ salvarJSON(LS.tarefas, tarefas); sincronizarComPC(); }
+function salvarConfig(){ salvarJSON(LS.config, config); }
+function salvarSessao(){ salvarJSON(LS.sessao, sessao); }
 
 /* ============================================================
    TEMA DE FUNDO
    ============================================================ */
 const fundo = document.getElementById('fundo');
-const CHAVE_TEMA = 'cb_tema';
 function aplicarTema(nome){
   fundo.className = 'fundo tema-' + nome;
   fundo.innerHTML = '';
@@ -318,74 +774,127 @@ function aplicarTema(nome){
     }
   }
   document.querySelectorAll('.tema-btn').forEach(b => b.classList.toggle('ativo', b.dataset.tema === nome));
-  localStorage.setItem(CHAVE_TEMA, nome);
+  localStorage.setItem(LS.tema, nome);
 }
 document.querySelectorAll('.tema-btn').forEach(b => {
   b.addEventListener('click', () => aplicarTema(b.dataset.tema));
 });
-aplicarTema(localStorage.getItem(CHAVE_TEMA) || 'roxo');
+aplicarTema(localStorage.getItem(LS.tema) || 'roxo');
 
 /* ============================================================
-   SOM AMBIENTE — gerado por Web Audio (chuva sintetizada a partir
-   de ruído filtrado), sem depender de nenhum arquivo de áudio externo
-   (evita travar por rede e evita qualquer questão de direitos autorais).
+   SOM AMBIENTE (sintetizado, sem depender de nenhum arquivo externo)
+   + ALERTA DE FASE DO POMODORO
    ============================================================ */
-let audioCtx = null, somNode = null, somGain = null, somLigado = false;
-const btnSom = document.getElementById('btnSom');
+let audioCtx = null, somNode = null, somLigado = false;
 
-function criarRuidoChuva(){
+function criarBufferRuidoBranco(){
   const bufferSize = 2 * audioCtx.sampleRate;
   const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
   const data = buffer.getChannelData(0);
   for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-
   const fonte = audioCtx.createBufferSource();
   fonte.buffer = buffer;
   fonte.loop = true;
-
-  const passaAlta = audioCtx.createBiquadFilter();
-  passaAlta.type = 'highpass';
-  passaAlta.frequency.value = 700;
-
-  const passaBaixa = audioCtx.createBiquadFilter();
-  passaBaixa.type = 'lowpass';
-  passaBaixa.frequency.value = 4000;
-
-  const ganho = audioCtx.createGain();
-  ganho.gain.value = 0.18;
-
-  fonte.connect(passaAlta).connect(passaBaixa).connect(ganho).connect(audioCtx.destination);
-  fonte.start();
-  return { fonte, ganho };
+  return fonte;
 }
-
-function alternarSom(){
-  if (!somLigado) {
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    const { fonte, ganho } = criarRuidoChuva();
-    somNode = fonte; somGain = ganho;
-    somLigado = true;
-    btnSom.textContent = '🔊 Som';
-    btnSom.classList.add('ligado');
-  } else {
-    somNode?.stop();
-    somLigado = false;
-    btnSom.textContent = '🔈 Som';
-    btnSom.classList.remove('ligado');
+// Ruído marrom = integral do ruído branco (passo aleatório acumulado e
+// normalizado) — resulta num "rumor" grave e constante, popular pra foco.
+function criarBufferRuidoMarrom(){
+  const bufferSize = 2 * audioCtx.sampleRate;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  let ultimo = 0;
+  for (let i = 0; i < bufferSize; i++){
+    const branco = Math.random() * 2 - 1;
+    ultimo = (ultimo + 0.02 * branco) / 1.02;
+    data[i] = ultimo * 3.5;
   }
+  const fonte = audioCtx.createBufferSource();
+  fonte.buffer = buffer;
+  fonte.loop = true;
+  return fonte;
 }
-btnSom.addEventListener('click', alternarSom);
-// iOS exige que áudio comece dentro de um gesto do usuário — o botão já
-// garante isso; não tentamos autoplay.
 
-/* ------------------------------------------------------------
-   Desbloqueio do áudio no primeiro toque na tela: o alerta de troca
-   de fase do Pomodoro (abaixo) só consegue tocar se o AudioContext já
-   tiver sido "destravado" por um gesto do usuário em algum momento —
-   então aproveitamos qualquer primeiro toque na página pra isso,
-   mesmo que a pessoa nunca tenha ligado o som ambiente.
-   ------------------------------------------------------------ */
+function iniciarSom(tipo){
+  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  const nodesExtras = [];
+  let fonte;
+
+  if (tipo === 'branco') {
+    fonte = criarBufferRuidoBranco();
+    const passaBaixa = audioCtx.createBiquadFilter(); passaBaixa.type = 'lowpass'; passaBaixa.frequency.value = 9000;
+    const ganho = audioCtx.createGain(); ganho.gain.value = 0.10;
+    fonte.connect(passaBaixa).connect(ganho).connect(audioCtx.destination);
+    nodesExtras.push(passaBaixa, ganho);
+
+  } else if (tipo === 'marrom') {
+    fonte = criarBufferRuidoMarrom();
+    const ganho = audioCtx.createGain(); ganho.gain.value = 0.22;
+    fonte.connect(ganho).connect(audioCtx.destination);
+    nodesExtras.push(ganho);
+
+  } else if (tipo === 'ondas') {
+    fonte = criarBufferRuidoBranco();
+    const filtro = audioCtx.createBiquadFilter(); filtro.type = 'lowpass'; filtro.frequency.value = 800;
+    const ganho = audioCtx.createGain(); ganho.gain.value = 0.16;
+    // LFO bem lento que sobe/desce o corte do filtro, simulando o vaivém
+    // de uma onda quebrando e recuando (~8s por ciclo).
+    const lfo = audioCtx.createOscillator(); lfo.frequency.value = 0.12;
+    const lfoGanho = audioCtx.createGain(); lfoGanho.gain.value = 500;
+    lfo.connect(lfoGanho).connect(filtro.frequency);
+    lfo.start();
+    fonte.connect(filtro).connect(ganho).connect(audioCtx.destination);
+    nodesExtras.push(filtro, ganho, lfo, lfoGanho);
+
+  } else { // 'chuva' — padrão
+    fonte = criarBufferRuidoBranco();
+    const passaAlta = audioCtx.createBiquadFilter(); passaAlta.type = 'highpass'; passaAlta.frequency.value = 700;
+    const passaBaixa = audioCtx.createBiquadFilter(); passaBaixa.type = 'lowpass'; passaBaixa.frequency.value = 4000;
+    const ganho = audioCtx.createGain(); ganho.gain.value = 0.18;
+    fonte.connect(passaAlta).connect(passaBaixa).connect(ganho).connect(audioCtx.destination);
+    nodesExtras.push(passaAlta, passaBaixa, ganho);
+  }
+
+  fonte.start();
+  somNode = { fonte, nodesExtras };
+}
+function pararSom(){
+  if (!somNode) return;
+  try { somNode.fonte.stop(); } catch (e) {}
+  somNode.nodesExtras.forEach((n) => { if (n.stop) { try { n.stop(); } catch (e) {} } });
+  somNode = null;
+}
+function ligarSom(){
+  if (somLigado) return;
+  iniciarSom(config.somTipo);
+  somLigado = true;
+  document.getElementById('somLabelTexto').textContent = 'Som ambiente: ligado';
+}
+function desligarSom(){
+  if (!somLigado) return;
+  pararSom();
+  somLigado = false;
+  document.getElementById('somLabelTexto').textContent = 'Som ambiente: desligado';
+}
+document.getElementById('somSwitch').addEventListener('change', (e) => {
+  if (e.target.checked) ligarSom(); else desligarSom();
+});
+function atualizarSomTipoUI(){
+  document.querySelectorAll('.som-tipo-btn').forEach((b) => b.classList.toggle('ativo', b.dataset.tipo === config.somTipo));
+}
+document.querySelectorAll('.som-tipo-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    config.somTipo = btn.dataset.tipo;
+    salvarConfig();
+    atualizarSomTipoUI();
+    if (somLigado) { pararSom(); iniciarSom(config.somTipo); }
+    else { document.getElementById('somSwitch').checked = true; ligarSom(); }
+  });
+});
+atualizarSomTipoUI();
+
 function destravarAudio(){
   audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -395,13 +904,6 @@ function destravarAudio(){
 document.addEventListener('touchstart', destravarAudio, { once: true });
 document.addEventListener('click', destravarAudio, { once: true });
 
-/* ------------------------------------------------------------
-   ALERTA de troca de fase do Pomodoro (foco→pausa / pausa→foco):
-   3 beeps + vibração. Só funciona com a tela ligada e a aba em primeiro
-   plano — o iOS suspende JS de página web com a tela bloqueada, então
-   isso não é um alarme de verdade (precisaria de push notification com
-   servidor, o que é um projeto à parte).
-   ------------------------------------------------------------ */
 function tocarAlertaFase(){
   try {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
@@ -423,17 +925,196 @@ function tocarAlertaFase(){
   if (navigator.vibrate) navigator.vibrate([180, 90, 180, 90, 180]);
 }
 
+/* ------------------------------------------------------------
+   MANTER A TELA ACESA DURANTE O POMODORO (Screen Wake Lock API)
+   ------------------------------------------------------------
+   O motivo de existir: o Safari do iOS suspende o JavaScript da página
+   assim que a tela apaga ou o app vai pra segundo plano — nenhum truque
+   de site consegue tocar som ou vibrar depois disso, é uma trava do
+   sistema operacional, não do navegador. A única coisa que dá pra fazer
+   de verdade é pedir pro aparelho não apagar a tela sozinho por
+   inatividade ENQUANTO o Pomodoro está rodando — daí o alarme sonoro
+   toca certinho no fim de cada fase. Suportado em iOS 16.4+ e na maioria
+   dos Android; onde não existe, essa função simplesmente não faz nada
+   (nenhum erro, o cronômetro segue normal).
+   ------------------------------------------------------------ */
+let wakeLock = null;
+async function pedirWakeLock(){
+  if (wakeLock || !('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch (e) {
+    // Falha comum e inofensiva: bateria baixa, aba não está visível, etc.
+    wakeLock = null;
+  }
+}
+function liberarWakeLock(){
+  wakeLock?.release();
+  wakeLock = null;
+}
+function gerenciarWakeLock(){
+  const precisa = sessao.sessionState === 'running' && sessao.pomodoroMode;
+  if (precisa) pedirWakeLock(); else liberarWakeLock();
+}
+
+/* ------------------------------------------------------------
+   NOTIFICAÇÃO DO SISTEMA — reforço opcional pro alarme de fase.
+   O iOS Safari comum (fora de PWA instalado com push) nem tem essa API;
+   nesses casos 'Notification' in window já dá false e a função não faz
+   nada. Em desktop/Android funciona como um aviso a mais, além do som.
+   ------------------------------------------------------------ */
+function pedirPermissaoNotificacao(){
+  if (!('Notification' in window) || Notification.permission !== 'default') return;
+  Notification.requestPermission().catch(() => {});
+}
+function notificarFimDeFase(novaFase){
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    new Notification('Concurseiro Blindado', {
+      body: novaFase === 'work' ? 'Pausa terminada — hora de focar de novo.' : 'Sessão de foco terminada — hora da pausa.',
+    });
+  } catch (e) { /* alguns navegadores exigem Service Worker p/ isso — ignora se falhar */ }
+}
+
 /* ============================================================
-   PAREAMENTO
+   NAVEGAÇÃO POR ABAS
    ============================================================ */
-const CHAVE_LOCAL = 'cb_deviceId';
-const telaPareamento = document.getElementById('telaPareamento');
-const telaTimer = document.getElementById('telaTimer');
+const tabBtns = document.querySelectorAll('.tab-btn');
+const paginas = document.querySelectorAll('.pagina');
+function irParaAba(nome){
+  tabBtns.forEach(b => b.classList.toggle('ativa', b.dataset.tab === nome));
+  paginas.forEach(p => p.classList.toggle('ativa', p.dataset.pagina === nome));
+  if (navigator.vibrate) navigator.vibrate(6);
+}
+tabBtns.forEach(b => b.addEventListener('click', () => irParaAba(b.dataset.tab)));
+
+/* ============================================================
+   SHEET DE AJUSTES
+   ============================================================ */
+const sheetOverlay = document.getElementById('sheetOverlay');
+document.getElementById('btnAjustes').addEventListener('click', () => abrirSheet());
+document.getElementById('sheetFechar').addEventListener('click', fecharSheet);
+sheetOverlay.addEventListener('click', (e) => { if (e.target === sheetOverlay) fecharSheet(); });
+function abrirSheet(){ sheetOverlay.classList.add('aberto'); }
+function fecharSheet(){ sheetOverlay.classList.remove('aberto'); }
+
+/* ============================================================
+   SHEET DE SEQUÊNCIA — abre ao tocar no distintivo de fogo.
+   ============================================================ */
+const STREAK_MILESTONES = [3, 7, 14, 30, 60, 100, 180, 365];
+const streakOverlay = document.getElementById('streakOverlay');
+document.getElementById('streakBadge').addEventListener('click', () => abrirStreakSheet());
+document.getElementById('streakFechar').addEventListener('click', fecharStreakSheet);
+streakOverlay.addEventListener('click', (e) => { if (e.target === streakOverlay) fecharStreakSheet(); });
+
+function calcularMelhorStreak(){
+  const dias = Object.keys(historico).filter((k) => historico[k] >= config.dailyGoalMs).sort();
+  if (!dias.length) return 0;
+  let melhor = 1, atual = 1;
+  for (let i = 1; i < dias.length; i++){
+    const diffDias = Math.round((new Date(dias[i]) - new Date(dias[i - 1])) / 86400000);
+    if (diffDias === 1) { atual++; melhor = Math.max(melhor, atual); }
+    else atual = 1;
+  }
+  return melhor;
+}
+
+function abrirStreakSheet(){
+  const atual = calcularStreak();
+  const melhor = Math.max(atual, calcularMelhorStreak());
+  document.getElementById('streakGrandeNumero').textContent = atual;
+  document.getElementById('streakMelhorTexto').textContent = `${melhor} dia${melhor === 1 ? '' : 's'}`;
+
+  const proximaMarca = STREAK_MILESTONES.find((m) => m > atual);
+  document.getElementById('streakProximaTexto').textContent = proximaMarca
+    ? `faltam ${proximaMarca - atual} dia${(proximaMarca - atual) === 1 ? '' : 's'} para ${proximaMarca} dias`
+    : 'você bateu todas as marcas!';
+
+  const grid = document.getElementById('marcosGrid');
+  grid.innerHTML = '';
+  STREAK_MILESTONES.forEach((m) => {
+    const conquistado = melhor >= m;
+    const chip = document.createElement('span');
+    chip.className = 'marco-chip' + (conquistado ? ' conquistado' : '');
+    if (conquistado) {
+      chip.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    }
+    chip.appendChild(document.createTextNode(m + ' dias'));
+    grid.appendChild(chip);
+  });
+
+  streakOverlay.classList.add('aberto');
+}
+function fecharStreakSheet(){ streakOverlay.classList.remove('aberto'); }
+
+/* Meta diária */
+const elMetaValor = document.getElementById('metaValor');
+function atualizarMetaValor(){ elMetaValor.textContent = (config.dailyGoalMs / 3600000).toFixed(0) + 'h'; }
+document.getElementById('metaMenos').addEventListener('click', () => {
+  config.dailyGoalMs = Math.max(1 * 3600000, config.dailyGoalMs - 3600000);
+  salvarConfig(); atualizarMetaValor(); atualizarTudo();
+});
+document.getElementById('metaMais').addEventListener('click', () => {
+  config.dailyGoalMs = Math.min(16 * 3600000, config.dailyGoalMs + 3600000);
+  salvarConfig(); atualizarMetaValor(); atualizarTudo();
+});
+atualizarMetaValor();
+
+/* Durações do Pomodoro */
+const elFocoValor = document.getElementById('focoValor');
+const elPausaValor = document.getElementById('pausaValor');
+function atualizarPomodoroValores(){
+  elFocoValor.textContent = config.pomodoroWorkMin + ' min';
+  elPausaValor.textContent = config.pomodoroRestMin + ' min';
+}
+document.getElementById('focoMenos').addEventListener('click', () => { config.pomodoroWorkMin = Math.max(5, config.pomodoroWorkMin - 5); salvarConfig(); atualizarPomodoroValores(); });
+document.getElementById('focoMais').addEventListener('click', () => { config.pomodoroWorkMin = Math.min(90, config.pomodoroWorkMin + 5); salvarConfig(); atualizarPomodoroValores(); });
+document.getElementById('pausaMenos').addEventListener('click', () => { config.pomodoroRestMin = Math.max(5, config.pomodoroRestMin - 5); salvarConfig(); atualizarPomodoroValores(); });
+document.getElementById('pausaMais').addEventListener('click', () => { config.pomodoroRestMin = Math.min(30, config.pomodoroRestMin + 5); salvarConfig(); atualizarPomodoroValores(); });
+atualizarPomodoroValores();
+
+/* ============================================================
+   PAREAMENTO (opcional) — Firebase só entra em cena se a pessoa pedir.
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyAqpHJny30HIfedbdwq22Ex1K0QDllO5hw",
+  authDomain: "concurseiro-blindado.firebaseapp.com",
+  databaseURL: "https://concurseiro-blindado-default-rtdb.firebaseio.com",
+  projectId: "concurseiro-blindado",
+};
+// O cronômetro em si NUNCA pode depender disso — só o pareamento (opcional)
+// usa o Firebase. Se o script não carregar (sem internet, bloqueador, rede
+// restrita etc.), o app inteiro precisa continuar funcionando normalmente.
+let db = null;
+let firebaseDisponivel = false;
+try {
+  if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    firebaseDisponivel = true;
+  }
+} catch (e) {
+  console.warn('[Concurseiro Blindado] Firebase indisponível — o cronômetro segue funcionando normalmente, só o pareamento fica fora do ar.', e);
+}
+
+const tg = window.Telegram?.WebApp;
+tg?.ready();
+tg?.expand();
+
+let deviceId = localStorage.getItem(LS.deviceId) || null;
+let refExtensao = null;   // dispositivos/{id}          — lido (o PC escreve)
+let refCelular = null;    // dispositivos/{id}/celular  — lido e escrito pelo site
+let estadoExtensao = null;
+let ignorarProximoEcoCelular = false;
+
+const secaoParear = document.getElementById('secaoParear');
+const secaoPareado = document.getElementById('secaoPareado');
 const inputCodigo = document.getElementById('inputCodigo');
 const btnParear = document.getElementById('btnParear');
 const erroPareamento = document.getElementById('erroPareamento');
-const linkNovo = document.getElementById('linkNovo');
-const tarefasCard = document.getElementById('tarefasCard');
+const btnDesparear = document.getElementById('btnDesparear');
+const btnAjustesIcone = document.getElementById('btnAjustes');
 
 inputCodigo.addEventListener('input', () => {
   inputCodigo.value = inputCodigo.value.replace(/\D/g, '').slice(0, 6);
@@ -441,6 +1122,10 @@ inputCodigo.addEventListener('input', () => {
 });
 
 btnParear.addEventListener('click', async () => {
+  if (!firebaseDisponivel) {
+    erroPareamento.textContent = 'Sem conexão com o servidor de pareamento agora. Verifique a internet e tente de novo.';
+    return;
+  }
   const codigo = inputCodigo.value;
   btnParear.disabled = true;
   erroPareamento.textContent = '';
@@ -452,51 +1137,106 @@ btnParear.addEventListener('click', async () => {
       btnParear.disabled = false;
       return;
     }
-    localStorage.setItem(CHAVE_LOCAL, dado.deviceId);
-    iniciarCronometro(dado.deviceId);
+    localStorage.setItem(LS.deviceId, dado.deviceId);
+    ativarPareamento(dado.deviceId);
   } catch (e) {
     erroPareamento.textContent = 'Falha de conexão. Tente de novo.';
     btnParear.disabled = false;
   }
 });
 
-linkNovo.addEventListener('click', () => {
-  localStorage.removeItem(CHAVE_LOCAL);
-  telaTimer.style.display = 'none';
-  tarefasCard.style.display = 'none';
-  telaPareamento.style.display = 'block';
-  inputCodigo.value = '';
-  btnParear.disabled = true;
+btnDesparear.addEventListener('click', () => {
+  localStorage.removeItem(LS.deviceId);
+  deviceId = null;
+  refExtensao?.off(); refCelular?.off();
+  refExtensao = null; refCelular = null; estadoExtensao = null;
+  mostrarEstadoPareamento();
+  renderPainel(); renderAgenda();
 });
 
+function mostrarEstadoPareamento(){
+  const pareado = !!deviceId;
+  secaoParear.style.display = pareado ? 'none' : 'block';
+  secaoPareado.style.display = pareado ? 'block' : 'none';
+  btnAjustesIcone.classList.toggle('tem-status', pareado);
+}
+
+function ativarPareamento(id){
+  if (!firebaseDisponivel) return;
+  deviceId = id;
+  mostrarEstadoPareamento();
+  inputCodigo.value = '';
+
+  // ---- Lê o que a extensão publica (nível, histórico, agenda, bloqueio) ----
+  refExtensao = db.ref('dispositivos/' + deviceId);
+  refExtensao.on('value', (snap) => {
+    estadoExtensao = snap.val();
+    renderPainel();
+    renderAgenda();
+  });
+
+  // ---- Sincroniza os dados do PRÓPRIO site (backup/städte entre aparelhos) ----
+  refCelular = db.ref('dispositivos/' + deviceId + '/celular');
+  refCelular.once('value').then((snap) => {
+    const remoto = snap.val();
+    if (remoto && (!Object.keys(historico).length && !tarefas.length)) {
+      // aparelho novo sem dados locais: adota o que já estava salvo na nuvem
+      if (remoto.historico) { historico = remoto.historico; salvarJSON(LS.historico, historico); }
+      if (remoto.tarefas) { tarefas = remoto.tarefas; salvarJSON(LS.tarefas, tarefas); }
+      renderTarefas(); atualizarTudo();
+    }
+    sincronizarComPC();
+  });
+  refCelular.on('value', (snap) => {
+    if (ignorarProximoEcoCelular) { ignorarProximoEcoCelular = false; return; }
+    const remoto = snap.val();
+    if (!remoto) return;
+    // Outro aparelho pareado no mesmo código atualizou as tarefas — reflete aqui.
+    if (Array.isArray(remoto.tarefas) && JSON.stringify(remoto.tarefas) !== JSON.stringify(tarefas)) {
+      tarefas = remoto.tarefas;
+      salvarJSON(LS.tarefas, tarefas);
+      renderTarefas();
+    }
+  });
+}
+
+function sincronizarComPC(){
+  if (!firebaseDisponivel || !deviceId || !refCelular) return;
+  ignorarProximoEcoCelular = true;
+  refCelular.set({
+    historico,
+    tarefas,
+    dailyGoalMs: config.dailyGoalMs,
+    atualizadoEm: Date.now()
+  }).catch(() => { /* sem internet agora — os dados continuam salvos localmente */ });
+}
+
+if (deviceId) ativarPareamento(deviceId);
+mostrarEstadoPareamento();
+
 /* ============================================================
-   CRONÔMETRO
+   MOTOR DO CRONÔMETRO — tudo local, funciona sem parear.
    ============================================================ */
 const elTimer = document.getElementById('timer');
 const elTimerLabel = document.getElementById('timerLabel');
 const elStatus = document.getElementById('statusTexto');
-const elDot = document.getElementById('dot');
-const elBloco = document.getElementById('bloco');
-const elFooter = document.getElementById('footer');
+const elStatusTag = document.getElementById('statusTag');
+const elMetaTexto = document.getElementById('metaTexto');
+const elMetaBarra = document.getElementById('metaBarraFill');
 const elAnel = document.getElementById('anelProgresso');
 const elAnelWrap = document.getElementById('anelWrap');
 const elAbaFoco = document.getElementById('aba-foco');
 const elAbaPausaCurta = document.getElementById('aba-pausa-curta');
 const btnPrimary = document.getElementById('btnPrimary');
 const btnStop = document.getElementById('btnStop');
-const elStreakBadge = document.getElementById('streakBadge');
-const elMetaTexto = document.getElementById('metaTexto');
-const elMetaBarra = document.getElementById('metaBarraFill');
-
-const META_DIARIA_MS = 2 * 60 * 60 * 1000; // meta fixa de 2h/dia — ajuste aqui se quiser outro valor
+const elStreakTexto = document.getElementById('streakTexto');
+const modoTotalBtn = document.getElementById('modoTotalBtn');
+const modoPomodoroBtn = document.getElementById('modoPomodoroBtn');
 
 const RAIO = 98;
 const CIRCUNFERENCIA = 2 * Math.PI * RAIO;
-
-let estadoAtual = null;
 let tickInterval = null;
-let refAtual = null;
-let modoAnelManual = null; // null = automático (segue pomodoroMode); 'total' = usuário forçou o modo Total tocando no anel
+let ultimaFaseAlertada = null;
 
 function fmtCurto(totalSegundos){
   const s = Math.max(0, Math.floor(totalSegundos));
@@ -515,185 +1255,219 @@ function definirProgressoAnel(fracao){
   const offset = CIRCUNFERENCIA * (1 - Math.max(0, Math.min(1, fracao)));
   elAnel.style.strokeDashoffset = offset;
 }
-function atualizarMeta(msHoje){
-  const horas = (msHoje / 3600000).toFixed(1);
-  elMetaTexto.textContent = `${horas}h / ${(META_DIARIA_MS/3600000)}h`;
-  elMetaBarra.style.width = Math.min(100, (msHoje / META_DIARIA_MS) * 100) + '%';
+
+// Soma o tempo decorrido desde inicioSessao ao histórico, dividindo por dia
+// caso a sessão atravesse a meia-noite.
+function commitElapsed(){
+  if (sessao.sessionState !== 'running' || !sessao.inicioSessao) return;
+  let inicio = sessao.inicioSessao;
+  const fim = Date.now();
+  while (inicio < fim) {
+    const chave = chaveData(new Date(inicio));
+    const proximaMeiaNoite = new Date(inicio); proximaMeiaNoite.setHours(24, 0, 0, 0);
+    const limite = Math.min(fim, proximaMeiaNoite.getTime());
+    historico[chave] = (historico[chave] || 0) + (limite - inicio);
+    inicio = limite;
+  }
+  salvarHistorico();
 }
 
-function render(){
-  if (!estadoAtual){
-    elStatus.textContent = 'Sem dados ainda';
-    elFooter.textContent = 'abra a extensão no PC pelo menos uma vez';
-    return;
+function iniciarPomodoroFresco(){
+  sessao.pomodoroPhase = 'work';
+  sessao.pomodoroRemainingMs = config.pomodoroWorkMin * 60000;
+  sessao.pomodoroPhaseEndAt = null;
+}
+
+function acao_iniciarOuContinuar(){
+  if (sessao.sessionState === 'running') return;
+  sessao.inicioSessao = Date.now();
+  sessao.sessionState = 'running';
+  if (sessao.pomodoroMode) {
+    if (!sessao.pomodoroRemainingMs) iniciarPomodoroFresco();
+    sessao.pomodoroPhaseEndAt = Date.now() + sessao.pomodoroRemainingMs;
+    sessao.pomodoroRemainingMs = null;
   }
-  const { sessionState, msHoje, inicioSessao, bloco, pomodoroMode, pomodoroState, pomodoroEndAt, pomodoroTimeLeft, streakCount } = estadoAtual;
-
-  const emExecucao = sessionState === 'running';
-  const emPausa = typeof sessionState === 'string' && sessionState.startsWith('paused');
-
-  elDot.className = 'dot' + (emExecucao ? ' running' : emPausa ? ' paused' : '');
-  elStatus.textContent = emExecucao ? 'Estudando agora' : emPausa ? 'Pausado' : 'Parado';
-  elAnelWrap.className = 'anel-wrap' + (emExecucao ? ' is-running' : emPausa ? ' is-paused' : '');
-  elStreakBadge.textContent = `🔥 ${streakCount || 0} dia${(streakCount||0) === 1 ? '' : 's'}`;
-
-  btnPrimary.disabled = false;
-  btnStop.disabled = sessionState === 'stopped';
-  btnPrimary.textContent = emExecucao ? 'Pausar' : 'Continuar';
-
-  if (bloco){
-    elBloco.style.display = 'block';
-    elBloco.textContent = `📋 ${bloco.materia || bloco.tipo} (${bloco.inicio}–${bloco.fim})`;
-  } else {
-    elBloco.style.display = 'none';
+  salvarSessao();
+  atualizarTudo();
+}
+function acao_pausar(){
+  if (sessao.sessionState !== 'running') return;
+  commitElapsed();
+  if (sessao.pomodoroMode && sessao.pomodoroPhaseEndAt) {
+    sessao.pomodoroRemainingMs = Math.max(0, sessao.pomodoroPhaseEndAt - Date.now());
+    sessao.pomodoroPhaseEndAt = null;
   }
+  sessao.sessionState = 'paused';
+  sessao.inicioSessao = null;
+  salvarSessao();
+  atualizarTudo();
+}
+function acao_parar(){
+  if (sessao.sessionState === 'running') commitElapsed();
+  sessao.sessionState = 'stopped';
+  sessao.inicioSessao = null;
+  iniciarPomodoroFresco();
+  salvarSessao();
+  atualizarTudo();
+}
 
-  atualizarMeta(msHoje || 0);
+btnPrimary.addEventListener('click', () => {
+  if (sessao.sessionState === 'running') acao_pausar();
+  else acao_iniciarOuContinuar();
+  if (navigator.vibrate) navigator.vibrate(10);
+});
+btnStop.addEventListener('click', () => { acao_parar(); if (navigator.vibrate) navigator.vibrate(10); });
+
+function definirModoPomodoro(ligado){
+  sessao.pomodoroMode = ligado;
+  if (ligado) {
+    iniciarPomodoroFresco();
+    if (sessao.sessionState === 'running') {
+      sessao.pomodoroPhaseEndAt = Date.now() + sessao.pomodoroRemainingMs;
+      sessao.pomodoroRemainingMs = null;
+    }
+    pedirPermissaoNotificacao();
+  }
+  salvarSessao();
+  atualizarTudo();
+}
+modoTotalBtn.addEventListener('click', () => definirModoPomodoro(false));
+modoPomodoroBtn.addEventListener('click', () => definirModoPomodoro(true));
+
+function calcularStreak(){
+  let streak = 0;
+  let d = new Date();
+  if ((historico[chaveData(d)] || 0) >= config.dailyGoalMs) streak++;
+  d.setDate(d.getDate() - 1);
+  while (true) {
+    if ((historico[chaveData(d)] || 0) >= config.dailyGoalMs) { streak++; d.setDate(d.getDate() - 1); }
+    else break;
+  }
+  return streak;
+}
+
+function atualizarTudo(){
   clearInterval(tickInterval);
 
-  const modoDots = document.getElementById('modoDots');
-  const modoEfetivo = (pomodoroMode && modoAnelManual !== 'total') ? 'pomodoro' : 'total';
-  elAnelWrap.classList.toggle('modo-branco', modoEfetivo === 'pomodoro');
-  if (modoDots) {
-    modoDots.style.display = pomodoroMode ? 'flex' : 'none';
-    modoDots.querySelectorAll('.modo-dot').forEach(d => d.classList.toggle('ativo', d.dataset.modo === modoEfetivo));
-  }
+  const msHojeCommit = historico[hojeChave()] || 0;
+  const emExecucao = sessao.sessionState === 'running';
+  const emPausa = sessao.sessionState === 'paused';
 
-  if (modoEfetivo === 'pomodoro') {
+  elStatusTag.className = 'tag' + (emExecucao ? ' running' : emPausa ? ' paused' : ' stopped');
+  elStatus.textContent = emExecucao ? 'Estudando agora' : emPausa ? 'Pausado' : 'Parado';
+  elAnelWrap.className = 'anel-wrap' + (emExecucao ? ' is-running' : emPausa ? ' is-paused' : '');
+
+  const streak = calcularStreak();
+  elStreakTexto.textContent = `${streak} dia${streak === 1 ? '' : 's'}`;
+
+  btnPrimary.textContent = emExecucao ? 'Pausar' : (sessao.sessionState === 'stopped' ? 'Iniciar' : 'Continuar');
+  // "Parar" só faz sentido diferente de "Pausar" quando existe uma fase do
+  // Pomodoro pra resetar — no Cronômetro simples os dois seriam idênticos
+  // na prática, então some com o botão pra não confundir ninguém.
+  btnStop.style.display = sessao.pomodoroMode ? '' : 'none';
+  btnStop.disabled = sessao.sessionState === 'stopped';
+
+  modoTotalBtn.classList.toggle('ativo', !sessao.pomodoroMode);
+  modoPomodoroBtn.classList.toggle('ativo', sessao.pomodoroMode);
+  elAnelWrap.classList.toggle('modo-branco', sessao.pomodoroMode);
+
+  const horasMeta = (config.dailyGoalMs/3600000).toFixed(0);
+  elMetaTexto.textContent = `${(msHojeCommit/3600000).toFixed(1)}h / ${horasMeta}h`;
+  elMetaBarra.style.width = Math.min(100, (msHojeCommit / config.dailyGoalMs) * 100) + '%';
+
+  if (sessao.pomodoroMode) {
     document.getElementById('abas').style.display = 'flex';
-    document.getElementById('avisoAlerta').textContent = '🔔 avisa com som/vibração ao trocar de fase (só com a tela ligada)';
-    const emFoco = pomodoroState !== 'rest';
+    document.getElementById('avisoAlerta').textContent = 'Avisa com som e vibração ao trocar de fase (só com a tela ligada e a aba aberta)';
+    const emFoco = sessao.pomodoroPhase === 'work';
     elAbaFoco.classList.toggle('ativa', emFoco);
     elAbaPausaCurta.classList.toggle('ativa', !emFoco);
     elTimerLabel.textContent = emFoco ? 'sessão de foco' : 'pausa';
 
-    if (window.__cbUltimaFase !== pomodoroState) {
-      // Só toca alerta se já existia uma fase anterior (evita disparar
-      // som logo na primeira vez que o celular conecta / dá reload).
-      if (window.__cbUltimaFase !== undefined && window.__cbUltimaFase !== null) {
-        tocarAlertaFase();
-      }
-      window.__cbUltimaFase = pomodoroState;
-      window.__cbCicloRef = null;
-    }
-
-    function atualizarPomodoro(){
-      let restanteSeg;
-      if (emExecucao && pomodoroEndAt) {
-        restanteSeg = Math.max(0, Math.round((pomodoroEndAt - Date.now()) / 1000));
+    function tickPomodoro(){
+      let restanteMs;
+      if (sessao.sessionState === 'running' && sessao.pomodoroPhaseEndAt) {
+        restanteMs = sessao.pomodoroPhaseEndAt - Date.now();
+        if (restanteMs <= 0) {
+          // troca de fase automaticamente, sem perder o embalo da sessão
+          commitElapsed();
+          sessao.inicioSessao = Date.now();
+          sessao.pomodoroPhase = sessao.pomodoroPhase === 'work' ? 'rest' : 'work';
+          const duracaoMin = sessao.pomodoroPhase === 'work' ? config.pomodoroWorkMin : config.pomodoroRestMin;
+          sessao.pomodoroPhaseEndAt = Date.now() + duracaoMin * 60000;
+          salvarSessao();
+          tocarAlertaFase();
+          notificarFimDeFase(sessao.pomodoroPhase);
+          atualizarTudo();
+          return;
+        }
       } else {
-        restanteSeg = pomodoroTimeLeft || 0;
+        restanteMs = sessao.pomodoroRemainingMs != null ? sessao.pomodoroRemainingMs
+          : config.pomodoroWorkMin * 60000;
       }
-      elTimer.textContent = fmtCurto(restanteSeg);
-      if (!window.__cbCicloRef || window.__cbCicloRef < restanteSeg) {
-        window.__cbCicloRef = restanteSeg || 1;
-      }
-      definirProgressoAnel(restanteSeg / (window.__cbCicloRef || 1));
+      const duracaoTotalMin = sessao.pomodoroPhase === 'work' ? config.pomodoroWorkMin : config.pomodoroRestMin;
+      elTimer.textContent = fmtCurto(restanteMs / 1000);
+      definirProgressoAnel(restanteMs / (duracaoTotalMin * 60000));
     }
-
-    window.__cbAtualizarTick = atualizarPomodoro;
-    atualizarPomodoro();
-    if (emExecucao) tickInterval = setInterval(atualizarPomodoro, 1000);
+    tickPomodoro();
+    if (emExecucao) tickInterval = setInterval(tickPomodoro, 1000);
 
   } else {
     document.getElementById('abas').style.display = 'none';
     document.getElementById('avisoAlerta').textContent = '';
     elTimerLabel.textContent = 'tempo estudado hoje';
 
-    function atualizarSimples(){
-      let msTotal = msHoje || 0;
-      if (emExecucao && inicioSessao) msTotal += (Date.now() - inicioSessao);
+    function tickSimples(){
+      let msTotal = historico[hojeChave()] || 0;
+      if (emExecucao && sessao.inicioSessao) msTotal += (Date.now() - sessao.inicioSessao);
       elTimer.textContent = fmt(msTotal).slice(0, 5);
-      const fracaoHora = (msTotal % (60 * 60 * 1000)) / (60 * 60 * 1000);
+      const fracaoHora = (msTotal % 3600000) / 3600000;
       definirProgressoAnel(fracaoHora);
+      // Atravessou a meia-noite com a sessão rodando: confirma o dia anterior
+      // e recomeça a contagem no novo dia, sem o usuário precisar fazer nada.
+      if (emExecucao && sessao.inicioSessao && chaveData(new Date(sessao.inicioSessao)) !== hojeChave()) {
+        commitElapsed();
+        sessao.inicioSessao = Date.now();
+        salvarSessao();
+      }
     }
-
-    window.__cbAtualizarTick = atualizarSimples;
-    atualizarSimples();
-    if (emExecucao) tickInterval = setInterval(atualizarSimples, 1000);
+    tickSimples();
+    if (emExecucao) tickInterval = setInterval(tickSimples, 1000);
   }
 
-  elFooter.textContent = 'sincronizado com o PC em tempo real';
-  elFooter.classList.remove('offline');
+  renderPainelLocal();
+  gerenciarWakeLock();
 }
 
-elAnelWrap.addEventListener('click', () => {
-  if (!estadoAtual || !estadoAtual.pomodoroMode) return; // nada pra alternar sem Pomodoro ativo
-  modoAnelManual = (modoAnelManual === 'total') ? null : 'total';
-  render();
-});
-document.getElementById('modoDots')?.querySelectorAll('.modo-dot').forEach(dot => {
-  dot.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (!estadoAtual || !estadoAtual.pomodoroMode) return;
-    modoAnelManual = dot.dataset.modo === 'total' ? 'total' : null;
-    render();
-  });
-});
+elAnelWrap.addEventListener('click', () => definirModoPomodoro(!sessao.pomodoroMode));
 
-function forcarResync(){
-  if (typeof window.__cbAtualizarTick === 'function') window.__cbAtualizarTick();
-}
-document.addEventListener('visibilitychange', () => { if (!document.hidden) forcarResync(); });
-window.addEventListener('pageshow', forcarResync);
-window.addEventListener('focus', forcarResync);
-
-function enviarComando(acao){
-  if (!refAtual) {
-    elFooter.textContent = 'Erro: ainda não conectado ao dispositivo.';
-    elFooter.classList.add('offline');
-    return;
-  }
-  elFooter.textContent = 'enviando comando...';
-  refAtual.child('comandoRemoto').set({ acao, ts: Date.now() })
-    .then(() => {
-      elFooter.textContent = 'comando enviado ✓ (o PC aplica em alguns segundos)';
-      elFooter.classList.remove('offline');
-    })
-    .catch((erro) => {
-      elFooter.textContent = 'Falha ao enviar: ' + (erro && erro.message ? erro.message : erro);
-      elFooter.classList.add('offline');
-    });
-  tg?.HapticFeedback?.impactOccurred('light');
-  if (navigator.vibrate) navigator.vibrate(10);
-}
-
-btnPrimary.addEventListener('click', () => {
-  if (!estadoAtual) return;
-  enviarComando(estadoAtual.sessionState === 'running' ? 'pausar' : 'continuar');
-});
-btnStop.addEventListener('click', () => enviarComando('parar'));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) atualizarTudo(); });
+window.addEventListener('pageshow', atualizarTudo);
+window.addEventListener('focus', atualizarTudo);
 
 /* ============================================================
-   TAREFAS RÁPIDAS — mesmo nó do Firebase usado pela extensão
-   (dispositivos/{deviceId}/tarefas), em tempo real via onValue.
+   TAREFAS — sempre locais; sincronizadas se estiver pareado.
    ============================================================ */
 const elTarefasLista = document.getElementById('tarefasLista');
 const elTarefasInput = document.getElementById('tarefasInput');
 const elTarefasAdd = document.getElementById('tarefasAdd');
-let refTarefas = null;
-let tarefasAtuais = [];
 
 function renderTarefas(){
   elTarefasLista.innerHTML = '';
-  if (!tarefasAtuais.length){
+  if (!tarefas.length){
     const vazio = document.createElement('div');
     vazio.className = 'tarefas-vazio';
     vazio.textContent = 'nenhuma tarefa por aqui ainda';
     elTarefasLista.appendChild(vazio);
     return;
   }
-  tarefasAtuais.forEach((t) => {
+  tarefas.forEach((t) => {
     const item = document.createElement('div');
     item.className = 'tarefa-item' + (t.feita ? ' feita' : '');
 
     const check = document.createElement('button');
     check.className = 'tarefa-check';
-    check.textContent = t.feita ? '✓' : '';
-    check.addEventListener('click', () => {
-      t.feita = !t.feita;
-      salvarTarefas();
-    });
+    check.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    check.addEventListener('click', () => { t.feita = !t.feita; renderTarefas(); salvarTarefas(); });
 
     const texto = document.createElement('span');
     texto.className = 'tarefa-texto';
@@ -701,73 +1475,245 @@ function renderTarefas(){
 
     const del = document.createElement('button');
     del.className = 'tarefa-del';
-    del.textContent = '×';
-    del.addEventListener('click', () => {
-      tarefasAtuais = tarefasAtuais.filter(x => x.id !== t.id);
-      salvarTarefas();
-    });
+    del.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    del.addEventListener('click', () => { tarefas = tarefas.filter(x => x.id !== t.id); renderTarefas(); salvarTarefas(); });
 
     item.appendChild(check); item.appendChild(texto); item.appendChild(del);
     elTarefasLista.appendChild(item);
   });
 }
-function salvarTarefas(){
-  renderTarefas();
-  if (refTarefas) refTarefas.set(tarefasAtuais);
-}
 function adicionarTarefa(){
   const texto = elTarefasInput.value.trim();
   if (!texto) return;
-  tarefasAtuais.push({ id: 't_' + Date.now(), texto, feita: false });
+  tarefas.push({ id: 't_' + Date.now(), texto, feita: false });
   elTarefasInput.value = '';
+  renderTarefas();
   salvarTarefas();
 }
 elTarefasAdd.addEventListener('click', adicionarTarefa);
 elTarefasInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') adicionarTarefa(); });
+renderTarefas();
 
-function iniciarCronometro(deviceId){
-  telaPareamento.style.display = 'none';
-  telaTimer.style.display = 'block';
-  tarefasCard.style.display = 'block';
+/* ============================================================
+   PAINEL — nível/estatísticas locais (cartão de meta) + dados da
+   extensão (nível real, heatmap, bloqueio), só quando pareado.
+   ============================================================ */
+const LEVELS = [
+  { name: 'Calouro',      hours: 0 },
+  { name: 'Iniciante',    hours: 50 },
+  { name: 'Aprendiz',     hours: 100 },
+  { name: 'Dedicado',     hours: 250 },
+  { name: 'Estrategista', hours: 500 },
+  { name: 'Auditor',      hours: 1000 },
+  { name: 'Mestre',       hours: 2000 },
+  { name: 'Lenda',        hours: 3500 }
+];
 
-  let recebeuAlgumaResposta = false;
-  const timeoutConexao = setTimeout(() => {
-    if (!recebeuAlgumaResposta) {
-      elStatus.textContent = 'Sem resposta do servidor';
-      elFooter.textContent = 'Verifique: extensão recarregada no PC? Regras do Firebase publicadas? Sessão de estudo já foi iniciada ao menos 1x?';
-      elFooter.classList.add('offline');
-    }
-  }, 8000);
+function renderPainelLocal(){
+  const elHoje = document.getElementById('painelHojeTexto');
+  const elHojeBarra = document.getElementById('painelHojeBarra');
+  if (!elHoje) return;
+  const msHoje = historico[hojeChave()] || 0;
+  elHoje.textContent = `${(msHoje/3600000).toFixed(1)}h estudadas hoje neste cronômetro`;
+  elHojeBarra.style.width = Math.min(100, (msHoje/config.dailyGoalMs)*100) + '%';
+}
 
-  refAtual = db.ref('dispositivos/' + deviceId);
-  refAtual.on('value', (snap) => {
-    recebeuAlgumaResposta = true;
-    clearTimeout(timeoutConexao);
-    estadoAtual = snap.val();
-    render();
-  }, (erro) => {
-    recebeuAlgumaResposta = true;
-    clearTimeout(timeoutConexao);
-    elStatus.textContent = 'Erro de permissão';
-    elFooter.textContent = 'As regras do Realtime Database não foram publicadas ainda (aba Regras no console do Firebase).';
-    elFooter.classList.add('offline');
-    console.error('Erro Firebase:', erro);
-  });
+function renderNivelExtensao(estado){
+  const totalMs = estado.totalStudyMs || 0;
+  const totalHoras = totalMs / 3600000;
+  const idx = (typeof estado.unlockedLevelIndex === 'number') ? estado.unlockedLevelIndex : 0;
+  const nivel = LEVELS[idx] || LEVELS[0];
+  const proximo = LEVELS[idx + 1];
 
-  refTarefas = db.ref('dispositivos/' + deviceId + '/tarefas');
-  refTarefas.on('value', (snap) => {
-    const val = snap.val();
-    tarefasAtuais = Array.isArray(val) ? val.filter(Boolean) : [];
-    renderTarefas();
+  document.getElementById('nivelNome').textContent = nivel.name;
+  document.getElementById('nivelHoras').textContent = `${totalHoras.toFixed(1)}h estudadas no total (extensão)`;
+
+  if (proximo){
+    const faixa = proximo.hours - nivel.hours;
+    const progresso = Math.max(0, Math.min(100, ((totalHoras - nivel.hours) / faixa) * 100));
+    document.getElementById('nivelBarraFill').style.width = progresso + '%';
+    const faltam = Math.max(0, proximo.hours - totalHoras).toFixed(1);
+    document.getElementById('nivelProx').textContent = `Faltam ${faltam}h para "${proximo.name}"`;
+  } else {
+    document.getElementById('nivelBarraFill').style.width = '100%';
+    document.getElementById('nivelProx').textContent = 'Nível máximo — lenda dos concursos!';
+  }
+}
+
+function renderSemanaExtensao(hist){
+  const hoje = new Date();
+  const dias = [];
+  for (let i = 6; i >= 0; i--){
+    const d = new Date(hoje); d.setDate(d.getDate() - i);
+    dias.push({ d, ms: (hist && hist[chaveData(d)]) || 0 });
+  }
+  const maxMs = Math.max(...dias.map(x => x.ms), 3600000);
+  const DOW = ['dom','seg','ter','qua','qui','sex','sáb'];
+  const wrap = document.getElementById('semanaChart');
+  wrap.innerHTML = '';
+  dias.forEach(({ d, ms }) => {
+    const ehHoje = chaveData(d) === chaveData(hoje);
+    const col = document.createElement('div');
+    col.className = 'semana-col' + (ehHoje ? ' hoje' : '');
+    const alturaPct = Math.max(3, Math.min(100, (ms / maxMs) * 100));
+    col.innerHTML = `
+      <span style="font-size:10px;color:var(--text-dim);font-weight:700;">${(ms/3600000).toFixed(1)}h</span>
+      <div class="semana-barra"><div class="semana-barra-fill" style="height:${alturaPct}%;"></div></div>
+      <span class="semana-label">${DOW[d.getDay()]}</span>
+    `;
+    wrap.appendChild(col);
   });
 }
 
-const deviceIdSalvo = localStorage.getItem(CHAVE_LOCAL);
-if (deviceIdSalvo){
-  iniciarCronometro(deviceIdSalvo);
-} else {
-  telaPareamento.style.display = 'block';
+function renderHeatmapExtensao(hist, metaMs){
+  const hoje = new Date();
+  const dias = [];
+  for (let i = 34; i >= 0; i--){
+    const d = new Date(hoje); d.setDate(d.getDate() - i);
+    dias.push({ d, ms: (hist && hist[chaveData(d)]) || 0 });
+  }
+  const grid = document.getElementById('heatGrid');
+  grid.innerHTML = '';
+  const offset = dias[0].d.getDay();
+  for (let i = 0; i < offset; i++){
+    const vazia = document.createElement('div');
+    vazia.className = 'heat-cell vazia';
+    grid.appendChild(vazia);
+  }
+  dias.forEach(({ d, ms }) => {
+    const cel = document.createElement('div');
+    const frac = ms / metaMs;
+    let nivel = 0;
+    if (frac > 0 && frac < 0.25) nivel = 1;
+    else if (frac >= 0.25 && frac < 0.5) nivel = 2;
+    else if (frac >= 0.5 && frac < 1) nivel = 3;
+    else if (frac >= 1) nivel = 4;
+    cel.className = 'heat-cell';
+    if (nivel) cel.dataset.nivel = String(nivel);
+    cel.title = `${d.getDate()}/${d.getMonth()+1}: ${(ms/3600000).toFixed(1)}h`;
+    grid.appendChild(cel);
+  });
 }
+
+function renderBloqueioExtensao(sites){
+  const wrap = document.getElementById('bloqueioLista');
+  wrap.innerHTML = '';
+  if (!sites || !sites.length){
+    wrap.innerHTML = '<div class="vazio-msg" style="padding:10px 0;">Nenhum site marcado pra bloqueio manual agora.</div>';
+    return;
+  }
+  sites.forEach(host => {
+    const chip = document.createElement('span');
+    chip.className = 'chip-site';
+    chip.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+    chip.appendChild(document.createTextNode(host));
+    wrap.appendChild(chip);
+  });
+}
+
+function renderPainel(){
+  const conteudo = document.getElementById('painelExtensaoConteudo');
+  const bloqueado = document.getElementById('painelExtensaoBloqueado');
+  if (!estadoExtensao) {
+    conteudo.style.display = 'none';
+    bloqueado.style.display = 'block';
+    return;
+  }
+  conteudo.style.display = 'block';
+  bloqueado.style.display = 'none';
+  renderNivelExtensao(estadoExtensao);
+  const metaMs = estadoExtensao.dailyGoalMs || (4 * 60 * 60 * 1000);
+  renderSemanaExtensao(estadoExtensao.historico || {});
+  renderHeatmapExtensao(estadoExtensao.historico || {}, metaMs);
+  renderBloqueioExtensao(estadoExtensao.sitesBloqueadosManual || []);
+  const streakCount = estadoExtensao.streakCount || 0;
+  document.getElementById('streakNumero').textContent = `${streakCount} dia${streakCount === 1 ? '' : 's'} seguido${streakCount === 1 ? '' : 's'}`;
+}
+
+/* ============================================================
+   AGENDA — cronograma da extensão, só quando pareado.
+   ============================================================ */
+const CAT_LABEL = { trabalho:'Trabalho', academia:'Academia', leitura:'Leitura', hobby:'Hobby', outro:'Outro' };
+const CAT_COR   = { trabalho:'var(--violet)', academia:'#22d3ee', leitura:'var(--green)', hobby:'var(--gold)', outro:'var(--gray)' };
+const PRIO_COR  = { alta:'var(--red)', media:'var(--yellow)', baixa:'var(--gray)' };
+const DOW_CURTO = ['dom','seg','ter','qua','qui','sex','sáb'];
+let agendaSelecionada = hojeChave();
+
+function minutosAgora(){ const d = new Date(); return d.getHours()*60 + d.getMinutes(); }
+function minutosDe(hhmm){ const [h,m] = (hhmm||'0:0').split(':').map(Number); return h*60+m; }
+
+function renderDiasAgenda(agenda){
+  const hoje = new Date();
+  const wrap = document.getElementById('diasAgenda');
+  wrap.innerHTML = '';
+  for (let i = -1; i <= 6; i++){
+    const d = new Date(hoje); d.setDate(d.getDate() + i);
+    const chave = chaveData(d);
+    const temBloco = agenda && agenda[chave] && agenda[chave].length;
+    const chip = document.createElement('button');
+    chip.className = 'dia-chip' +
+      (chave === chaveData(hoje) ? ' hoje' : '') +
+      (chave === agendaSelecionada ? ' selecionada' : '') +
+      (temBloco ? ' tem-bloco' : '');
+    chip.innerHTML = `<span class="dow">${DOW_CURTO[d.getDay()]}</span><span class="dnum">${d.getDate()}</span><span class="ddot"></span>`;
+    chip.addEventListener('click', () => { agendaSelecionada = chave; renderAgenda(); });
+    wrap.appendChild(chip);
+  }
+}
+function renderBlocosDoDia(agenda){
+  const lista = document.getElementById('blocosLista');
+  lista.innerHTML = '';
+  const blocos = (agenda && agenda[agendaSelecionada]) ? [...agenda[agendaSelecionada]] : [];
+  blocos.sort((a,b) => minutosDe(a.inicio) - minutosDe(b.inicio));
+
+  if (!blocos.length){
+    lista.innerHTML = '<div class="vazio-msg">Nenhum bloco de estudo neste dia.<br>Adicione pela extensão no PC, na aba Cronograma.</div>';
+    return;
+  }
+  const ehHoje = agendaSelecionada === hojeChave();
+  const min = minutosAgora();
+
+  blocos.forEach(b => {
+    const ativo = ehHoje && min >= minutosDe(b.inicio) && min < minutosDe(b.fim);
+    const card = document.createElement('div');
+    card.className = 'bloco-card' + (ativo ? ' agora' : '');
+    card.style.setProperty('--cat-cor', CAT_COR[b.tipo] || 'var(--violet)');
+    card.innerHTML = `
+      <div class="bloco-hora">${b.inicio}<br>${b.fim}</div>
+      <div class="bloco-info">
+        <div class="bloco-titulo">${b.materia || CAT_LABEL[b.tipo] || 'Estudo'}</div>
+        <div class="bloco-sub">
+          <span class="bloco-prio" style="background:${PRIO_COR[b.prioridade] || 'var(--gray)'}"></span>
+          ${CAT_LABEL[b.tipo] || 'Outro'}${ativo ? ' · <span class="bloco-tag-agora">agora</span>' : ''}
+        </div>
+      </div>
+    `;
+    lista.appendChild(card);
+  });
+}
+function renderAgenda(){
+  const conteudo = document.getElementById('agendaConteudo');
+  const bloqueado = document.getElementById('agendaBloqueado');
+  if (!estadoExtensao) {
+    conteudo.style.display = 'none';
+    bloqueado.style.display = 'block';
+    return;
+  }
+  conteudo.style.display = 'block';
+  bloqueado.style.display = 'none';
+  const agenda = estadoExtensao.agenda || {};
+  renderDiasAgenda(agenda);
+  renderBlocosDoDia(agenda);
+}
+document.querySelectorAll('.btn-abrir-pareamento').forEach(b => b.addEventListener('click', abrirSheet));
+
+/* ============================================================
+   INÍCIO
+   ============================================================ */
+atualizarTudo();
+renderPainel();
+renderAgenda();
+
 </script>
 
 </body>
