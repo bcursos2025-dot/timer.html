@@ -215,7 +215,7 @@ body{
 .modo-opcao .icon{ width:14px; height:14px; }
 .modo-opcao.ativo{ background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); color:#fff; }
 .anel-conteudo{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.timer{ font-size:44px; font-weight:700; letter-spacing:.5px; font-variant-numeric:tabular-nums;
+.timer{ font-size:28px; font-weight:700; letter-spacing:.3px; font-variant-numeric:tabular-nums; white-space:nowrap;
         font-family:'SF Mono','Cascadia Code',Consolas,monospace; }
 .label{ color:var(--violet-light); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
         font-weight:700; margin-top:6px; opacity:.85; }
@@ -1173,6 +1173,7 @@ function ativarPareamento(id){
   refExtensao = db.ref('dispositivos/' + deviceId);
   refExtensao.on('value', (snap) => {
     estadoExtensao = snap.val();
+    atualizarTudo();
     renderPainel();
     renderAgenda();
     atualizarStatusPC();
@@ -1221,8 +1222,17 @@ function sincronizarComPC(){
    ------------------------------------------------------------ */
 function enviarComandoExtensao(acao){
   if (!firebaseDisponivel || !deviceId) return;
+  if (elFooter) { elFooter.textContent = 'enviando comando pro PC...'; elFooter.classList.remove('offline'); }
   db.ref('dispositivos/' + deviceId + '/comandoRemoto').set({ acao, ts: Date.now() })
-    .catch(() => { /* sem internet agora — o cronômetro do site já rodou local; só o PC não recebeu o comando */ });
+    .then(() => {
+      if (elFooter) elFooter.textContent = 'comando enviado ao PC — aplica em poucos segundos se alguma aba estiver aberta lá';
+    })
+    .catch((erro) => {
+      if (elFooter) {
+        elFooter.textContent = 'falha ao enviar pro PC: ' + (erro && erro.message ? erro.message : 'sem conexão agora');
+        elFooter.classList.add('offline');
+      }
+    });
 }
 
 const elFooter = document.getElementById('footer');
@@ -1272,11 +1282,13 @@ function fmtCurto(totalSegundos){
   return `${m}:${sec}`;
 }
 function fmt(ms){
+  // Mesmo formato exato usado pela extensão (função formatTime() do
+  // popup.js): "00h 00m 00s", não "00:00".
   const s = Math.max(0, Math.floor(ms/1000));
   const h = String(Math.floor(s/3600)).padStart(2,'0');
   const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
   const sec = String(s%60).padStart(2,'0');
-  return `${h}:${m}:${sec}`;
+  return `${h}h ${m}m ${sec}s`;
 }
 function definirProgressoAnel(fracao){
   const offset = CIRCUNFERENCIA * (1 - Math.max(0, Math.min(1, fracao)));
@@ -1342,8 +1354,12 @@ function acao_parar(){
 }
 
 btnPrimary.addEventListener('click', () => {
-  if (sessao.sessionState === 'running') acao_pausar();
-  else acao_iniciarOuContinuar();
+  // A decisão precisa seguir o MESMO estado que o rótulo do botão mostrou
+  // (que é o espelhado da extensão, quando pareado e em modo Cronômetro)
+  // — senão "Pausar" na tela poderia acabar iniciando em vez de pausar.
+  const espelhando = !!(deviceId && estadoExtensao && !sessao.pomodoroMode);
+  const rodandoVisivel = espelhando ? estadoExtensao.sessionState === 'running' : sessao.sessionState === 'running';
+  if (rodandoVisivel) acao_pausar(); else acao_iniciarOuContinuar();
   if (navigator.vibrate) navigator.vibrate(10);
 });
 btnStop.addEventListener('click', () => { acao_parar(); if (navigator.vibrate) navigator.vibrate(10); });
@@ -1379,9 +1395,19 @@ function calcularStreak(){
 function atualizarTudo(){
   clearInterval(tickInterval);
 
-  const msHojeCommit = historico[hojeChave()] || 0;
-  const emExecucao = sessao.sessionState === 'running';
-  const emPausa = sessao.sessionState === 'paused';
+  // Quando pareado e já chegou pelo menos uma leitura da extensão, o
+  // status/número exibidos passam a ser exatamente os dela — pra bater
+  // 100% com o que está no PC. Isso só vale no modo Cronômetro (Total);
+  // no modo Pomodoro o motor continua 100% local, senão o anel ficaria
+  // "pulsando rodando" enquanto a contagem regressiva local está parada.
+  const espelharExtensao = !!(deviceId && estadoExtensao && !sessao.pomodoroMode);
+  const sessionStateVisivel = espelharExtensao ? estadoExtensao.sessionState : sessao.sessionState;
+  const metaMsVisivel = espelharExtensao ? (estadoExtensao.dailyGoalMs || 4 * 60 * 60 * 1000) : config.dailyGoalMs;
+  const msHojeVisivel = espelharExtensao ? (estadoExtensao.msHoje || 0) : (historico[hojeChave()] || 0);
+  const inicioSessaoVisivel = espelharExtensao ? estadoExtensao.inicioSessao : sessao.inicioSessao;
+
+  const emExecucao = sessionStateVisivel === 'running';
+  const emPausa = typeof sessionStateVisivel === 'string' && sessionStateVisivel.startsWith('paused');
 
   elStatusTag.className = 'tag' + (emExecucao ? ' running' : emPausa ? ' paused' : ' stopped');
   elStatus.textContent = emExecucao ? 'Estudando agora' : emPausa ? 'Pausado' : 'Parado';
@@ -1390,7 +1416,7 @@ function atualizarTudo(){
   const streak = calcularStreak();
   elStreakTexto.textContent = `${streak} dia${streak === 1 ? '' : 's'}`;
 
-  btnPrimary.textContent = emExecucao ? 'Pausar' : (sessao.sessionState === 'stopped' ? 'Iniciar' : 'Continuar');
+  btnPrimary.textContent = emExecucao ? 'Pausar' : (sessionStateVisivel === 'stopped' ? 'Iniciar' : 'Continuar');
   // "Parar" só faz sentido diferente de "Pausar" quando existe uma fase do
   // Pomodoro pra resetar — no Cronômetro simples os dois seriam idênticos
   // na prática, então some com o botão pra não confundir ninguém.
@@ -1401,9 +1427,9 @@ function atualizarTudo(){
   modoPomodoroBtn.classList.toggle('ativo', sessao.pomodoroMode);
   elAnelWrap.classList.toggle('modo-branco', sessao.pomodoroMode);
 
-  const horasMeta = (config.dailyGoalMs/3600000).toFixed(0);
-  elMetaTexto.textContent = `${(msHojeCommit/3600000).toFixed(1)}h / ${horasMeta}h`;
-  elMetaBarra.style.width = Math.min(100, (msHojeCommit / config.dailyGoalMs) * 100) + '%';
+  const horasMeta = (metaMsVisivel/3600000).toFixed(0);
+  elMetaTexto.textContent = `${(msHojeVisivel/3600000).toFixed(1)}h / ${horasMeta}h`;
+  elMetaBarra.style.width = Math.min(100, (msHojeVisivel / metaMsVisivel) * 100) + '%';
 
   if (sessao.pomodoroMode) {
     document.getElementById('abas').style.display = 'flex';
@@ -1447,14 +1473,16 @@ function atualizarTudo(){
     elTimerLabel.textContent = 'tempo estudado hoje';
 
     function tickSimples(){
-      let msTotal = historico[hojeChave()] || 0;
-      if (emExecucao && sessao.inicioSessao) msTotal += (Date.now() - sessao.inicioSessao);
-      elTimer.textContent = fmt(msTotal).slice(0, 5);
+      let msTotal = msHojeVisivel;
+      if (emExecucao && inicioSessaoVisivel) msTotal += (Date.now() - inicioSessaoVisivel);
+      elTimer.textContent = fmt(msTotal);
       const fracaoHora = (msTotal % 3600000) / 3600000;
       definirProgressoAnel(fracaoHora);
-      // Atravessou a meia-noite com a sessão rodando: confirma o dia anterior
-      // e recomeça a contagem no novo dia, sem o usuário precisar fazer nada.
-      if (emExecucao && sessao.inicioSessao && chaveData(new Date(sessao.inicioSessao)) !== hojeChave()) {
+      // Atravessou a meia-noite com a sessão LOCAL rodando: confirma o dia
+      // anterior e recomeça a contagem no novo dia. Só se aplica ao registro
+      // local (histórico do próprio site) — o espelho da extensão já vem
+      // certo de lá, cada um cuida do seu dia.
+      if (!espelharExtensao && emExecucao && sessao.inicioSessao && chaveData(new Date(sessao.inicioSessao)) !== hojeChave()) {
         commitElapsed();
         sessao.inicioSessao = Date.now();
         salvarSessao();
