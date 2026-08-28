@@ -649,10 +649,11 @@ button{ font-family:inherit; }
     <div class="sheet-secao">
       <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Pareamento com o PC (opcional)</h3>
       <p class="pareamento-ajuda">
-        Parear é opcional — o cronômetro já funciona sem isso. Se parear, seus
-        dados deste aparelho ficam salvos na nuvem (dá pra abrir em outro
-        celular com o mesmo código) e as abas Painel/Agenda passam a mostrar
-        o progresso real registrado na extensão do PC.
+        Parear é opcional — o cronômetro já funciona sem isso. Se parear:
+        seus dados deste aparelho ficam salvos na nuvem (dá pra abrir em
+        outro celular com o mesmo código), as abas Painel/Agenda passam a
+        mostrar o progresso real da extensão, e Iniciar/Pausar/Parar aqui
+        também comandam o cronômetro da extensão no PC.
       </p>
       <div id="secaoParear" class="pareamento-secao">
         <input id="inputCodigo" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
@@ -1152,6 +1153,7 @@ btnDesparear.addEventListener('click', () => {
   refExtensao = null; refCelular = null; estadoExtensao = null;
   mostrarEstadoPareamento();
   renderPainel(); renderAgenda();
+  atualizarStatusPC();
 });
 
 function mostrarEstadoPareamento(){
@@ -1173,9 +1175,10 @@ function ativarPareamento(id){
     estadoExtensao = snap.val();
     renderPainel();
     renderAgenda();
+    atualizarStatusPC();
   });
 
-  // ---- Sincroniza os dados do PRÓPRIO site (backup/städte entre aparelhos) ----
+  // ---- Sincroniza os dados do PRÓPRIO site (backup entre aparelhos) ----
   refCelular = db.ref('dispositivos/' + deviceId + '/celular');
   refCelular.once('value').then((snap) => {
     const remoto = snap.val();
@@ -1209,6 +1212,30 @@ function sincronizarComPC(){
     dailyGoalMs: config.dailyGoalMs,
     atualizadoEm: Date.now()
   }).catch(() => { /* sem internet agora — os dados continuam salvos localmente */ });
+}
+
+/* ------------------------------------------------------------
+   CONTROLE REMOTO DO PC — reaproveita o MESMO mecanismo que a
+   extensão já sabia atender (dispositivos/{id}/comandoRemoto), então
+   não precisa mudar nada no lado da extensão pra isso funcionar.
+   ------------------------------------------------------------ */
+function enviarComandoExtensao(acao){
+  if (!firebaseDisponivel || !deviceId) return;
+  db.ref('dispositivos/' + deviceId + '/comandoRemoto').set({ acao, ts: Date.now() })
+    .catch(() => { /* sem internet agora — o cronômetro do site já rodou local; só o PC não recebeu o comando */ });
+}
+
+const elFooter = document.getElementById('footer');
+function atualizarStatusPC(){
+  if (!elFooter) return;
+  if (!deviceId || !estadoExtensao) {
+    elFooter.textContent = 'funciona sem internet — os dados ficam salvos neste aparelho';
+    return;
+  }
+  const s = estadoExtensao.sessionState;
+  const emExecucaoPC = s === 'running';
+  const emPausaPC = typeof s === 'string' && s.startsWith('paused');
+  elFooter.textContent = 'PC: ' + (emExecucaoPC ? 'estudando agora' : emPausaPC ? 'pausado' : 'parado');
 }
 
 if (deviceId) ativarPareamento(deviceId);
@@ -1289,6 +1316,7 @@ function acao_iniciarOuContinuar(){
   }
   salvarSessao();
   atualizarTudo();
+  enviarComandoExtensao('continuar');
 }
 function acao_pausar(){
   if (sessao.sessionState !== 'running') return;
@@ -1301,6 +1329,7 @@ function acao_pausar(){
   sessao.inicioSessao = null;
   salvarSessao();
   atualizarTudo();
+  enviarComandoExtensao('pausar');
 }
 function acao_parar(){
   if (sessao.sessionState === 'running') commitElapsed();
@@ -1309,6 +1338,7 @@ function acao_parar(){
   iniciarPomodoroFresco();
   salvarSessao();
   atualizarTudo();
+  enviarComandoExtensao('parar');
 }
 
 btnPrimary.addEventListener('click', () => {
