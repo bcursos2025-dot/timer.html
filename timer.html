@@ -401,6 +401,16 @@ button{ font-family:inherit; }
 .q-fraco-nome{ font-size:13.5px; }
 .q-fraco-taxa{ font-size:12px; font-weight:800; padding:3px 9px; border-radius:var(--radius-pill); background:var(--danger-soft); color:var(--red); flex-shrink:0; }
 
+/* ---- Leis grifadas no Planalto ---- */
+.q-lei-card{ background:var(--bg-elevated-2); border:1px solid var(--border-soft); border-radius:var(--radius-md); padding:12px; margin-bottom:10px; }
+.q-lei-topo{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
+.q-lei-titulo{ font-size:13px; font-weight:700; line-height:1.4; }
+.q-lei-meta{ font-size:11px; color:var(--text-dim); margin-top:2px; }
+.q-lei-abrir{ flex-shrink:0; border:none; background:var(--violet-soft); color:var(--violet-light); border-radius:10px;
+  padding:8px 14px; font-size:12px; font-weight:700; cursor:pointer; }
+.q-lei-trecho{ font-size:12px; color:var(--text-dim); line-height:1.5; padding:8px 10px; margin-top:6px;
+  border-left:3px solid var(--gold); background:var(--bg-elevated); border-radius:0 8px 8px 0; }
+
 .q-licenca-linha{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
 .q-licenca-tag{ font-size:11px; font-weight:800; padding:4px 10px; border-radius:var(--radius-pill); text-transform:uppercase; letter-spacing:.03em; }
 .q-licenca-tag.free{ background:var(--bg-elevated-2); color:var(--text-dim); }
@@ -592,6 +602,23 @@ button{ font-family:inherit; }
               nos flashcards deste site.
             </p>
             <div id="qFracosLista"></div>
+          </div>
+
+          <div class="subcard">
+            <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>Leis grifadas no Planalto</h3>
+            <p style="font-size:11.5px; color:var(--text-dim); margin:-4px 0 12px; line-height:1.5;">
+              Sincronizado da extensão. Abre a lei de verdade numa aba nova — não dá pra
+              mostrar a página do Planalto aqui dentro (sites do governo bloqueiam isso
+              por segurança), mas seus grifos aparecem normalmente lá, porque a extensão
+              continua ativa.
+            </p>
+            <div id="qGrifosBloqueado" style="display:none; text-align:center; padding:10px 2px;">
+              <p style="color:var(--text-dim); font-size:13px; margin:0 0 12px;">Pareie com a extensão pra ver aqui suas leis grifadas.</p>
+              <button class="btn-abrir-pareamento" style="border:none; border-radius:14px; padding:10px 20px; font-size:13px; font-weight:700; cursor:pointer; background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); color:#fff;">Parear agora</button>
+            </div>
+            <div id="qGrifosConteudo" style="display:none;">
+              <div id="qGrifosLista"></div>
+            </div>
           </div>
 
           <div class="subcard">
@@ -2311,6 +2338,70 @@ function renderFracos(){
   });
 }
 
+/* ---- Leis grifadas no Planalto (Marcador de Texto) ----
+   Só existe quando pareado — os grifos ficam salvos na extensão, o site
+   nunca escreve nada aqui, só mostra o que chegou. "Abrir" é uma aba nova
+   de verdade pro planalto.gov.br, não um iframe (bloqueado pelo próprio
+   site do governo por segurança). */
+const CORES_GRIFO_HEX = { amarelo: '#ffe066', verde: '#8ce99a', azul: '#74c0fc', rosa: '#ffa8c9', laranja: '#ffc078' };
+function renderGrifosPlanalto(){
+  const bloqueado = document.getElementById('qGrifosBloqueado');
+  const conteudo = document.getElementById('qGrifosConteudo');
+  const wrap = document.getElementById('qGrifosLista');
+  if (!bloqueado || !conteudo || !wrap) return;
+
+  if (!deviceId || !estadoExtensao) {
+    bloqueado.style.display = 'block';
+    conteudo.style.display = 'none';
+    return;
+  }
+  bloqueado.style.display = 'none';
+  conteudo.style.display = 'block';
+
+  const paginas = Array.isArray(estadoExtensao.planaltoGrifos) ? estadoExtensao.planaltoGrifos : [];
+  wrap.innerHTML = '';
+  if (!paginas.length) {
+    const vazio = document.createElement('div');
+    vazio.className = 'vazio-msg';
+    vazio.style.padding = '16px 2px';
+    vazio.textContent = 'Nenhuma lei grifada ainda. Grife um trecho no Planalto (com a extensão ativa) que ela aparece aqui.';
+    wrap.appendChild(vazio);
+    return;
+  }
+  paginas.forEach((p) => {
+    const card = document.createElement('div');
+    card.className = 'q-lei-card';
+
+    const topo = document.createElement('div');
+    topo.className = 'q-lei-topo';
+    const info = document.createElement('div');
+    const titulo = document.createElement('div');
+    titulo.className = 'q-lei-titulo';
+    titulo.textContent = p.titulo;
+    const meta = document.createElement('div');
+    meta.className = 'q-lei-meta';
+    meta.textContent = `${p.quantidade} grifo${p.quantidade === 1 ? '' : 's'}`;
+    info.appendChild(titulo); info.appendChild(meta);
+
+    const btn = document.createElement('button');
+    btn.className = 'q-lei-abrir';
+    btn.textContent = 'Abrir';
+    btn.addEventListener('click', () => window.open(p.url, '_blank', 'noopener'));
+
+    topo.appendChild(info); topo.appendChild(btn);
+    card.appendChild(topo);
+
+    (p.grifos || []).slice(0, 3).forEach((g) => {
+      const trecho = document.createElement('div');
+      trecho.className = 'q-lei-trecho';
+      trecho.style.borderLeftColor = CORES_GRIFO_HEX[g.cor] || CORES_GRIFO_HEX.amarelo;
+      trecho.textContent = g.texto;
+      card.appendChild(trecho);
+    });
+    wrap.appendChild(card);
+  });
+}
+
 /* ---- Estatísticas (frequência, hoje, desempenho, semana) ----
    Prioridade: desempenho REAL do QConcursos (sincronizado da extensão,
    vindo da própria API "Meu Painel" do QC). Só cai pro uso local dos
@@ -2401,6 +2492,7 @@ function atualizarPainelQuestoes(){
   renderSemanaQuestoes(fonte);
   document.getElementById('qBadgeRevisao').textContent = cartoesDevidos().length;
   renderFracos();
+  renderGrifosPlanalto();
   atualizarLicencaUI();
   atualizarContagemFiltrada();
 }
