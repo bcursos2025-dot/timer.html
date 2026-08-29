@@ -565,6 +565,7 @@ button{ font-family:inherit; }
           <div class="subcard">
             <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Últimos 7 dias — frequência e desempenho</h3>
             <div class="semana-chart" id="qSemanaChart"></div>
+            <p id="qFonteNota" style="font-size:11px; color:var(--text-faint); margin:12px 0 0; line-height:1.5;"></p>
           </div>
 
           <button class="q-cta secundaria" id="qBtnCronograma">
@@ -2292,23 +2293,48 @@ function renderFracos(){
   });
 }
 
-/* ---- Estatísticas (frequência, hoje, desempenho, semana) ---- */
-function calcularStreakQuestoes(){
+/* ---- Estatísticas (frequência, hoje, desempenho, semana) ----
+   Prioridade: desempenho REAL do QConcursos (sincronizado da extensão,
+   vindo da própria API "Meu Painel" do QC). Só cai pro uso local dos
+   flashcards deste site quando não há nada sincronizado ainda. As duas
+   fontes nunca se misturam no mesmo gráfico — ou é tudo QC, ou é tudo
+   local, pra não distorcer o que está sendo mostrado. */
+function fonteDadosQuestoes(){
+  const hist = estadoExtensao && estadoExtensao.questoesHistoricoQC;
+  return (hist && Object.keys(hist).length) ? 'qc' : 'local';
+}
+function diaQuestoes(chave, fonte){
+  if (fonte === 'qc') {
+    const d = (estadoExtensao.questoesHistoricoQC || {})[chave];
+    return d ? { feitas: d.total || 0, acertos: d.acertos || 0 } : { feitas: 0, acertos: 0 };
+  }
+  return questoesLog[chave] || { feitas: 0, acertos: 0 };
+}
+function statsHojeQuestoes(fonte){
+  // "Hoje" tem uma fonte AINDA mais fresca que o histórico diário — o
+  // snapshot ao vivo do "Meu Painel" do QC, atualizado a cada sincronização.
+  if (fonte === 'qc' && estadoExtensao.questoesHojeQC) {
+    const h = estadoExtensao.questoesHojeQC;
+    return { feitas: h.total || 0, acertos: h.acertos || 0 };
+  }
+  return diaQuestoes(hojeChave(), fonte);
+}
+function calcularStreakQuestoes(fonte){
   let streak = 0;
   const d = new Date();
-  if (((questoesLog[chaveData(d)] || {}).feitas || 0) > 0) streak++;
+  if (diaQuestoes(chaveData(d), fonte).feitas > 0) streak++;
   d.setDate(d.getDate() - 1);
-  while (((questoesLog[chaveData(d)] || {}).feitas || 0) > 0) { streak++; d.setDate(d.getDate() - 1); }
+  while (diaQuestoes(chaveData(d), fonte).feitas > 0) { streak++; d.setDate(d.getDate() - 1); }
   return streak;
 }
-function renderSemanaQuestoes(){
+function renderSemanaQuestoes(fonte){
   const hojeD = new Date();
   const DOW = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
   const dias = [];
   let maxFeitas = 1;
   for (let i = 6; i >= 0; i--) {
     const d = new Date(hojeD); d.setDate(d.getDate() - i);
-    const log = questoesLog[chaveData(d)] || { feitas: 0, acertos: 0 };
+    const log = diaQuestoes(chaveData(d), fonte);
     dias.push({ d, log });
     maxFeitas = Math.max(maxFeitas, log.feitas);
   }
@@ -2327,6 +2353,12 @@ function renderSemanaQuestoes(){
     `;
     wrap.appendChild(col);
   });
+  const nota = document.getElementById('qFonteNota');
+  if (nota) {
+    nota.textContent = fonte === 'qc'
+      ? 'Dados reais do seu QConcursos, sincronizados da extensão.'
+      : 'Ainda sem sincronização do QConcursos — mostrando o uso dos flashcards aqui no site.';
+  }
 }
 function atualizarLicencaUI(){
   const pro = licencaEhPro();
@@ -2338,16 +2370,17 @@ function atualizarLicencaUI(){
   document.getElementById('qLicencaBarra').style.width = (pro ? 100 : Math.min(100, feitas / 10 * 100)) + '%';
   document.getElementById('qLicencaSub').textContent = pro
     ? 'Você tem acesso ilimitado às questões.'
-    : 'Plano Free: 10 questões por dia. Pareie com a extensão pra ativar o Pro, ou indique um amigo — 1 indicação válida libera vitalício pros dois.';
+    : 'Plano Free: 10 flashcards por dia neste site. Pareie com a extensão pra ativar o Pro, ou indique um amigo — 1 indicação válida libera vitalício pros dois.';
   document.getElementById('qMeuCodigo').value = deviceId || 'pareie o celular pra gerar';
 }
 function atualizarPainelQuestoes(){
   if (document.getElementById('qConteudo').style.display === 'none') return;
-  const logHoje = questoesLog[hojeChave()] || { feitas: 0, acertos: 0 };
-  document.getElementById('qStatStreak').textContent = calcularStreakQuestoes();
-  document.getElementById('qStatHoje').textContent = logHoje.feitas;
-  document.getElementById('qStatDesempenho').textContent = logHoje.feitas ? Math.round(logHoje.acertos / logHoje.feitas * 100) + '%' : '—';
-  renderSemanaQuestoes();
+  const fonte = fonteDadosQuestoes();
+  const hojeStats = statsHojeQuestoes(fonte);
+  document.getElementById('qStatStreak').textContent = calcularStreakQuestoes(fonte);
+  document.getElementById('qStatHoje').textContent = hojeStats.feitas;
+  document.getElementById('qStatDesempenho').textContent = hojeStats.feitas ? Math.round(hojeStats.acertos / hojeStats.feitas * 100) + '%' : '—';
+  renderSemanaQuestoes(fonte);
   document.getElementById('qBadgeRevisao').textContent = cartoesDevidos().length;
   renderFracos();
   atualizarLicencaUI();
