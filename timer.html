@@ -2249,18 +2249,36 @@ document.querySelectorAll('#qChipsStatus .q-chip').forEach((chip) => {
 });
 
 /* ---- Sugestões (assuntos fracos) ---- */
+function mensagemDiagnosticoFracos(){
+  const vazio = document.createElement('div');
+  vazio.className = 'vazio-msg';
+  vazio.style.cssText = 'padding:16px 2px; text-align:left; line-height:1.6;';
+
+  if (!deviceId) {
+    vazio.textContent = 'Responda pelo menos 3 questões de um assunto aqui nos flashcards (ou pareie com a extensão) pra ver os mais fracos.';
+    return vazio;
+  }
+  const qc = estadoExtensao && Array.isArray(estadoExtensao.assuntosPrioridadeQC) ? estadoExtensao.assuntosPrioridadeQC : null;
+  if (!estadoExtensao) {
+    vazio.textContent = 'Pareado, mas ainda não chegou nenhum dado da extensão. Confira se ela está aberta no PC e espere até 1 minuto.';
+  } else if (!qc || !qc.length) {
+    vazio.innerHTML = 'Ainda não chegou nenhum assunto do QConcursos. Confira:<br>' +
+      '1) trocou o <b>firebase-sync.js</b> pelo mais recente na extensão?<br>' +
+      '2) recarregou a extensão em <b>chrome://extensions</b> depois de trocar?<br>' +
+      '3) já visitou <b>qconcursos.com/usuario/estatisticas/assuntos</b> com a extensão ativa, pelo menos uma vez?';
+  } else {
+    vazio.innerHTML = `Recebemos ${qc.length} assunto${qc.length === 1 ? '' : 's'} do QConcursos, mas nenhum bateu com os ` +
+      'assuntos deste baralho (CPC e Juizados Especiais). Provavelmente os assuntos em que você mais erra são de outra ' +
+      'matéria — isso é esperado até você ter um baralho pra ela também.';
+  }
+  return vazio;
+}
 function renderFracos(){
   const wrap = document.getElementById('qFracosLista');
   const lista = calcularAssuntosFracos();
   wrap.innerHTML = '';
   if (!lista.length) {
-    const vazio = document.createElement('div');
-    vazio.className = 'vazio-msg';
-    vazio.style.padding = '16px 0';
-    vazio.textContent = deviceId
-      ? 'Ainda sem dados suficientes — nem do seu desempenho no QConcursos nem dos flashcards aqui.'
-      : 'Responda pelo menos 3 questões de um assunto (ou pareie com a extensão) pra ver aqui os mais fracos.';
-    wrap.appendChild(vazio);
+    wrap.appendChild(mensagemDiagnosticoFracos());
     return;
   }
   lista.forEach(({ assunto, taxa, origem, nomeQC }) => {
