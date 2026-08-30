@@ -2338,9 +2338,25 @@ function popularFiltroAssunto(){
 /* ---- Disciplina ativa — Direito Administrativo só existe depois de pareado
    com a extensão E dela ter sincronizado o banco (dispositivos/<id>/questoesAdm).
    Sem isso, as opções ficam desabilitadas e o baralho continua sendo o CPC. ---- */
+// Guarda a última disponibilidade conhecida pra não recriar o <select> (e
+// perder a seleção do usuário / resetar o baralho pro CPC) toda vez que o
+// Firebase manda uma atualização de estado (heartbeat de ~1min, mudança de
+// sessão/pomodoro etc.) — sem isso, atualizarDisciplinaDisponivel() rodava
+// a cada snapshot do refExtensao.on('value', ...) e derrubava a escolha de
+// Direito Administrativo poucos segundos depois de selecionada.
+let cbAdmDisponivelAnterior = undefined;
+
 function atualizarDisciplinaDisponivel(){
   const select = document.getElementById('qFiltroDisciplina');
   const admDisponivel = !!(deviceId && estadoExtensao && estadoExtensao.questoesAdm);
+
+  // Nada mudou desde a última vez (o caso mais comum, disparado pelo
+  // heartbeat) — não mexe no <select> nem reaplica a disciplina, pra não
+  // perder a seleção do usuário nem reiniciar a sessão de prática em
+  // andamento.
+  if (admDisponivel === cbAdmDisponivelAnterior) return;
+  cbAdmDisponivelAnterior = admDisponivel;
+
   const valorAnterior = select.value;
 
   select.innerHTML = '<option value="">CPC e Juizados Especiais</option>';
@@ -2357,12 +2373,13 @@ function atualizarDisciplinaDisponivel(){
   optCE.disabled = !admDisponivel;
   select.appendChild(optCE);
 
-  // Se a disciplina escolhida deixou de estar disponível (ex: despareou), volta pro CPC.
-  if (valorAnterior && (valorAnterior !== 'adm_qa' && valorAnterior !== 'adm_ce' || !admDisponivel)) {
-    select.value = valorAnterior === '' ? '' : select.value;
-  }
-  if ((select.value === 'adm_qa' || select.value === 'adm_ce') && !admDisponivel) {
-    select.value = '';
+  // Restaura a seleção anterior, exceto se ela era uma opção de Direito
+  // Administrativo que deixou de estar disponível (ex: despareou) — nesse
+  // caso volta pro CPC.
+  if (valorAnterior === 'adm_qa' || valorAnterior === 'adm_ce') {
+    select.value = admDisponivel ? valorAnterior : '';
+  } else {
+    select.value = valorAnterior;
   }
   aplicarDisciplinaSelecionada();
 }
