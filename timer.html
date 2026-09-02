@@ -1423,6 +1423,19 @@ let deviceId = localStorage.getItem(LS.deviceId) || null;
 let refExtensao = null;   // dispositivos/{id}          — lido (o PC escreve)
 let refCelular = null;    // dispositivos/{id}/celular  — lido e escrito pelo site
 let estadoExtensao = null;
+// Declaradas aqui (não só lá embaixo, perto de onde são usadas) porque
+// ativarPareamento() pode rodar JÁ NO CARREGAMENTO da página se o
+// aparelho já estava pareado de antes (linha "if (deviceId)
+// ativarPareamento(deviceId)" mais abaixo) — nesse caso ela chama
+// escutarLeituraPdf() bem cedo, antes do script chegar na declaração
+// original dessas variáveis. Como são "let", ficam inacessíveis até a
+// própria linha de declaração rodar ("temporal dead zone"), e usá-las
+// antes disso quebra o script inteiro no meio — foi exatamente esse o
+// bug: o erro parava a execução antes mesmo de chegar no desbloqueio
+// da aba Questões.
+let refLeituraPdf = null;
+let leituraPdfCache = null;
+let periodoLeituraAtivo = 'dia';
 
 const secaoParear = document.getElementById('secaoParear');
 const secaoPareado = document.getElementById('secaoPareado');
@@ -3017,9 +3030,7 @@ document.querySelectorAll('#qModoTabs .modo-tab').forEach((btn) => {
 });
 
 /* ---- Histórico de leitura (Firebase — mesmo deviceId do pareamento) ---- */
-let leituraPdfCache = null;
-let refLeituraPdf = null;
-let periodoLeituraAtivo = 'dia';
+// (variáveis já declaradas lá em cima, junto com deviceId/refExtensao)
 
 function escutarLeituraPdf(){
   if (!firebaseDisponivel || !deviceId) {
