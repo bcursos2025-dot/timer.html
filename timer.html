@@ -2763,6 +2763,14 @@ document.getElementById('qSenhaInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') document.getElementById('qSenhaBtn').click();
 });
 
+atualizarDisciplinaDisponivel();
+// Acesso restrito removido de propósito: este app é de uso pessoal, então
+// o conteúdo de Questões (e a aba PDF dentro dela) já abre direto, sem
+// pedir senha. O código da senha continua ali acima, comentado por si só
+// — se um dia você quiser reativar, é só trocar a linha abaixo de volta
+// por: if (localStorage.getItem(LS.questoesDesbloqueado) === 'true') mostrarConteudoQuestoes();
+mostrarConteudoQuestoes();
+
 /* ============================================================
    MODO PDF — biblioteca (GitHub) + histórico de leitura (Firebase)
    ============================================================ */
