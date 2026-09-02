@@ -86,8 +86,14 @@
     }
 
     isConfigured() {
+      // Antes exigia também `c.path` (fixo, do modo "um arquivo só"). A
+      // Biblioteca não grava mais esse campo — cada chamada de pull/push
+      // recebe o caminho na hora — então exigir path aqui fazia
+      // isConfigured() voltar false sempre, mesmo com token/usuário/repo
+      // certos, e travava tudo que dependia disso (autopull da
+      // Biblioteca, badge de status, autosave).
       const c = this.config;
-      return !!(c && c.token && c.owner && c.repo && c.path);
+      return !!(c && c.token && c.owner && c.repo);
     }
 
     setConfig(cfg) {
