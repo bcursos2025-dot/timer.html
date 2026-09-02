@@ -401,6 +401,25 @@ button{ font-family:inherit; }
 .q-fraco-nome{ font-size:13.5px; }
 .q-fraco-taxa{ font-size:12px; font-weight:800; padding:3px 9px; border-radius:var(--radius-pill); background:var(--danger-soft); color:var(--red); flex-shrink:0; }
 
+/* ---------- Biblioteca de PDFs ---------- */
+.modo-tab{ flex:1; border:none; background:none; color:var(--text-dim); font-size:11.5px; font-weight:700;
+  padding:9px 0; border-radius:10px; cursor:pointer; }
+.modo-tab.ativo{ background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); color:#fff; }
+.pdf-cfg-btn{ border:none; border-radius:var(--radius-md); padding:11px 0; font-size:13px; font-weight:700; cursor:pointer;
+  background:var(--bg-elevated-2); color:var(--text); }
+.pdf-cfg-btn.primary{ background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); color:#fff; }
+.pdf-lib-item{ padding:12px 2px; border-bottom:1px solid var(--border-soft); }
+.pdf-lib-item:last-child{ border-bottom:none; }
+.pdf-lib-topo{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+.pdf-lib-nome{ font-size:13.5px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pdf-lib-sub{ font-size:11.5px; color:var(--text-dim); margin-top:2px; }
+.pdf-lib-acoes{ display:flex; gap:6px; flex-shrink:0; }
+.pdf-lib-acoes button{ border:none; border-radius:var(--radius-sm); padding:7px 12px; font-size:12px; font-weight:700; cursor:pointer; }
+.pdf-lib-abrir{ background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); color:#fff; }
+.pdf-lib-remover{ background:var(--bg-elevated-2); color:var(--text-dim); }
+.pdf-lib-barra-track{ height:5px; border-radius:4px; background:var(--bg-elevated-2); overflow:hidden; }
+.pdf-lib-barra-fill{ height:100%; background:linear-gradient(135deg, var(--violet-light), var(--violet-dark)); border-radius:4px; transition:width .3s; }
+
 .q-licenca-linha{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
 .q-licenca-tag{ font-size:11px; font-weight:800; padding:4px 10px; border-radius:var(--radius-pill); text-transform:uppercase; letter-spacing:.03em; }
 .q-licenca-tag.free{ background:var(--bg-elevated-2); color:var(--text-dim); }
@@ -548,6 +567,14 @@ button{ font-family:inherit; }
       <!-- Conteúdo (só aparece depois de desbloquear) -->
       <div id="qConteudo" style="display:none;">
 
+        <!-- Modo: Questões (conteúdo original) vs. PDF (biblioteca de PDFs) -->
+        <div class="q-tabs" id="qModoTabs">
+          <button class="modo-tab ativo" data-modo="questoes">Questões</button>
+          <button class="modo-tab" data-modo="pdf">PDF</button>
+        </div>
+
+        <div id="qModoQuestoesWrap">
+
         <div class="q-tabs">
           <button class="q-tab ativo" data-exame="concurso">Concurso</button>
           <button class="q-tab" data-exame="oab">OAB</button>
@@ -658,6 +685,90 @@ button{ font-family:inherit; }
             </div>
           </div>
         </div>
+        </div><!-- fim #qModoQuestoesWrap -->
+
+        <!-- ================= MODO PDF ================= -->
+        <div id="qModoPdf" style="display:none;">
+
+          <div class="q-stats-linha">
+            <div class="q-stat-mini"><div class="num" id="pdfStatHoje">0</div><div class="lbl">páginas hoje</div></div>
+            <div class="q-stat-mini"><div class="num" id="pdfStatTempoHoje">0min</div><div class="lbl">lidos hoje</div></div>
+            <div class="q-stat-mini"><div class="num" id="pdfStatMedia">—</div><div class="lbl">média/página</div></div>
+          </div>
+
+          <div class="subcard">
+            <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Histórico de leitura</h3>
+            <div class="q-tabs" id="pdfPeriodoTabs">
+              <button class="modo-tab ativo" data-periodo="dia">Dia</button>
+              <button class="modo-tab" data-periodo="semana">Semana</button>
+              <button class="modo-tab" data-periodo="mes">Mês</button>
+            </div>
+            <div class="semana-chart" id="pdfHistoricoChart"></div>
+            <p id="pdfFonteNota" style="font-size:11px; color:var(--text-faint); margin:12px 0 0; line-height:1.5;"></p>
+          </div>
+
+          <div id="pdfSemPareamento" class="subcard" style="text-align:center; display:none;">
+            <p style="color:var(--text-dim); font-size:13px; margin:0 0 10px;">Pareie este aparelho pra sincronizar seus PDFs e ver o histórico de leitura aqui.</p>
+            <button class="btn-abrir-pareamento">Parear agora</button>
+          </div>
+
+          <div class="subcard" id="pdfCfgCard">
+            <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/></svg>Sincronização com GitHub</h3>
+            <p style="font-size:12.5px; color:var(--text-dim); margin:0 0 12px; line-height:1.5;">
+              Seus PDFs (e as marcações que você fizer) ficam guardados num repositório do GitHub que só você controla — é isso que deixa o PC e o celular sempre com a mesma versão. Configure uma vez aqui; o leitor de PDF usa a mesma configuração automaticamente.
+            </p>
+            <div id="pdfCfgResumo" style="display:none; margin-bottom:10px;">
+              <span class="pareamento-status" id="pdfCfgResumoTexto" style="display:inline-flex;"></span>
+            </div>
+            <button class="q-cta secundaria" id="pdfBtnConfigurar" style="margin-bottom:0;">
+              <span class="tx"><b id="pdfBtnConfigurarTxt">Configurar GitHub</b><span>token, usuário, repositório e branch</span></span>
+            </button>
+            <div id="pdfCfgForm" style="display:none; margin-top:12px;">
+              <div class="q-linha-filtro" style="flex-direction:column; align-items:flex-start; gap:6px; border-bottom:none;">
+                <label>Personal Access Token</label>
+                <input id="pdfCfgToken" type="password" placeholder="github_pat_..." autocomplete="off" style="width:100%;">
+              </div>
+              <div class="q-linha-filtro" style="flex-direction:column; align-items:flex-start; gap:6px; border-bottom:none;">
+                <label>Usuário/organização</label>
+                <input id="pdfCfgOwner" type="text" placeholder="seu-usuario" style="width:100%;">
+              </div>
+              <div class="q-linha-filtro" style="flex-direction:column; align-items:flex-start; gap:6px; border-bottom:none;">
+                <label>Repositório</label>
+                <input id="pdfCfgRepo" type="text" placeholder="meus-documentos" style="width:100%;">
+              </div>
+              <div class="q-linha-filtro" style="flex-direction:column; align-items:flex-start; gap:6px; border-bottom:none;">
+                <label>Branch</label>
+                <input id="pdfCfgBranch" type="text" placeholder="main" value="main" style="width:100%;">
+              </div>
+              <div class="q-linha-filtro" style="flex-direction:column; align-items:flex-start; gap:6px; border-bottom:none;">
+                <label>Caminho do leitor de PDF neste site</label>
+                <input id="pdfCfgViewerPath" type="text" placeholder="leitor-pdf/web/viewer.html" style="width:100%;">
+              </div>
+              <div style="display:flex; gap:8px; margin-top:6px;">
+                <button class="pdf-cfg-btn" id="pdfCfgCancelar" style="flex:1;">Cancelar</button>
+                <button class="pdf-cfg-btn primary" id="pdfCfgSalvar" style="flex:1;">Salvar</button>
+              </div>
+              <div class="pareamento-erro" id="pdfCfgErro"></div>
+            </div>
+          </div>
+
+          <button class="q-cta" id="pdfBtnAdicionar">
+            <span class="ic"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+            <span class="tx"><b>Adicionar PDF</b><span>escolha um arquivo do seu aparelho</span></span>
+          </button>
+          <input type="file" id="pdfInputArquivo" accept="application/pdf" style="display:none;">
+
+          <div class="subcard">
+            <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>Sua biblioteca</h3>
+            <div id="pdfBibliotecaVazio" style="text-align:center; padding:20px 8px; color:var(--text-dim); font-size:13px;">
+              Nenhum PDF ainda. Configure o GitHub acima e toque em "Adicionar PDF".
+            </div>
+            <div id="pdfBibliotecaLista"></div>
+          </div>
+
+        </div>
+        <!-- ================= FIM MODO PDF ================= -->
+
       </div>
     </div>
 
@@ -1353,12 +1464,13 @@ btnParear.addEventListener('click', async () => {
 btnDesparear.addEventListener('click', () => {
   localStorage.removeItem(LS.deviceId);
   deviceId = null;
-  refExtensao?.off(); refCelular?.off();
-  refExtensao = null; refCelular = null; estadoExtensao = null;
+  refExtensao?.off(); refCelular?.off(); refLeituraPdf?.off();
+  refExtensao = null; refCelular = null; estadoExtensao = null; refLeituraPdf = null; leituraPdfCache = null;
   mostrarEstadoPareamento();
   renderPainel(); renderAgenda();
   atualizarStatusPC();
   if (typeof atualizarDisciplinaDisponivel === 'function') atualizarDisciplinaDisponivel();
+  if (typeof escutarLeituraPdf === 'function') escutarLeituraPdf();
 });
 
 function mostrarEstadoPareamento(){
@@ -1373,6 +1485,7 @@ function ativarPareamento(id){
   deviceId = id;
   mostrarEstadoPareamento();
   inputCodigo.value = '';
+  if (typeof escutarLeituraPdf === 'function') escutarLeituraPdf();
 
   // ---- Lê o que a extensão publica (nível, histórico, agenda, bloqueio) ----
   refExtensao = db.ref('dispositivos/' + deviceId);
@@ -2650,8 +2763,355 @@ document.getElementById('qSenhaInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') document.getElementById('qSenhaBtn').click();
 });
 
-atualizarDisciplinaDisponivel();
-if (localStorage.getItem(LS.questoesDesbloqueado) === 'true') mostrarConteudoQuestoes();
+/* ============================================================
+   MODO PDF — biblioteca (GitHub) + histórico de leitura (Firebase)
+   ============================================================ */
+const GH_CONFIG_KEY = 'pdfviewer:github-sync'; // MESMA chave usada pelo leitor de PDF (custom/github-sync.js)
+const GH_MANIFEST_PATH = '_biblioteca/manifest.json';
+const GH_PASTA_PDFS = '_biblioteca/pdfs';
+const LS_VIEWER_PATH = 'pdfviewer:site-path'; // onde o leitor de PDF está publicado, relativo a este site
+
+function ghLerConfig(){
+  try { return JSON.parse(localStorage.getItem(GH_CONFIG_KEY)) || null; } catch { return null; }
+}
+function ghSalvarConfig(cfg){ localStorage.setItem(GH_CONFIG_KEY, JSON.stringify(cfg)); }
+function ghConfigurado(){ const c = ghLerConfig(); return !!(c && c.token && c.owner && c.repo); }
+function lerCaminhoLeitor(){ return localStorage.getItem(LS_VIEWER_PATH) || 'leitor-pdf/web/viewer.html'; }
+
+function ghEncodePath(path){ return path.split('/').filter(Boolean).map(encodeURIComponent).join('/'); }
+function ghBytesParaBase64(bytes){
+  let binario = '';
+  const bloco = 0x8000;
+  for (let i = 0; i < bytes.length; i += bloco) binario += String.fromCharCode.apply(null, bytes.subarray(i, i + bloco));
+  return btoa(binario);
+}
+function ghBase64ParaTexto(base64){ return new TextDecoder('utf-8').decode(Uint8Array.from(atob(base64.replace(/\n/g, '')), c => c.charCodeAt(0))); }
+
+async function ghGet(path){
+  const cfg = ghLerConfig();
+  const url = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${ghEncodePath(path)}${cfg.branch ? `?ref=${encodeURIComponent(cfg.branch)}` : ''}`;
+  const res = await fetch(url, { headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${cfg.token}`, 'X-GitHub-Api-Version': '2022-11-28' } });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GitHub respondeu ${res.status}`);
+  return await res.json();
+}
+async function ghPut(path, base64Content, sha, mensagem){
+  const cfg = ghLerConfig();
+  const url = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${ghEncodePath(path)}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${cfg.token}`, 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: mensagem, content: base64Content, ...(cfg.branch ? { branch: cfg.branch } : {}), ...(sha ? { sha } : {}) }),
+  });
+  if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error(body.message || `GitHub respondeu ${res.status}`); }
+  return await res.json();
+}
+async function ghDelete(path, sha, mensagem){
+  const cfg = ghLerConfig();
+  const url = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${ghEncodePath(path)}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${cfg.token}`, 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: mensagem, sha, ...(cfg.branch ? { branch: cfg.branch } : {}) }),
+  });
+  return res.ok;
+}
+
+function slugPdf(nome){
+  return (nome || 'documento')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/\.pdf$/i, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    .slice(0, 60) || 'documento';
+}
+
+let bibliotecaManifestSha = null;
+async function carregarBiblioteca(){
+  const resultado = await ghGet(GH_MANIFEST_PATH);
+  if (!resultado) { bibliotecaManifestSha = null; return []; }
+  bibliotecaManifestSha = resultado.sha;
+  const manifest = JSON.parse(ghBase64ParaTexto(resultado.content) || '{}');
+  return Array.isArray(manifest.pdfs) ? manifest.pdfs : [];
+}
+async function salvarBiblioteca(lista){
+  const payload = { versao: 1, atualizadoEm: Date.now(), pdfs: lista };
+  const texto = JSON.stringify(payload, null, 2);
+  const base64 = btoa(unescape(encodeURIComponent(texto)));
+  const res = await ghPut(GH_MANIFEST_PATH, base64, bibliotecaManifestSha, 'Atualiza biblioteca de PDFs');
+  bibliotecaManifestSha = res.content && res.content.sha;
+}
+async function adicionarPdfNaBiblioteca(file){
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const id = `${slugPdf(file.name)}-${Math.random().toString(36).slice(2, 8)}`;
+  const path = `${GH_PASTA_PDFS}/${id}.pdf`;
+  await ghPut(path, ghBytesParaBase64(bytes), null, `Adiciona ${file.name} à biblioteca`);
+  const lista = await carregarBiblioteca();
+  const entrada = { id, nome: file.name, path, paginas: null, tamanhoBytes: bytes.length, criadoEm: Date.now(), atualizadoEm: Date.now() };
+  lista.push(entrada);
+  await salvarBiblioteca(lista);
+  return entrada;
+}
+async function removerPdfDaBiblioteca(id){
+  const lista = await carregarBiblioteca();
+  const idx = lista.findIndex((p) => p.id === id);
+  if (idx === -1) return;
+  const entrada = lista[idx];
+  try {
+    const atual = await ghGet(entrada.path);
+    if (atual) await ghDelete(entrada.path, atual.sha, `Remove ${entrada.nome} da biblioteca`);
+  } catch (e) { console.warn('[Biblioteca] não consegui apagar o arquivo do GitHub:', e); }
+  lista.splice(idx, 1);
+  await salvarBiblioteca(lista);
+}
+
+function abrirPdfNoLeitor(entrada){
+  const base = lerCaminhoLeitor();
+  const url = `${base}?ghpath=${encodeURIComponent(entrada.path)}&pdfid=${encodeURIComponent(entrada.id)}&pdfnome=${encodeURIComponent(entrada.nome)}`;
+  window.location.href = url;
+}
+
+function formatarMin(ms){
+  const min = Math.round((ms || 0) / 60000);
+  return min < 60 ? `${min}min` : `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
+}
+
+async function renderBibliotecaLista(){
+  const wrap = document.getElementById('pdfBibliotecaLista');
+  const vazio = document.getElementById('pdfBibliotecaVazio');
+  if (!ghConfigurado()) { vazio.style.display = 'block'; vazio.textContent = 'Configure o GitHub acima pra ver sua biblioteca.'; wrap.innerHTML = ''; return; }
+  let lista;
+  try { lista = await carregarBiblioteca(); }
+  catch (e) { vazio.style.display = 'block'; vazio.textContent = 'Não consegui falar com o GitHub agora — confira o token e a internet.'; wrap.innerHTML = ''; return; }
+
+  if (!lista.length) { vazio.style.display = 'block'; vazio.textContent = 'Nenhum PDF ainda. Toque em "Adicionar PDF" acima.'; wrap.innerHTML = ''; return; }
+  vazio.style.display = 'none';
+
+  const porPdf = (leituraPdfCache && leituraPdfCache.porPdf) || {};
+  wrap.innerHTML = '';
+  lista.slice().sort((a, b) => (b.atualizadoEm || 0) - (a.atualizadoEm || 0)).forEach((entrada) => {
+    const leitura = porPdf[entrada.id];
+    const totalPaginas = entrada.paginas || (leitura && leitura.totalPaginas) || null;
+    const paginasLidas = leitura ? Object.keys(leitura.paginas || {}).length : 0;
+    const pct = totalPaginas ? Math.min(100, Math.round((paginasLidas / totalPaginas) * 100)) : 0;
+    const item = document.createElement('div');
+    item.className = 'pdf-lib-item';
+    item.innerHTML = `
+      <div class="pdf-lib-topo">
+        <div style="min-width:0;">
+          <div class="pdf-lib-nome">${entrada.nome}</div>
+          <div class="pdf-lib-sub">${totalPaginas ? `${paginasLidas}/${totalPaginas} páginas` : 'ainda não aberto'}${leitura ? ' · ' + formatarMin(leitura.tempoTotalMs) + ' lidos' : ''}</div>
+        </div>
+        <div class="pdf-lib-acoes">
+          <button class="pdf-lib-abrir" data-id="${entrada.id}">Abrir</button>
+          <button class="pdf-lib-remover" data-id="${entrada.id}">Remover</button>
+        </div>
+      </div>
+      <div class="pdf-lib-barra-track"><div class="pdf-lib-barra-fill" style="width:${pct}%;"></div></div>
+    `;
+    wrap.appendChild(item);
+  });
+  wrap.querySelectorAll('.pdf-lib-abrir').forEach((btn) => btn.addEventListener('click', () => {
+    carregarBiblioteca().then((lst) => { const e = lst.find((p) => p.id === btn.dataset.id); if (e) abrirPdfNoLeitor(e); });
+  }));
+  wrap.querySelectorAll('.pdf-lib-remover').forEach((btn) => btn.addEventListener('click', async () => {
+    if (!confirm('Remover este PDF da biblioteca? Isso apaga o arquivo do GitHub também.')) return;
+    btn.textContent = '...'; btn.disabled = true;
+    try { await removerPdfDaBiblioteca(btn.dataset.id); renderBibliotecaLista(); }
+    catch (e) { alert('Não consegui remover: ' + e.message); btn.textContent = 'Remover'; btn.disabled = false; }
+  }));
+}
+
+/* ---- Configuração do GitHub (formulário inline) ---- */
+function atualizarResumoCfgGithub(){
+  const cfg = ghLerConfig();
+  const resumo = document.getElementById('pdfCfgResumo');
+  const texto = document.getElementById('pdfCfgResumoTexto');
+  const btnTxt = document.getElementById('pdfBtnConfigurarTxt');
+  if (cfg && cfg.owner && cfg.repo) {
+    resumo.style.display = 'block';
+    texto.textContent = `Conectado a ${cfg.owner}/${cfg.repo}`;
+    btnTxt.textContent = 'Editar configuração';
+  } else {
+    resumo.style.display = 'none';
+    btnTxt.textContent = 'Configurar GitHub';
+  }
+}
+document.getElementById('pdfBtnConfigurar').addEventListener('click', () => {
+  const form = document.getElementById('pdfCfgForm');
+  const abrindo = form.style.display === 'none';
+  form.style.display = abrindo ? 'block' : 'none';
+  if (abrindo) {
+    const cfg = ghLerConfig() || {};
+    document.getElementById('pdfCfgToken').value = cfg.token || '';
+    document.getElementById('pdfCfgOwner').value = cfg.owner || '';
+    document.getElementById('pdfCfgRepo').value = cfg.repo || '';
+    document.getElementById('pdfCfgBranch').value = cfg.branch || 'main';
+    document.getElementById('pdfCfgViewerPath').value = lerCaminhoLeitor();
+  }
+});
+document.getElementById('pdfCfgCancelar').addEventListener('click', () => {
+  document.getElementById('pdfCfgForm').style.display = 'none';
+});
+document.getElementById('pdfCfgSalvar').addEventListener('click', () => {
+  const cfg = {
+    token: document.getElementById('pdfCfgToken').value.trim(),
+    owner: document.getElementById('pdfCfgOwner').value.trim(),
+    repo: document.getElementById('pdfCfgRepo').value.trim(),
+    branch: document.getElementById('pdfCfgBranch').value.trim() || 'main',
+  };
+  const erro = document.getElementById('pdfCfgErro');
+  if (!cfg.token || !cfg.owner || !cfg.repo) { erro.textContent = 'Preencha token, usuário e repositório.'; return; }
+  erro.textContent = '';
+  ghSalvarConfig(cfg);
+  const caminhoLeitor = document.getElementById('pdfCfgViewerPath').value.trim();
+  if (caminhoLeitor) localStorage.setItem(LS_VIEWER_PATH, caminhoLeitor);
+  document.getElementById('pdfCfgForm').style.display = 'none';
+  atualizarResumoCfgGithub();
+  renderBibliotecaLista();
+});
+
+/* ---- Adicionar PDF ---- */
+document.getElementById('pdfBtnAdicionar').addEventListener('click', () => {
+  if (!ghConfigurado()) { alert('Configure a sincronização com o GitHub primeiro (card acima).'); return; }
+  document.getElementById('pdfInputArquivo').click();
+});
+document.getElementById('pdfInputArquivo').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const btn = document.getElementById('pdfBtnAdicionar');
+  const original = btn.innerHTML;
+  btn.innerHTML = '<span class="tx"><b>Enviando…</b></span>';
+  btn.disabled = true;
+  try {
+    await adicionarPdfNaBiblioteca(file);
+    await renderBibliotecaLista();
+  } catch (err) {
+    alert('Não consegui adicionar o PDF: ' + err.message);
+  } finally {
+    btn.innerHTML = original;
+    btn.disabled = false;
+  }
+});
+
+/* ---- Troca de sub-modo Questões/PDF ---- */
+document.querySelectorAll('#qModoTabs .modo-tab').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#qModoTabs .modo-tab').forEach((b) => b.classList.toggle('ativo', b === btn));
+    const ehPdf = btn.dataset.modo === 'pdf';
+    document.getElementById('qModoQuestoesWrap').style.display = ehPdf ? 'none' : 'block';
+    document.getElementById('qModoPdf').style.display = ehPdf ? 'block' : 'none';
+    if (ehPdf) {
+      atualizarResumoCfgGithub();
+      renderBibliotecaLista();
+      atualizarStatsLeituraPdf();
+    }
+  });
+});
+
+/* ---- Histórico de leitura (Firebase — mesmo deviceId do pareamento) ---- */
+let leituraPdfCache = null;
+let refLeituraPdf = null;
+let periodoLeituraAtivo = 'dia';
+
+function escutarLeituraPdf(){
+  if (!firebaseDisponivel || !deviceId) {
+    document.getElementById('pdfSemPareamento').style.display = 'block';
+    return;
+  }
+  document.getElementById('pdfSemPareamento').style.display = 'none';
+  refLeituraPdf?.off();
+  refLeituraPdf = db.ref('dispositivos/' + deviceId + '/leituraPdf');
+  refLeituraPdf.on('value', (snap) => {
+    leituraPdfCache = snap.val() || { porPdf: {}, historicoDiario: {} };
+    atualizarStatsLeituraPdf();
+    renderBibliotecaLista();
+  });
+}
+
+function atualizarStatsLeituraPdf(){
+  const hist = (leituraPdfCache && leituraPdfCache.historicoDiario) || {};
+  const porPdf = (leituraPdfCache && leituraPdfCache.porPdf) || {};
+  const hojeDados = hist[hojeChave()];
+  const paginasHoje = hojeDados ? Object.values(hojeDados.pdfs || {}).reduce((soma, p) => soma + (p.paginasLidas || []).length, 0) : 0;
+  document.getElementById('pdfStatHoje').textContent = paginasHoje;
+  document.getElementById('pdfStatTempoHoje').textContent = formatarMin(hojeDados ? hojeDados.msLido : 0);
+
+  let tempoTotal = 0, paginasTotal = 0;
+  Object.values(porPdf).forEach((p) => { tempoTotal += p.tempoTotalMs || 0; paginasTotal += Object.keys(p.paginas || {}).length; });
+  document.getElementById('pdfStatMedia').textContent = paginasTotal ? `${Math.round(tempoTotal / paginasTotal / 1000)}s` : '—';
+
+  renderHistoricoLeituraChart();
+}
+
+function paginasNoDia(hist, chave){
+  const d = hist[chave];
+  return d ? Object.values(d.pdfs || {}).reduce((soma, p) => soma + (p.paginasLidas || []).length, 0) : 0;
+}
+
+function renderHistoricoLeituraChart(){
+  const hist = (leituraPdfCache && leituraPdfCache.historicoDiario) || {};
+  const wrap = document.getElementById('pdfHistoricoChart');
+  const nota = document.getElementById('pdfFonteNota');
+  wrap.innerHTML = '';
+  const hojeD = new Date();
+  const DOW = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+  let colunas = [];
+  if (periodoLeituraAtivo === 'dia') {
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(hojeD); d.setDate(d.getDate() - i);
+      colunas.push({ valor: paginasNoDia(hist, chaveData(d)), label: DOW[d.getDay()], hoje: i === 0 });
+    }
+    nota.textContent = 'Páginas lidas por dia, últimos 7 dias.';
+  } else if (periodoLeituraAtivo === 'semana') {
+    for (let s = 7; s >= 0; s--) {
+      let soma = 0;
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(hojeD); d.setDate(d.getDate() - (s * 7 + i));
+        soma += paginasNoDia(hist, chaveData(d));
+      }
+      colunas.push({ valor: soma, label: s === 0 ? 'esta' : `-${s}sem`, hoje: s === 0 });
+    }
+    nota.textContent = 'Páginas lidas por semana, últimas 8 semanas.';
+  } else {
+    for (let m = 5; m >= 0; m--) {
+      const ref = new Date(hojeD.getFullYear(), hojeD.getMonth() - m, 1);
+      let soma = 0;
+      const diasNoMes = new Date(ref.getFullYear(), ref.getMonth() + 1, 0).getDate();
+      for (let dia = 1; dia <= diasNoMes; dia++) {
+        soma += paginasNoDia(hist, chaveData(new Date(ref.getFullYear(), ref.getMonth(), dia)));
+      }
+      colunas.push({ valor: soma, label: MESES[ref.getMonth()], hoje: m === 0 });
+    }
+    nota.textContent = 'Páginas lidas por mês, últimos 6 meses.';
+  }
+
+  const max = Math.max(1, ...colunas.map((c) => c.valor));
+  colunas.forEach((c) => {
+    const col = document.createElement('div');
+    col.className = 'semana-col' + (c.hoje ? ' hoje' : '');
+    const alturaPct = Math.max(3, (c.valor / max) * 100);
+    col.innerHTML = `
+      <span style="font-size:10px;color:var(--text-dim);font-weight:700;">${c.valor}</span>
+      <div class="semana-barra"><div class="semana-barra-fill" style="height:${alturaPct}%;"></div></div>
+      <span class="semana-label">${c.label}</span>
+    `;
+    wrap.appendChild(col);
+  });
+}
+
+document.querySelectorAll('#pdfPeriodoTabs .modo-tab').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#pdfPeriodoTabs .modo-tab').forEach((b) => b.classList.toggle('ativo', b === btn));
+    periodoLeituraAtivo = btn.dataset.periodo;
+    renderHistoricoLeituraChart();
+  });
+});
+atualizarResumoCfgGithub();
+if (!deviceId) escutarLeituraPdf(); // se já estiver pareado, ativarPareamento() já cuidou disso
+
+
 
 /* ============================================================
    INÍCIO
