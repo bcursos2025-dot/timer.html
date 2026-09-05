@@ -318,6 +318,14 @@ button{ font-family:inherit; }
   border-radius:12px; padding:10px 12px; margin-bottom:14px; line-height:1.5; display:none; }
 .aviso-dados.mostrar{ display:block; }
 
+.aviso-descontinuacao{
+  background:var(--danger-soft); border:1px solid rgba(242,86,109,.3); border-radius:var(--radius-lg);
+  padding:16px 16px; margin-bottom:14px; font-size:12.5px; line-height:1.6; color:var(--text);
+}
+.aviso-descontinuacao b{ color:var(--red); }
+.aviso-descontinuacao ul{ list-style:none; margin:10px 0 0; padding:0; }
+.aviso-descontinuacao li{ padding:3px 0; }
+
 /* ---------- BLOQUEADO ATÉ PAREAR (Painel/Agenda) ---------- */
 .bloqueado-card{ width:100%; text-align:center; padding:40px 22px; }
 .bloqueado-card .ic{ width:52px; height:52px; margin:0 auto 16px; border-radius:16px; display:flex; align-items:center; justify-content:center;
@@ -566,6 +574,23 @@ button{ font-family:inherit; }
 
       <!-- Conteúdo (só aparece depois de desbloquear) -->
       <div id="qConteudo" style="display:none;">
+
+        <div class="aviso-descontinuacao">
+          <b>Aviso importante:</b> devido à extensão ter apenas 6 usuários diários, não é viável nenhuma nova implementação no sistema.
+          Porém, me comprometo a corrigir qualquer bug no sistema da extensão e no site até a versão 7.9.0 da extensão
+          (previsão 12/12/2026); depois disso, não será mais atualizado.
+          <br><br>
+          Por isso, não haverá:
+          <ul>
+            <li>❌ Sistema de Questões</li>
+            <li>❌ Nova interface mais bonita para a extensão na versão 8.0</li>
+            <li>❌ Sistema de comunidades</li>
+            <li>❌ Barra flutuante (Dock)</li>
+            <li>❌ Melhorias no sistema de marcações na legislação</li>
+            <li>❌ Sistema de leitura de PDF</li>
+            <li>❌ Demais mudanças</li>
+          </ul>
+        </div>
 
         <!-- Modo: Questões (conteúdo original) vs. PDF (biblioteca de PDFs) -->
         <div class="q-tabs" id="qModoTabs">
