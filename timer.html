@@ -603,37 +603,16 @@
   </div>
 </div>
 
-<!-- ================= SHEET DE SEQUÊNCIA ================= -->
+<!-- ================= SHEET DE SEQUÊNCIA (ofensiva, mesmo desenho da extensão) ================= -->
 <div class="sheet-overlay" id="streakOverlay">
-  <div class="sheet">
-    <div class="sheet-topo">
-      <h2>Sequência</h2>
-      <button class="sheet-fechar" id="streakFechar">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  <div class="sheet ap-sheet" role="dialog" aria-modal="true" aria-labelledby="ofe-titulo">
+    <div class="ap-sheet-head">
+      <span class="ap-sheet-title" id="ofe-titulo">Sua ofensiva</span>
+      <button class="ap-sheet-close" id="streakFechar" aria-label="Fechar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
     </div>
-
-    <div class="streak-destaque">
-      <div class="streak-destaque-icone">
-        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 17a2.5 2.5 0 0 0 2.5-2.5c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7.5 7.5 0 1 1-15 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5"/></svg>
-      </div>
-      <div class="streak-destaque-numero" id="streakGrandeNumero">0</div>
-      <div class="streak-destaque-label">dias seguidos batendo a meta diária</div>
-    </div>
-
-    <div class="streak-info-linha">
-      <span>Melhor sequência</span>
-      <b id="streakMelhorTexto">0 dias</b>
-    </div>
-    <div class="streak-info-linha">
-      <span>Próxima marca</span>
-      <b id="streakProximaTexto">—</b>
-    </div>
-
-    <div class="sheet-secao" style="margin-top:20px;">
-      <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>Marcos</h3>
-      <div class="marcos-grid" id="marcosGrid"></div>
-    </div>
+    <div id="streakCorpo" class="ap-sheet-body"></div>
   </div>
 </div>
 

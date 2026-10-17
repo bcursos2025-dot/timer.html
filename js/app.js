@@ -309,6 +309,7 @@ function fecharSheet(){ sheetOverlay.classList.remove('aberto'); }
    ============================================================ */
 const STREAK_MILESTONES = [3, 7, 14, 30, 60, 100, 180, 365];
 const streakOverlay = document.getElementById('streakOverlay');
+const streakCorpo = document.getElementById('streakCorpo');
 document.getElementById('streakBadge').addEventListener('click', () => abrirStreakSheet());
 document.getElementById('streakFechar').addEventListener('click', fecharStreakSheet);
 streakOverlay.addEventListener('click', (e) => { if (e.target === streakOverlay) fecharStreakSheet(); });
@@ -325,32 +326,108 @@ function calcularMelhorStreak(){
   return melhor;
 }
 
-function abrirStreakSheet(){
-  const atual = calcularStreak();
-  const melhor = Math.max(atual, calcularMelhorStreak());
-  document.getElementById('streakGrandeNumero').textContent = atual;
-  document.getElementById('streakMelhorTexto').textContent = `${melhor} dia${melhor === 1 ? '' : 's'}`;
+/* Folha "Sua ofensiva": mesmo desenho da extensão (chama, número gigante, meta de hoje e calendário).
+   As classes ofe-* e ap-sheet-* estão no fim de css/design.css. */
+const OFE_CHAMA = '<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="ofe-fogo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd166"/><stop offset="0.5" stop-color="#ff9f43"/><stop offset="1" stop-color="#ff5e3a"/></linearGradient></defs><path class="ofe-chama-forma" stroke-linejoin="round" stroke-linecap="round" d="M12 2.4c.4 2.7 1.7 4.7 3.3 6.3 1.7 1.7 3.2 3.4 3.2 6.2a6.5 6.5 0 0 1-13 0c0-1.5.5-2.8 1.3-3.7.5 1.3 1.4 2.1 2.7 2.4-.7-2.6.1-5.3 2.5-8.1.4 2.2 1.1 3.4 1.9 4.6-.2-3.1-.7-5.2-1.9-7.7Z"/></svg>';
+const OFE_SETA_ESQ = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';
+const OFE_SETA_DIR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+let ofeMesOffset = 0;
 
-  const proximaMarca = STREAK_MILESTONES.find((m) => m > atual);
-  document.getElementById('streakProximaTexto').textContent = proximaMarca
-    ? `faltam ${proximaMarca - atual} dia${(proximaMarca - atual) === 1 ? '' : 's'} para ${proximaMarca} dias`
-    : 'você bateu todas as marcas!';
-
-  const grid = document.getElementById('marcosGrid');
-  grid.innerHTML = '';
-  STREAK_MILESTONES.forEach((m) => {
-    const conquistado = melhor >= m;
-    const chip = document.createElement('span');
-    chip.className = 'marco-chip' + (conquistado ? ' conquistado' : '');
-    if (conquistado) {
-      chip.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-    }
-    chip.appendChild(document.createTextNode(m + ' dias'));
-    grid.appendChild(chip);
-  });
-
-  streakOverlay.classList.add('aberto');
+function ofeHM(ms){
+  const min = Math.max(0, Math.floor(ms / 60000));
+  const h = Math.floor(min / 60), m = min % 60;
+  return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
 }
+
+function abrirStreakSheet(){
+  const streak = calcularStreak();
+  const melhor = Math.max(streak, calcularMelhorStreak());
+  const meta = config.dailyGoalMs;
+  const tempo = historico[hojeChave()] || 0;
+  const ok = tempo >= meta;
+  const pct = meta > 0 ? Math.min(100, Math.round((tempo / meta) * 100)) : 0;
+  const horas = meta / 3600000;
+  const horasFmt = Number.isInteger(horas) ? horas : horas.toFixed(1).replace('.', ',');
+  const acesa = streak > 0 || ok;
+  const frase = ok
+    ? 'Você garantiu a ofensiva de hoje. Volte amanhã para continuar.'
+    : (streak === 0
+        ? 'Bata a meta hoje pra começar uma nova ofensiva!'
+        : 'Bata a meta hoje pra manter sua ofensiva. O dia só conta se a meta for batida antes da virada.');
+  const proxima = STREAK_MILESTONES.find((m) => m > streak);
+  const marcos = STREAK_MILESTONES.map((m) =>
+    `<span class="marco-chip${melhor >= m ? ' conquistado' : ''}">${melhor >= m ? '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}${m} dias</span>`).join('');
+
+  streakCorpo.innerHTML = `
+    <section class="ofe-hero">
+      <div class="ofe-chama${acesa ? ' on' : ''}">${OFE_CHAMA}</div>
+      <div class="ofe-numero">${streak}</div>
+      <div class="ofe-rotulo">${streak === 1 ? 'dia seguido' : 'dias seguidos'}</div>
+      <p class="ofe-frase">${frase}</p>
+    </section>
+    <section class="ofe-card">
+      <div class="ofe-meta-topo">
+        <span class="ofe-meta-tit">Meta de hoje</span>
+        ${ok
+          ? '<span class="ofe-pilula ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>Batida</span>'
+          : `<span class="ofe-pilula pend">Faltam ${ofeHM(Math.max(0, meta - tempo))}</span>`}
+      </div>
+      <div class="ofe-meta-valor">${ofeHM(tempo)} <small>de ${horasFmt}h</small></div>
+      <div class="ofe-barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:0%" data-alvo="${pct}"></i></div>
+    </section>
+    <section class="ofe-card" id="ofeCalendario"></section>
+    <section class="ofe-card">
+      <div class="ofe-meta-topo"><span class="ofe-meta-tit">Marcos</span><span class="ofe-meta-tit">Melhor: ${melhor} dia${melhor === 1 ? '' : 's'}</span></div>
+      <div class="marcos-grid" style="margin-top:12px">${marcos}</div>
+      <p class="ofe-nota" style="margin:12px 0 0">${proxima ? `Faltam ${proxima - streak} dia${(proxima - streak) === 1 ? '' : 's'} para a marca de ${proxima} dias.` : 'Você bateu todas as marcas!'}</p>
+    </section>`;
+  ofeMesOffset = 0;
+  ofeRenderCalendario();
+  streakOverlay.classList.add('aberto');
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const barra = streakCorpo.querySelector('.ofe-barra i');
+    if (barra) barra.style.width = barra.dataset.alvo + '%';
+  }));
+}
+
+function ofeRenderCalendario(){
+  const cont = document.getElementById('ofeCalendario');
+  if (!cont) return;
+  const agora = new Date();
+  const ref = new Date(agora.getFullYear(), agora.getMonth() + ofeMesOffset, 1);
+  const ano = ref.getFullYear(), mes = ref.getMonth();
+  const nomeMes = ref.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).replace(' de ', ' ');
+  const primeiro = new Date(ano, mes, 1).getDay();
+  const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+  const hoje = hojeChave();
+  let dias = '';
+  for (let i = 0; i < primeiro; i++) dias += '<div class="ofe-dia vazio"></div>';
+  for (let d = 1; d <= diasNoMes; d++){
+    const chave = `${ano}-${pad2(mes + 1)}-${pad2(d)}`;
+    const t = historico[chave] || 0;
+    let estado = 'nada';
+    if (chave > hoje) estado = 'futuro';
+    else if (t >= config.dailyGoalMs) estado = 'met';
+    else if (t > 0) estado = 'parcial';
+    const titulo = chave > hoje ? '' : (t > 0 ? `${ofeHM(t)} estudadas` : 'Sem estudo');
+    dias += `<div class="ofe-dia ${estado}${chave === hoje ? ' hoje' : ''}" title="${titulo}">${d}</div>`;
+  }
+  cont.innerHTML = `
+    <div class="ofe-cal-cab">
+      <span class="ofe-cal-mes">${nomeMes}</span>
+      <span class="ofe-cal-nav">
+        <button id="ofePrev" type="button" title="Mês anterior" aria-label="Mês anterior">${OFE_SETA_ESQ}</button>
+        <button id="ofeNext" type="button" ${ofeMesOffset >= 0 ? 'disabled' : ''} title="Próximo mês" aria-label="Próximo mês">${OFE_SETA_DIR}</button>
+      </span>
+    </div>
+    <div class="ofe-cal-sem"><span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span></div>
+    <div class="ofe-cal-grid">${dias}</div>
+    <div class="ofe-leg"><span><i class="m"></i>Meta batida</span><span><i class="p"></i>Estudou, não bateu</span><span><i class="n"></i>Sem estudo</span></div>`;
+}
+streakCorpo.addEventListener('click', (e) => {
+  if (e.target.closest('#ofePrev')){ ofeMesOffset--; ofeRenderCalendario(); }
+  else if (e.target.closest('#ofeNext') && ofeMesOffset < 0){ ofeMesOffset++; ofeRenderCalendario(); }
+});
 function fecharStreakSheet(){ streakOverlay.classList.remove('aberto'); }
 
 /* Meta diária */
