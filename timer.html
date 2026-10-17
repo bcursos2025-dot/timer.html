@@ -13,8 +13,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>try{var _t=localStorage.getItem("cb_tema");var _h=new Date().getHours();document.documentElement.dataset.theme=_t==="auto"?((_h>=6&&_h<18)?"light":"dark"):(_t==="light"||_t==="navy"||_t==="glass")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
-<link rel="stylesheet" href="css/app.css?v=20261017v">
-<link rel="stylesheet" href="css/design.css?v=20261017v">
+<link rel="stylesheet" href="css/app.css?v=20261017w">
+<link rel="stylesheet" href="css/design.css?v=20261017w">
 </head>
 <body>
 
@@ -740,66 +740,94 @@
     <div id="perfilCorpo" class="ap-sheet-body"></div>
   </div>
 </div>
-<!-- ================= ASSISTENTE DE ESTUDO (chat com IA, mesmo desenho da extensão) ================= -->
+<!-- ================= ASSISTENTE DE ESTUDO (chat com IA, igual ao da extensão) ================= -->
 <div class="sheet-overlay" id="iaSheet">
   <div class="sheet ap-sheet ia-folha ap-chatia" role="dialog" aria-modal="true" aria-label="Assistente de estudo">
     <div class="iac-head">
       <span class="iac-grabber" aria-hidden="true"></span>
-      <div class="iac-grupo">
-        <a class="iac-btn" href="leis.html" title="Abrir as leis" aria-label="Abrir as leis">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-        </a>
-        <button class="iac-btn" id="iaHistorico" type="button" title="Conversas anteriores" aria-label="Conversas anteriores">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+      <span class="iac-grupo" role="group" aria-label="Ferramentas do chat">
+        <button id="iaLeisAbrir" class="iac-btn" type="button" title="Base de leis (PDF)" aria-label="Base de leis (PDF)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
         </button>
-        <button class="iac-btn" id="iaNova" type="button" title="Nova conversa" aria-label="Nova conversa">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        <button id="iaHistorico" class="iac-btn" type="button" title="Histórico de conversas" aria-label="Histórico de conversas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3.5 2"/></svg>
         </button>
-      </div>
-      <button class="iac-btn iac-fechar" id="iaFechar" type="button" aria-label="Fechar">
+        <button id="iaTemp" class="iac-btn iac-temp" type="button" title="Chat temporário: não salva no histórico" aria-label="Chat temporário" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 3.1c-.5 0-1-.1-1.5-.1s-1 .1-1.5.1"/><path d="M19.3 6.8a10.45 10.45 0 0 0-2.1-2.1"/><path d="M20.9 13.5c.1-.5.1-1 .1-1.5s-.1-1-.1-1.5"/><path d="M17.2 19.3a10.45 10.45 0 0 0 2.1-2.1"/><path d="M10.5 20.9c.5.1 1 .1 1.5.1s1-.1 1.5-.1"/><path d="M3.5 17.5 2 22l4.5-1.5"/><path d="M3.1 10.5c0 .5-.1 1-.1 1.5s.1 1 .1 1.5"/><path d="M6.8 4.7a10.45 10.45 0 0 0-2.1 2.1"/></svg>
+        </button>
+        <button id="iaDestaques" class="iac-btn iac-destaques" type="button" title="Destaques coloridos nas respostas: ligados" aria-label="Destaques coloridos nas respostas" aria-pressed="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/><path class="iac-risco" d="M3 3l18 18"/></svg>
+        </button>
+      </span>
+      <span id="iaTempSelo" class="iac-temp-selo" hidden>Chat temporário</span>
+      <button class="iac-btn iac-fechar" id="iaFechar" type="button" title="Fechar" aria-label="Fechar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
     </div>
     <div class="ia-mensagens" id="iaMensagens" aria-live="polite"></div>
-    <div class="iac-sugestoes" id="iaSugestoes" hidden>
+    <div class="iac-sugestoes" id="iaSugestoes" hidden role="group" aria-label="Sugestões de pergunta">
       <button type="button" class="iac-sugestao" data-q="O que devo estudar hoje?">O que devo estudar hoje?</button>
       <button type="button" class="iac-sugestao" data-q="Como estou indo esta semana?">Como estou indo esta semana?</button>
-      <button type="button" class="iac-sugestao" data-q="Monte um plano de revisão para os meus pontos fracos.">Montar plano de revisão</button>
+      <button type="button" class="iac-sugestao" data-q="Monte um plano de revisão para os meus piores assuntos.">Montar plano de revisão</button>
     </div>
     <div class="ia-input-row" id="iaInputRow">
       <textarea id="iaCampo" rows="1" maxlength="1500" placeholder="Pergunte qualquer coisa" aria-label="Sua pergunta"></textarea>
       <div class="ia-ferramentas">
-        <button type="button" class="ia-chip ia-chip-mais" id="iaMais" aria-label="Atalhos de pergunta" aria-haspopup="true" aria-expanded="false">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        <button type="button" class="ia-chip ia-chip-mais" id="iaMais" title="Mais opções: Pensar e Web" aria-label="Mais opções" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
         </button>
-        <button type="button" class="ia-chip" id="iaModo" aria-haspopup="true" aria-expanded="false"><span id="iaModoNome">Rápida</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        <button type="button" class="ia-chip" id="iaModo" title="Trocar de modelo" aria-haspopup="true" aria-expanded="false"><span id="iaModoNome">2.0 Mini</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
         </button>
-        <button type="button" id="iaEnviar" class="ia-enviar" aria-label="Enviar" disabled>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        <button type="button" id="iaEnviar" class="ia-enviar" title="Enviar" aria-label="Enviar" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
         </button>
       </div>
-      <div class="ia-menu" id="iaMenuMais" hidden role="menu">
-        <button type="button" role="menuitem" data-pre="Resuma em tópicos curtos o tema: ">Resumir um tema</button>
-        <button type="button" role="menuitem" data-pre="Crie 5 flashcards (pergunta e resposta) sobre: ">Criar flashcards</button>
-        <button type="button" role="menuitem" data-pre="Explique de forma bem simples, como se eu estivesse começando agora: ">Explicar de forma simples</button>
-        <button type="button" role="menuitem" data-pre="Monte um cronograma para esta semana com base na minha meta e nos meus pontos fracos.">Montar o cronograma da semana</button>
+      <div class="ia-menu ia-menu-mais" id="iaMenuMais" hidden role="menu">
+        <button type="button" role="menuitem" class="ia-opt" data-rec="pensar">
+          <svg class="ia-opt-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3a3 3 0 0 0-3 3c0 .35.05.68.14 1A3 3 0 0 0 5 12a3 3 0 0 0 1 2.24 3 3 0 0 0 0 .76 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-2.5-3Z"/><path d="M14.5 3a3 3 0 0 1 3 3c0 .35-.05.68-.14 1A3 3 0 0 1 19 12a3 3 0 0 1-1 2.24 3 3 0 0 1 0 .76 3 3 0 0 1-3 3 3 3 0 0 1-3-3V6a3 3 0 0 1 2.5-3Z"/></svg>
+          <span class="ia-opt-txt"><b>Pensar</b><small>Pesquisa lei, jurisprudência e doutrina antes de responder</small></span><svg class="ia-opt-cad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        </button>
+        <button type="button" role="menuitem" class="ia-opt" data-rec="web">
+          <svg class="ia-opt-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.6 2.7 3.9 5.7 3.9 9s-1.3 6.3-3.9 9c-2.6-2.7-3.9-5.7-3.9-9S9.4 5.7 12 3Z"/></svg>
+          <span class="ia-opt-txt"><b>Web</b><small>Pesquisa na internet antes de responder</small></span><svg class="ia-opt-cad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        </button>
+        <button type="button" role="menuitem" class="ia-opt" data-rec="profunda">
+          <svg class="ia-opt-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/><path d="M8.5 11h5M11 8.5v5"/></svg>
+          <span class="ia-opt-txt"><b>Pesquisa aprofundada</b><small>Busca em 3 frentes (web + súmulas) e escreve um relatório com fontes. Mais lenta</small></span><svg class="ia-opt-cad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        </button>
       </div>
-      <div class="ia-menu" id="iaMenuModo" hidden role="menu">
-        <button type="button" role="menuitemradio" data-modo="rapida" class="ativo"><b>Rápida</b><small>Respostas curtas e diretas</small></button>
-        <button type="button" role="menuitemradio" data-modo="detalhada"><b>Detalhada</b><small>Explica com exemplos e dica de memorização</small></button>
-        <button type="button" role="menuitem" data-modo="pro" class="ia-pro"><b>Pro <span class="ia-cadeado" aria-hidden="true"></span></b><small>Precisão jurídica maior, com conferência nas fontes. Exige a extensão sincronizada</small></button>
+      <div class="ia-menu ia-menu-modo" id="iaMenuModo" hidden role="menu">
+        <button type="button" role="menuitem" class="ia-opt" data-modo="pro">
+          <span class="ia-opt-txt"><b>E.CONCURSOS 2.5 PRO</b><small>Nível normal de resposta. Exige a extensão sincronizada</small></span><svg class="ia-opt-cad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        </button>
+        <button type="button" role="menuitemradio" class="ia-opt" data-modo="res">
+          <span class="ia-opt-txt"><b>E.CONCURSOS 2.5 Res</b><small>Respostas completas, com exemplos e dica de memorização</small></span><svg class="ia-opt-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </button>
+        <button type="button" role="menuitemradio" class="ia-opt ia-opt-ativo" data-modo="mini">
+          <span class="ia-opt-txt"><b>E.CONCURSOS 2.0 Mini</b><small>Mais rápido para todos</small></span><svg class="ia-opt-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </button>
       </div>
     </div>
     <p class="ia-aviso">As perguntas passam por serviços de IA gratuitos de terceiros: não envie dados pessoais. A IA pode errar, confira na lei.</p>
     <div class="ia-hist" id="iaHist" hidden>
-      <div class="ia-hist-topo"><b>Conversas anteriores</b><button type="button" class="iac-btn iac-fechar" id="iaHistFechar" aria-label="Fechar a lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
-      <p class="ia-hist-nota">Ficam salvas só neste aparelho.</p>
+      <div class="ia-hist-topo"><b>Histórico de conversas</b><button type="button" class="iac-btn iac-fechar" id="iaHistFechar" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+      <p class="ia-hist-nota">Ficam salvas só neste aparelho. No chat temporário, nada é salvo.</p>
+      <button type="button" class="ia-hist-nova" id="iaNova">+ Nova conversa</button>
       <div class="ia-hist-lista" id="iaHistLista"></div>
-      <button type="button" class="ia-hist-apagar" id="iaHistApagar">Apagar todas</button>
+      <button type="button" class="ia-hist-apagar" id="iaHistApagar">Limpar histórico</button>
+    </div>
+    <div class="ia-hist" id="iaLeis" hidden>
+      <div class="ia-hist-topo"><b>Base de leis (PDF)</b><button type="button" class="iac-btn iac-fechar" id="iaLeisFechar" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+      <p class="ia-hist-nota">Importe o PDF de uma lei (Código Civil, CPC etc). O texto fica só neste aparelho: a IA busca o artigo certo para citar em vez de inventar.</p>
+      <div class="ia-hist-lista" id="iaLeisLista"></div>
+      <input type="file" id="iaLeisArquivo" accept="application/pdf" hidden>
+      <button type="button" class="ia-hist-nova" id="iaLeisImportar">+ Importar PDF</button>
+      <p class="ia-leis-status" id="iaLeisStatus" role="status"></p>
     </div>
   </div>
 </div>
+
 <!-- ================= COMUNIDADE (chat anônimo + comparação, opt-in) ================= -->
 <div class="sheet-overlay" id="comSheet">
   <div class="sheet ap-sheet com-sheet" role="dialog" aria-modal="true" aria-labelledby="com-titulo">
@@ -854,19 +882,19 @@
   </div>
 </div>
 
-<script src="js/app.js?v=20261017v"></script>
-<script src="js/perfil.js?v=20261017v"></script>
-<script src="js/graficos.js?v=20261017v"></script>
-<script src="js/desempenho.js?v=20261017v"></script>
-<script src="js/hoje.js?v=20261017v"></script>
-<script src="js/geral.js?v=20261017v"></script>
-<script src="js/iniciante.js?v=20261017v"></script>
-<script src="js/meuperfil.js?v=20261017v"></script>
-<script src="js/ia.js?v=20261017v"></script>
-<script src="js/comunidade-chat.js?v=20261017v"></script>
-<script src="js/comunidade.js?v=20261017v"></script>
-<script src="js/descer.js?v=20261017v"></script>
-<script src="js/backup.js?v=20261017v"></script>
+<script src="js/app.js?v=20261017w"></script>
+<script src="js/perfil.js?v=20261017w"></script>
+<script src="js/graficos.js?v=20261017w"></script>
+<script src="js/desempenho.js?v=20261017w"></script>
+<script src="js/hoje.js?v=20261017w"></script>
+<script src="js/geral.js?v=20261017w"></script>
+<script src="js/iniciante.js?v=20261017w"></script>
+<script src="js/meuperfil.js?v=20261017w"></script>
+<script src="js/ia.js?v=20261017w"></script>
+<script src="js/comunidade-chat.js?v=20261017w"></script>
+<script src="js/comunidade.js?v=20261017w"></script>
+<script src="js/descer.js?v=20261017w"></script>
+<script src="js/backup.js?v=20261017w"></script>
 
 </body>
 </html>
