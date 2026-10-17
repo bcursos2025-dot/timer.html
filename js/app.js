@@ -184,7 +184,7 @@ function somAtualizarUI(){
   const sw = document.getElementById('somSwitch'); if (sw) sw.checked = !!config.somAtivo;
   document.getElementById('somLabelTexto').textContent = config.somAtivo ? 'Tocar som durante o estudo: ligado' : 'Tocar som durante o estudo';
   document.querySelectorAll('.som-tipo-btn').forEach((b) => b.classList.toggle('ativo', b.dataset.tipo === somTipoAtual()));
-  const vol = document.getElementById('somVolume'); if (vol) vol.value = Math.round(somVolume() * 100);
+  const vol = document.getElementById('somVolume'); if (vol) { vol.value = Math.round(somVolume() * 100); vol.style.setProperty('--val', vol.value + '%'); }
 }
 document.getElementById('somSwitch').addEventListener('change', (e) => {
   config.somAtivo = e.target.checked; salvarConfig(); somAtualizarUI();
@@ -201,6 +201,7 @@ document.querySelectorAll('.som-tipo-btn').forEach((btn) => {
   });
 });
 document.getElementById('somVolume').addEventListener('input', (e) => {
+  e.target.style.setProperty('--val', e.target.value + '%');
   config.somVolume = Number(e.target.value); salvarConfig();
   if (somMaster) somMaster.gain.value = somVolume();
   if (somLofi) somLofi.volume = somVolume();
