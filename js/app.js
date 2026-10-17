@@ -868,7 +868,7 @@ function atualizarTudo(){
   // "Parar" só faz sentido diferente de "Pausar" quando existe uma fase do
   // Pomodoro pra resetar — no Cronômetro simples os dois seriam idênticos
   // na prática, então some com o botão pra não confundir ninguém.
-  btnStop.style.display = sessao.pomodoroMode ? '' : 'none';
+  btnStop.style.display = 'none';   // Pausar já cobre o uso; o Parar só repetia o botão
   btnStop.disabled = sessao.sessionState === 'stopped';
 
   modoTotalBtn.classList.toggle('ativo', !sessao.pomodoroMode);
