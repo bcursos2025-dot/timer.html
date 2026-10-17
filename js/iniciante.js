@@ -99,19 +99,13 @@
     if (!lig || !prox) { el.hidden = true; return; }
     el.hidden = false;
     const html = primeiroDia
-      ? '<h3>Por que o site está tão simples?</h3>' +
-        '<p class="ini-prox-txt">De propósito. Para você não se perder, o site mostra só o essencial e <b>esconde o resto</b>. ' +
-        'Os recursos vão aparecendo sozinhos, um de cada vez, conforme você volta nos próximos dias ou estuda algumas horas: ' +
-        'data da prova, leis com grifos, questões, assistente de estudo, painel e mais.</p>' +
-        '<p class="ini-prox-txt">Se você já conhece o site e quer tudo agora, é só tocar no botão abaixo.</p>' +
-        '<button type="button" class="h-passos-fechar" id="iniMostrarTudo">Mostrar tudo agora</button>'
+      ? '<h3>Por que está tão simples?</h3>' +
+        '<p class="ini-prox-txt">De propósito: o resto está escondido e aparece aos poucos, a cada dia de uso.</p>'
       : '<h3>Próxima novidade</h3>' +
-      '<ul class="ini-lista"><li><span class="ini-cadeado" aria-hidden="true"></span><span class="ini-item"><b>' + prox.nome + '</b><small>' + prox.desc + '</small></span></li></ul>' +
-      '<p class="ini-prox-txt">Libera com ' + falta(prox, total, dias) + '. O site vai aparecendo aos poucos, no seu ritmo.</p>' +
-      '<button type="button" class="h-passos-fechar" id="iniMostrarTudo">Mostrar tudo agora</button>';
+        '<ul class="ini-lista"><li><span class="ini-cadeado" aria-hidden="true"></span><span class="ini-item"><b>' + prox.nome + '</b><small>' + prox.desc + '</small></span></li></ul>' +
+        '<p class="ini-prox-txt">Libera com ' + falta(prox, total, dias) + '.</p>';
     if (html === htmlProx) return;
     htmlProx = html; el.innerHTML = html;
-    $('iniMostrarTudo').addEventListener('click', () => { gravarFlag('0'); aplicar(); });
   }
 
   const sw = $('iniSwitch');
