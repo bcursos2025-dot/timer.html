@@ -525,6 +525,12 @@ inputCodigo.addEventListener('input', () => {
   btnParear.disabled = inputCodigo.value.length !== 6;
 });
 
+function restFirebase(caminho, limiteMs){
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), limiteMs || 12000);
+  return fetch(firebaseConfig.databaseURL + '/' + caminho + '.json', { signal: ctl.signal, cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+    .finally(() => clearTimeout(t));
+}
 btnParear.addEventListener('click', async () => {
   if (!firebaseDisponivel) {
     erroPareamento.textContent = 'Sem conexão com o servidor de pareamento agora. Verifique a internet e tente de novo.';
@@ -533,9 +539,12 @@ btnParear.addEventListener('click', async () => {
   const codigo = inputCodigo.value;
   btnParear.disabled = true;
   erroPareamento.textContent = '';
+  const textoBotao = btnParear.textContent;
+  btnParear.textContent = 'Conectando…';
   try {
-    const snap = await db.ref('pareamentos/' + codigo).once('value');
-    const dado = snap.val();
+    // consulta direta (REST): responde em menos de 1 s, sem esperar a conexão em tempo real do Firebase
+    const dado = await restFirebase('pareamentos/' + encodeURIComponent(codigo), 12000);
+    btnParear.textContent = textoBotao;
     if (!dado || !dado.deviceId) {
       erroPareamento.textContent = 'Código inválido ou expirado. Gere um novo na extensão.';
       btnParear.disabled = false;
@@ -544,7 +553,8 @@ btnParear.addEventListener('click', async () => {
     localStorage.setItem(LS.deviceId, dado.deviceId);
     ativarPareamento(dado.deviceId);
   } catch (e) {
-    erroPareamento.textContent = 'Falha de conexão. Tente de novo.';
+    btnParear.textContent = textoBotao;
+    erroPareamento.textContent = 'Demorou demais para responder. Confira a internet e tente de novo.';
     btnParear.disabled = false;
   }
 });
@@ -577,8 +587,12 @@ function ativarPareamento(id){
 
   // ---- Lê o que a extensão publica (nível, histórico, agenda, bloqueio) ----
   refExtensao = db.ref('dispositivos/' + deviceId);
-  refExtensao.on('value', (snap) => {
-    estadoExtensao = snap.val();
+  let jaChegou = false;
+  // mostra os dados já pela consulta direta; o ouvinte em tempo real assume quando conectar
+  restFirebase('dispositivos/' + encodeURIComponent(deviceId), 20000).then((v) => { if (!jaChegou && v) { jaChegou = true; aoReceberExtensao(v); } }).catch(() => {});
+  refExtensao.on('value', (snap) => { jaChegou = true; aoReceberExtensao(snap.val()); });
+  function aoReceberExtensao(val){
+    estadoExtensao = val;
     if (estadoExtensao && estadoExtensao.questoesVitalicioSite) {
       salvarJSON(LS.questoesVitalicio, true);
     }
@@ -588,7 +602,7 @@ function ativarPareamento(id){
     atualizarStatusPC();
     if (typeof atualizarPainelQuestoes === 'function') atualizarPainelQuestoes();
     if (typeof atualizarDisciplinaDisponivel === 'function') atualizarDisciplinaDisponivel();
-  });
+  }
 
   // ---- Sincroniza os dados do PRÓPRIO site (backup entre aparelhos) ----
   refCelular = db.ref('dispositivos/' + deviceId + '/celular');
