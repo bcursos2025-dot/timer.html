@@ -2,10 +2,10 @@
    Estratégia simples e segura: REDE PRIMEIRO, cache como reserva. Com internet o site é sempre a versão
    mais nova; sem internet (ou com rede ruim) abre o que já foi visitado. Troque V a cada publicação para
    limpar caches antigos. Não guarda PDFs nem a biblioteca (arquivos grandes). */
-const V = 'cb-2026-10-17-d';
+const V = 'cb-2026-10-17-e';
 const SHELL = ['./', 'index.html', 'timer.html', 'leis.html', 'instalar.html', 'favicon.svg', 'manifest.webmanifest',
   'css/app.css', 'css/design.css', 'css/landing.css', 'css/leis.css',
-  'js/app.js', 'js/hoje.js', 'js/iniciante.js', 'js/perfil.js', 'js/desempenho.js', 'js/backup.js', 'js/leis.js', 'js/a11y.js', 'js/pwa.js',
+  'js/app.js', 'js/hoje.js', 'js/iniciante.js', 'js/descer.js', 'js/perfil.js', 'js/desempenho.js', 'js/backup.js', 'js/leis.js', 'js/a11y.js', 'js/pwa.js',
   'leis/index.json'];
 
 self.addEventListener('install', e => {

@@ -705,9 +705,9 @@ html:not([data-theme="light"]) .dt-campo > svg{ color:var(--violet-light); }
     background:linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,.06)); border-color:rgba(255,255,255,.28);
     box-shadow:0 14px 34px rgba(15,8,40,.4), inset 0 1px 0 rgba(255,255,255,.35);
   }
-  .tabbar .tab-btn{ position:relative; flex:none; width:70px; max-width:none; height:52px; padding:5px 0 4px; gap:3px; justify-content:center;
-    border-radius:999px; color:var(--text); font-size:10px; font-weight:700; opacity:.78; transition:background .18s ease, color .18s ease, opacity .18s ease, transform .18s ease; }
-  .tabbar .tab-btn .icon{ width:21px; height:21px; opacity:1; transform:none; }
+  .tabbar .tab-btn{ position:relative; flex:none; width:58px; max-width:none; height:46px; padding:5px 0 4px; gap:3px; justify-content:center;
+    border-radius:999px; color:var(--text); font-size:0; font-weight:700; opacity:.78; transition:background .18s ease, color .18s ease, opacity .18s ease, transform .18s ease; }
+  .tabbar .tab-btn .icon{ width:23px; height:23px; opacity:1; transform:none; }
   .tabbar .tab-btn:hover{ background:color-mix(in srgb, var(--text) 10%, transparent); opacity:1; }
   .tabbar .tab-btn:active{ background:color-mix(in srgb, var(--text) 16%, transparent); transform:scale(.94); }
   .tabbar .tab-btn.ativa, html:not([data-theme="light"]) .tabbar .tab-btn.ativa{ opacity:1; color:var(--text); background:var(--ap-seg-on); box-shadow:var(--ap-seg-sombra); }
@@ -716,9 +716,28 @@ html:not([data-theme="light"]) .dt-campo > svg{ color:var(--violet-light); }
   .tabbar .tab-btn.bloqueada::after{ top:5px; right:10px; }
   .paginas{ padding-bottom:116px; }
 }
-@media (max-width:400px){ .tabbar .tab-btn{ width:62px; font-size:9.5px; } }
+@media (max-width:400px){ .tabbar .tab-btn{ width:54px; } }
 @media (prefers-reduced-transparency: reduce){ .tabbar{ background:var(--bg-elevated) !important; -webkit-backdrop-filter:none; backdrop-filter:none; } }
 
 /* a sequência (fogo) só aparece na aba Hoje; nas outras abas não fica fixa no topo */
 body:not([data-aba="hoje"]) #streakBadge{ display:none; }
 .top-row #btnAjustes{ margin-left:auto; }
+
+/* =====================================================================
+   BOTÃO "DESCER" (copiado de apple.css da extensão): bolinha de vidro com seta
+   ===================================================================== */
+.cb-descer-suporte{ position:sticky; bottom:0; height:0; margin-top:-8px; display:flex; justify-content:center; overflow:visible; pointer-events:none; z-index:6; }
+.cb-descer{ position:absolute; bottom:14px; width:38px; height:38px; padding:0; display:grid; place-items:center; border:0; border-radius:50%; color:var(--text);
+  background:color-mix(in srgb, var(--bg-elevated) 22%, transparent); -webkit-backdrop-filter:blur(14px) saturate(1.6); backdrop-filter:blur(14px) saturate(1.6);
+  box-shadow:0 0 0 1px var(--ap-hairline), 0 6px 16px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.12); cursor:pointer;
+  opacity:0; transform:translateY(8px) scale(.9); pointer-events:none; transition:opacity .22s ease, transform .22s var(--ap-ease), background .18s ease; }
+.cb-descer svg{ width:18px; height:18px; }
+.cb-descer.cb-descer-ver{ opacity:1; transform:none; pointer-events:auto; }
+.cb-descer:hover{ background:color-mix(in srgb, var(--bg-elevated) 50%, transparent); }
+.cb-descer:active{ transform:scale(.93); }
+.cb-descer:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+.cb-descer-janela{ position:fixed; left:50%; margin-left:-19px; bottom:92px; z-index:25; }
+.ap-sheet-body .cb-descer{ bottom:-6px; }
+.ap-settings .cb-descer{ bottom:-16px; }
+@media (min-width:980px){ .cb-descer-janela{ bottom:28px; left:calc(50% + 132px); } }
+@media (prefers-reduced-motion: reduce){ .cb-descer{ transition:opacity .1s linear; transform:none; } }
