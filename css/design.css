@@ -1139,3 +1139,18 @@ html:not([data-theme="light"]) .chat-link{ color:var(--violet-light); }
   .ap-sheet-head{ padding-left:20px; padding-right:20px; }
 }
 @media (min-width:980px){ .ap-sheet-head::before{ display:none; } }
+
+/* =====================================================================
+   BARRAS DE ROLAGEM: somem dentro das folhas e listas (continua rolando normalmente);
+   a da página fica fina, sem setas
+   ===================================================================== */
+.sheet, .ap-sheet-body, .ia-mensagens, .chat-lista, .com-conteudo, .ia-hist-lista, .ia-hist, .geral-periodos, .dias-scroll, .heat-scroll, .perfil-opcoes,
+.q-pratica-corpo, .ia-tab, .tabbar{ scrollbar-width:none; -ms-overflow-style:none; }
+.sheet::-webkit-scrollbar, .ap-sheet-body::-webkit-scrollbar, .ia-mensagens::-webkit-scrollbar, .chat-lista::-webkit-scrollbar, .com-conteudo::-webkit-scrollbar,
+.ia-hist-lista::-webkit-scrollbar, .ia-hist::-webkit-scrollbar, .geral-periodos::-webkit-scrollbar, .dias-scroll::-webkit-scrollbar, .heat-scroll::-webkit-scrollbar,
+.q-pratica-corpo::-webkit-scrollbar, .ia-tab::-webkit-scrollbar, textarea::-webkit-scrollbar{ display:none; width:0; height:0; }
+html{ scrollbar-width:thin; scrollbar-color:color-mix(in srgb, var(--text) 22%, transparent) transparent; }
+html::-webkit-scrollbar{ width:8px; height:8px; }
+html::-webkit-scrollbar-track{ background:transparent; }
+html::-webkit-scrollbar-thumb{ background:color-mix(in srgb, var(--text) 22%, transparent); border-radius:999px; }
+html::-webkit-scrollbar-button{ display:none; width:0; height:0; }
