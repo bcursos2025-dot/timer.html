@@ -12,10 +12,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>try{var _t=localStorage.getItem("cb_tema");var _h=new Date().getHours();document.documentElement.dataset.theme=_t==="auto"?((_h>=6&&_h<18)?"light":"dark"):(_t==="light"||_t==="navy"||_t==="glass")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
-<link rel="stylesheet" href="css/app.css?v=20261018f">
-<link rel="stylesheet" href="css/design.css?v=20261018f">
-<link rel="stylesheet" href="css/bem-estar.css?v=20261018f">
-<link rel="stylesheet" href="css/animacoes.css?v=20261018f">
+<link rel="stylesheet" href="css/app.css?v=20261018h">
+<link rel="stylesheet" href="css/design.css?v=20261018h">
+<link rel="stylesheet" href="css/bem-estar.css?v=20261018h">
+<link rel="stylesheet" href="css/animacoes.css?v=20261018h">
 </head>
 <body>
 
@@ -750,22 +750,6 @@
       </div>
 
       <div class="cfg-grupo">
-        <div class="settings-accordion" data-acc="iniciante">
-          <button type="button" class="settings-accordion-head" aria-expanded="false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="4"/></svg>
-            <span>Modo iniciante</span>
-            <svg class="settings-accordion-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-          </button>
-          <div class="settings-accordion-body"><div class="settings-accordion-body-inner">
-            <div class="linha-ajuste">
-              <label>Mostrar só o essencial</label>
-              <label class="switch"><input type="checkbox" id="iniSwitch"><span class="switch-track"></span></label>
-            </div>
-            <p class="pareamento-ajuda" id="iniEstado"></p>
-            <p class="pareamento-ajuda">O site mostra só Hoje, Cronômetro e Leis. Questões, extensão, painel e agenda aparecem conforme você estuda. Desligue para ver tudo agora.</p>
-          </div></div>
-        </div>
-
         <div class="settings-accordion" data-acc="perfil">
           <button type="button" class="settings-accordion-head" aria-expanded="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
@@ -962,6 +946,16 @@
               <li><b>Disponibilidade.</b> O site é oferecido "como está". Ele pode mudar, parar ou perder recursos a qualquer momento, e partes dele dependem de serviços de terceiros (como as IAs gratuitas, o Firebase e o GitHub).</li>
               <li><b>Mudanças.</b> Podemos atualizar estes termos. A data de atualização fica no topo; continuar usando o site significa concordar com a versão em vigor.</li>
             </ol>
+
+            <div class="sobre-modo-ini">
+              <h4>Modo iniciante</h4>
+              <div class="linha-ajuste">
+                <label>Mostrar só o essencial</label>
+                <label class="switch"><input type="checkbox" id="iniSwitch"><span class="switch-track"></span></label>
+              </div>
+              <p id="iniEstado"></p>
+              <p>No modo iniciante o site começa simples e vai liberando os recursos aos poucos, conforme você volta e estuda. Desligue para ver tudo agora.</p>
+            </div>
           </div></div>
         </div>
       </div>
@@ -1124,26 +1118,27 @@
   </div>
 </div>
 
-<script src="js/app.js?v=20261018f"></script>
-<script src="js/dispositivo.js?v=20261018f"></script>
-<script src="js/alerta-fase.js?v=20261018f"></script>
-<script src="js/perfil.js?v=20261018f"></script>
-<script src="js/graficos.js?v=20261018f"></script>
-<script src="js/desempenho.js?v=20261018f"></script>
-<script src="js/hoje.js?v=20261018f"></script>
-<script src="js/geral.js?v=20261018f"></script>
-<script src="js/iniciante.js?v=20261018f"></script>
-<script src="js/meuperfil.js?v=20261018f"></script>
-<script src="js/bem-estar.js?v=20261018f"></script>
-<script src="js/estudos.js?v=20261018f"></script>
-<script src="js/config-busca.js?v=20261018f"></script>
-<script src="js/folha-gestos.js?v=20261018f"></script>
-<script src="js/animacoes.js?v=20261018f"></script>
-<script src="js/ia.js?v=20261018f"></script>
-<script src="js/comunidade-chat.js?v=20261018f"></script>
-<script src="js/comunidade.js?v=20261018f"></script>
-<script src="js/descer.js?v=20261018f"></script>
-<script src="js/backup.js?v=20261018f"></script>
+<script src="js/app.js?v=20261018h"></script>
+<script src="js/dispositivo.js?v=20261018h"></script>
+<script src="js/alerta-fase.js?v=20261018h"></script>
+<script src="js/calendario.js?v=20261018h"></script>
+<script src="js/perfil.js?v=20261018h"></script>
+<script src="js/graficos.js?v=20261018h"></script>
+<script src="js/desempenho.js?v=20261018h"></script>
+<script src="js/hoje.js?v=20261018h"></script>
+<script src="js/geral.js?v=20261018h"></script>
+<script src="js/iniciante.js?v=20261018h"></script>
+<script src="js/meuperfil.js?v=20261018h"></script>
+<script src="js/bem-estar.js?v=20261018h"></script>
+<script src="js/estudos.js?v=20261018h"></script>
+<script src="js/config-busca.js?v=20261018h"></script>
+<script src="js/folha-gestos.js?v=20261018h"></script>
+<script src="js/animacoes.js?v=20261018h"></script>
+<script src="js/ia.js?v=20261018h"></script>
+<script src="js/comunidade-chat.js?v=20261018h"></script>
+<script src="js/comunidade.js?v=20261018h"></script>
+<script src="js/descer.js?v=20261018h"></script>
+<script src="js/backup.js?v=20261018h"></script>
 
 </body>
 </html>

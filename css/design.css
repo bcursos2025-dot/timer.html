@@ -1205,3 +1205,48 @@ body.ini-sem-extensao .lateral a[href="instalar.html"]{ display:none; }
 .top-row{ justify-content:flex-end; gap:8px; }
 .top-row #streakBadge{ margin-right:auto; }
 .top-row #btnIA, .top-row #btnPerfil, .top-row #btnAjustes{ margin-left:0; }
+
+/* =====================================================================
+   CALENDÁRIO DE VIDRO (js/calendario.js)
+   ===================================================================== */
+.cal-pop{ position:fixed; z-index:120; padding:14px 14px 10px; border-radius:24px; box-sizing:border-box;
+  background:color-mix(in srgb, var(--bg-elevated) 62%, transparent); -webkit-backdrop-filter:blur(28px) saturate(1.8); backdrop-filter:blur(28px) saturate(1.8);
+  border:1px solid color-mix(in srgb, var(--text) 14%, transparent); box-shadow:0 24px 60px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.14);
+  opacity:0; transform:translateY(-6px) scale(.97); transform-origin:top left; transition:opacity .16s ease, transform .2s cubic-bezier(.2,.9,.25,1); color:var(--text); }
+.cal-pop.vis{ opacity:1; transform:none; }
+html[data-theme="light"] .cal-pop{ background:color-mix(in srgb, #fff 72%, transparent); box-shadow:0 24px 60px rgba(28,35,51,.22), inset 0 1px 0 rgba(255,255,255,.9); }
+.cal-topo{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.cal-titulo{ display:inline-flex; align-items:center; gap:6px; border:0; background:transparent; color:var(--text); font:inherit; font-size:17px; font-weight:800; letter-spacing:-.02em; text-transform:capitalize; padding:6px 8px; margin-left:-8px; border-radius:12px; cursor:pointer; }
+.cal-titulo svg{ width:14px; height:14px; color:var(--accent); }
+html:not([data-theme="light"]) .cal-titulo svg{ color:var(--violet-light); }
+.cal-titulo:hover{ background:var(--ap-fill); }
+.cal-nav{ display:flex; gap:6px; }
+.cal-seta{ width:34px; height:34px; border:0; border-radius:50%; display:grid; place-items:center; background:var(--ap-fill); color:var(--text); cursor:pointer; transition:background .15s, transform .12s; }
+.cal-seta svg{ width:16px; height:16px; }
+.cal-seta:hover{ background:var(--ap-fill-2); } .cal-seta:active{ transform:scale(.9); }
+.cal-sem, .cal-grade{ display:grid; grid-template-columns:repeat(7, 1fr); justify-items:center; }
+.cal-sem{ margin-bottom:4px; font-size:11.5px; font-weight:800; letter-spacing:.04em; color:var(--text-dim); }
+.cal-grade{ row-gap:3px; }
+.cal-dia{ width:38px; height:38px; border:0; border-radius:50%; background:transparent; color:var(--text); font:inherit; font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; cursor:pointer; transition:background .12s, transform .12s; }
+.cal-dia:hover:not(:disabled):not(.sel){ background:var(--ap-fill-2); }
+.cal-dia:active:not(:disabled){ transform:scale(.9); }
+.cal-dia.hoje{ color:var(--accent); font-weight:800; box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent); }
+html:not([data-theme="light"]) .cal-dia.hoje{ color:var(--violet-light); }
+.cal-dia.sel{ background:var(--accent-fill); color:var(--ap-on-accent, #fff); font-weight:800; box-shadow:0 4px 12px var(--accent-glow); }
+.cal-dia:disabled{ opacity:.28; cursor:default; }
+.cal-meses{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; padding:6px 0 4px; }
+.cal-mes{ height:48px; border:0; border-radius:16px; background:var(--ap-fill); color:var(--text); font:inherit; font-size:15px; font-weight:700; text-transform:capitalize; cursor:pointer; }
+.cal-mes:hover{ background:var(--ap-fill-2); }
+.cal-mes.sel{ background:var(--accent-fill); color:var(--ap-on-accent, #fff); }
+.cal-rodape{ display:flex; justify-content:space-between; margin-top:8px; padding:8px 4px 0; border-top:1px solid var(--ap-hairline); }
+.cal-link{ border:0; background:transparent; color:var(--accent); font:inherit; font-size:15px; font-weight:700; padding:6px 8px; border-radius:10px; cursor:pointer; }
+html:not([data-theme="light"]) .cal-link{ color:var(--violet-light); }
+.cal-link:hover{ background:var(--ap-fill); }
+input[type="date"][readonly]{ cursor:pointer; }
+@media (prefers-reduced-motion: reduce){ .cal-pop{ transition:none; transform:none; } }
+
+/* Configurações simples para quem está começando: some o que ainda não existe para a pessoa */
+body.ini-sem-agenda .ap-settings [data-acc="ordem"], body.ini-sem-extensao .ap-settings [data-acc="parear"]{ display:none; }
+.sobre-modo-ini{ margin-top:18px; padding-top:6px; border-top:1px solid var(--ap-hairline); }
+.sobre-modo-ini .linha-ajuste{ margin-bottom:8px; }
+.sobre-modo-ini .linha-ajuste label:first-child{ font-size:14.5px; color:var(--text); font-weight:600; }
