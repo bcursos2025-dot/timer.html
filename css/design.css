@@ -1250,3 +1250,9 @@ body.ini-sem-agenda .ap-settings [data-acc="ordem"], body.ini-sem-extensao .ap-s
 .sobre-modo-ini{ margin-top:18px; padding-top:6px; border-top:1px solid var(--ap-hairline); }
 .sobre-modo-ini .linha-ajuste{ margin-bottom:8px; }
 .sobre-modo-ini .linha-ajuste label:first-child{ font-size:14.5px; color:var(--text); font-weight:600; }
+/* Configurações: topo sem ser comido pelo degradê, e animações calmas (sem pulinhos) */
+.ap-settings .ap-sheet-body{ padding-top:22px; }
+.sheet-overlay.aberto .cfg-grupo{ animation:cbSuave .35s ease backwards !important; }
+@keyframes cbSuave{ from{ opacity:0; } to{ opacity:1; } }
+.settings-accordion.open .settings-accordion-head svg:first-child{ animation:none !important; }
+.ap-sheet-body .settings-accordion-head:active svg:first-child{ transform:none; }
