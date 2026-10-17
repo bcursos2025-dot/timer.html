@@ -101,7 +101,7 @@
     document.querySelectorAll('.tabbar .tab-btn').forEach(b => {
       const t = b.textContent.trim(); if (t) { b.title = t; b.setAttribute('aria-label', t); }
     });
-    document.querySelectorAll('.ap-sheet-body').forEach(ligarArea);
+    document.querySelectorAll('.ap-sheet-body, .ia-mensagens, .chat-lista, .com-conteudo').forEach(ligarArea);
     ligarJanela();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();

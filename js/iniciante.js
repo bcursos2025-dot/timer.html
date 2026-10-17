@@ -50,6 +50,8 @@
   function lerFlag(){ try { return localStorage.getItem(LS_INI); } catch (e) { return null; } }
   function gravarFlag(v){ try { localStorage.setItem(LS_INI, v); } catch (e) { /* ok */ } }
   function ligado(){
+    // quem já pareou com a extensão não é iniciante: libera tudo (e o modo iniciante deixa de esconder abas)
+    try { if (localStorage.getItem('cb_deviceId')) return false; } catch (e) { /* ok */ }
     let f = lerFlag();
     if (f !== '1' && f !== '0') {            // primeira vez: instalacao nova liga, quem ja estuda nao
       f = totalMs() < 5 * 60000 ? '1' : '0';

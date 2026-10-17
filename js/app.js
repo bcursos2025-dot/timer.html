@@ -1413,7 +1413,7 @@ function renderPraticaAtual(){
   if (!temQuestoesDisponiveisHoje()) {
     document.getElementById('qPraticaProgressoFill').style.width = '100%';
     renderTelaFinalPratica(ICONE_CADEADO_GRANDE, 'Limite diário do Free atingido',
-      'Você já fez suas 10 questões de hoje. Pareie com a extensão e ative o Pro, ou indique um amigo pra ganhar ilimitado, pra sempre.', 'Entendi');
+      (deviceId ? 'Você já fez suas 10 questões de hoje. Seu aparelho já está pareado: o Pro vem da licença da extensão no PC. Ou indique um amigo pra ganhar ilimitado, pra sempre.' : 'Você já fez suas 10 questões de hoje. Pareie com a extensão e ative o Pro, ou indique um amigo pra ganhar ilimitado, pra sempre.'), 'Entendi');
     return;
   }
 
@@ -1597,18 +1597,20 @@ function popularFiltroAssunto(){
 // sessão/pomodoro etc.) — sem isso, atualizarDisciplinaDisponivel() rodava
 // a cada snapshot do refExtensao.on('value', ...) e derrubava a escolha de
 // Direito Administrativo poucos segundos depois de selecionada.
-let cbAdmDisponivelAnterior = undefined;
+let cbAdmDisponivelAnterior = undefined;   // guarda 'sim' | 'aguardando' | 'nao'
 
 function atualizarDisciplinaDisponivel(){
   const select = document.getElementById('qFiltroDisciplina');
   const admDisponivel = !!(deviceId && estadoExtensao && estadoExtensao.questoesAdm);
+  const admEstado = admDisponivel ? 'sim' : (deviceId ? 'aguardando' : 'nao');
+  const admFalta = deviceId ? 'aguardando a extensão no PC enviar' : 'pareie a extensão pra desbloquear';
 
   // Nada mudou desde a última vez (o caso mais comum, disparado pelo
   // heartbeat) — não mexe no <select> nem reaplica a disciplina, pra não
   // perder a seleção do usuário nem reiniciar a sessão de prática em
   // andamento.
-  if (admDisponivel === cbAdmDisponivelAnterior) return;
-  cbAdmDisponivelAnterior = admDisponivel;
+  if (admEstado === cbAdmDisponivelAnterior) return;
+  cbAdmDisponivelAnterior = admEstado;
 
   const valorAnterior = select.value;
 
@@ -1616,13 +1618,13 @@ function atualizarDisciplinaDisponivel(){
 
   const optQA = document.createElement('option');
   optQA.value = 'adm_qa';
-  optQA.textContent = admDisponivel ? 'Direito Administrativo — Perguntas e Respostas' : 'Direito Administrativo — pareie a extensão pra desbloquear';
+  optQA.textContent = admDisponivel ? 'Direito Administrativo — Perguntas e Respostas' : 'Direito Administrativo — ' + admFalta;
   optQA.disabled = !admDisponivel;
   select.appendChild(optQA);
 
   const optCE = document.createElement('option');
   optCE.value = 'adm_ce';
-  optCE.textContent = admDisponivel ? 'Direito Administrativo — Certo ou Errado' : 'Direito Administrativo — pareie a extensão pra desbloquear';
+  optCE.textContent = admDisponivel ? 'Direito Administrativo — Certo ou Errado' : 'Direito Administrativo — ' + admFalta;
   optCE.disabled = !admDisponivel;
   select.appendChild(optCE);
 
@@ -1640,6 +1642,8 @@ function atualizarDisciplinaDisponivel(){
 function aplicarDisciplinaSelecionada(){
   const select = document.getElementById('qFiltroDisciplina');
   const admDisponivel = !!(deviceId && estadoExtensao && estadoExtensao.questoesAdm);
+  const admEstado = admDisponivel ? 'sim' : (deviceId ? 'aguardando' : 'nao');
+  const admFalta = deviceId ? 'aguardando a extensão no PC enviar' : 'pareie a extensão pra desbloquear';
   const escolha = select.value;
 
   if (escolha === 'adm_qa' && admDisponivel) {
@@ -1811,7 +1815,7 @@ function atualizarLicencaUI(){
   document.getElementById('qLicencaBarra').style.width = (pro ? 100 : Math.min(100, feitas / 10 * 100)) + '%';
   document.getElementById('qLicencaSub').textContent = pro
     ? 'Você tem acesso ilimitado às questões.'
-    : 'Plano Free: 10 flashcards por dia neste site. Pareie com a extensão pra ativar o Pro, ou indique um amigo — 1 indicação válida libera vitalício pros dois.';
+    : (deviceId ? 'Plano Free: 10 flashcards por dia neste site. Você já está pareado: o Pro vem da licença da extensão no PC. Ou indique um amigo — 1 indicação válida libera vitalício pros dois.' : 'Plano Free: 10 flashcards por dia neste site. Pareie com a extensão pra ativar o Pro, ou indique um amigo — 1 indicação válida libera vitalício pros dois.');
   document.getElementById('qMeuCodigo').value = deviceId || 'pareie o celular pra gerar';
 }
 function atualizarPainelQuestoes(){
