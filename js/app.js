@@ -35,12 +35,14 @@ function salvarJSON(chave, valor){
   try { localStorage.setItem(chave, JSON.stringify(valor)); } catch (e) { /* armazenamento indisponível — segue só em memória */ }
 }
 
-let historico = lerJSON(LS.historico, {});
+let historico = lerJSON(LS.historico, {}) || {};
 let config = Object.assign({
   dailyGoalMs: 4 * 60 * 60 * 1000,
   pomodoroWorkMin: 25,
   pomodoroRestMin: 5,
-  somTipo: 'chuva',
+  somTipo: 'rain',
+  somVolume: 50,
+  somAtivo: false,
 }, lerJSON(LS.config, {}));
 // valores vindos de armazenamento/backup podem estar corrompidos: normaliza antes de usar
 (function sanearConfig(){
@@ -70,135 +72,140 @@ function salvarSessao(){ salvarJSON(LS.sessao, sessao); }
 const fundo = document.getElementById('fundo');
 // Temas = os mesmos da extensão: 'dark' (Escuro), 'navy' (Marinho) e 'light' (Claro).
 // Os nomes antigos do site (roxo, aurora, meianoite) viram Escuro.
-const TEMA_COR_BARRA = { dark: '#08090c', navy: '#060c1a', light: '#f4f6fb' };
+const TEMA_COR_BARRA = { dark: '#08090c', navy: '#060c1a', light: '#f4f6fb', glass: '#1a1330' };
+// 'auto' = Claro de dia e Escuro à noite (6h às 18h), como na extensão.
+function temaEfetivo(nome){
+  if (nome === 'auto'){ const h = new Date().getHours(); return (h >= 6 && h < 18) ? 'light' : 'dark'; }
+  return (nome === 'light' || nome === 'navy' || nome === 'glass') ? nome : 'dark';
+}
 function aplicarTema(nome){
-  const tema = (nome === 'light' || nome === 'navy') ? nome : 'dark';
+  const escolhido = (nome === 'auto' || nome === 'glass' || nome === 'light' || nome === 'navy') ? nome : 'dark';
+  const tema = temaEfetivo(escolhido);
   document.documentElement.dataset.theme = tema;
   fundo.className = 'fundo';
   fundo.innerHTML = '';
-  document.querySelectorAll('.tema-btn').forEach(b => b.classList.toggle('ativo', b.dataset.tema === tema));
+  document.querySelectorAll('.tema-btn').forEach(b => b.classList.toggle('ativo', b.dataset.tema === escolhido));
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = TEMA_COR_BARRA[tema];
-  localStorage.setItem(LS.tema, tema);
+  localStorage.setItem(LS.tema, escolhido);
 }
 document.querySelectorAll('.tema-btn').forEach(b => {
   b.addEventListener('click', () => aplicarTema(b.dataset.tema));
 });
 aplicarTema(localStorage.getItem(LS.tema) || 'dark');
 
-/* ============================================================
-   SOM AMBIENTE (sintetizado, sem depender de nenhum arquivo externo)
-   + ALERTA DE FASE DO POMODORO
-   ============================================================ */
-let audioCtx = null, somNode = null, somLigado = false;
-
-function criarBufferRuidoBranco(){
-  const bufferSize = 2 * audioCtx.sampleRate;
-  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-  const fonte = audioCtx.createBufferSource();
-  fonte.buffer = buffer;
-  fonte.loop = true;
-  return fonte;
-}
-// Ruído marrom = integral do ruído branco (passo aleatório acumulado e
-// normalizado) — resulta num "rumor" grave e constante, popular pra foco.
-function criarBufferRuidoMarrom(){
-  const bufferSize = 2 * audioCtx.sampleRate;
-  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-  const data = buffer.getChannelData(0);
-  let ultimo = 0;
-  for (let i = 0; i < bufferSize; i++){
-    const branco = Math.random() * 2 - 1;
-    ultimo = (ultimo + 0.02 * branco) / 1.02;
-    data[i] = ultimo * 3.5;
-  }
-  const fonte = audioCtx.createBufferSource();
-  fonte.buffer = buffer;
-  fonte.loop = true;
-  return fonte;
-}
-
-function iniciarSom(tipo){
-  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-
-  const nodesExtras = [];
-  let fonte;
-
-  if (tipo === 'branco') {
-    fonte = criarBufferRuidoBranco();
-    const passaBaixa = audioCtx.createBiquadFilter(); passaBaixa.type = 'lowpass'; passaBaixa.frequency.value = 9000;
-    const ganho = audioCtx.createGain(); ganho.gain.value = 0.10;
-    fonte.connect(passaBaixa).connect(ganho).connect(audioCtx.destination);
-    nodesExtras.push(passaBaixa, ganho);
-
-  } else if (tipo === 'marrom') {
-    fonte = criarBufferRuidoMarrom();
-    const ganho = audioCtx.createGain(); ganho.gain.value = 0.22;
-    fonte.connect(ganho).connect(audioCtx.destination);
-    nodesExtras.push(ganho);
-
-  } else if (tipo === 'ondas') {
-    fonte = criarBufferRuidoBranco();
-    const filtro = audioCtx.createBiquadFilter(); filtro.type = 'lowpass'; filtro.frequency.value = 800;
-    const ganho = audioCtx.createGain(); ganho.gain.value = 0.16;
-    // LFO bem lento que sobe/desce o corte do filtro, simulando o vaivém
-    // de uma onda quebrando e recuando (~8s por ciclo).
-    const lfo = audioCtx.createOscillator(); lfo.frequency.value = 0.12;
-    const lfoGanho = audioCtx.createGain(); lfoGanho.gain.value = 500;
-    lfo.connect(lfoGanho).connect(filtro.frequency);
-    lfo.start();
-    fonte.connect(filtro).connect(ganho).connect(audioCtx.destination);
-    nodesExtras.push(filtro, ganho, lfo, lfoGanho);
-
-  } else { // 'chuva' — padrão
-    fonte = criarBufferRuidoBranco();
-    const passaAlta = audioCtx.createBiquadFilter(); passaAlta.type = 'highpass'; passaAlta.frequency.value = 700;
-    const passaBaixa = audioCtx.createBiquadFilter(); passaBaixa.type = 'lowpass'; passaBaixa.frequency.value = 4000;
-    const ganho = audioCtx.createGain(); ganho.gain.value = 0.18;
-    fonte.connect(passaAlta).connect(passaBaixa).connect(ganho).connect(audioCtx.destination);
-    nodesExtras.push(passaAlta, passaBaixa, ganho);
-  }
-
-  fonte.start();
-  somNode = { fonte, nodesExtras };
-}
-function pararSom(){
-  if (!somNode) return;
-  try { somNode.fonte.stop(); } catch (e) {}
-  somNode.nodesExtras.forEach((n) => { if (n.stop) { try { n.stop(); } catch (e) {} } });
-  somNode = null;
-}
-function ligarSom(){
-  if (somLigado) return;
-  iniciarSom(config.somTipo);
-  somLigado = true;
-  document.getElementById('somLabelTexto').textContent = 'Som ambiente: ligado';
-}
-function desligarSom(){
-  if (!somLigado) return;
-  pararSom();
-  somLigado = false;
-  document.getElementById('somLabelTexto').textContent = 'Som ambiente: desligado';
-}
-document.getElementById('somSwitch').addEventListener('change', (e) => {
-  if (e.target.checked) ligarSom(); else desligarSom();
-});
-function atualizarSomTipoUI(){
-  document.querySelectorAll('.som-tipo-btn').forEach((b) => b.classList.toggle('ativo', b.dataset.tipo === config.somTipo));
-}
-document.querySelectorAll('.som-tipo-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    config.somTipo = btn.dataset.tipo;
-    salvarConfig();
-    atualizarSomTipoUI();
-    if (somLigado) { pararSom(); iniciarSom(config.somTipo); }
-    else { document.getElementById('somSwitch').checked = true; ligarSom(); }
+/* Gavetas dos Ajustes (acordeão): abre uma, fecha a anterior do mesmo grupo. */
+document.querySelectorAll('.ap-settings .settings-accordion-head').forEach(cab => {
+  cab.addEventListener('click', () => {
+    const gaveta = cab.closest('.settings-accordion');
+    const abrir = !gaveta.classList.contains('open');
+    gaveta.parentElement.querySelectorAll('.settings-accordion.open').forEach(o => {
+      o.classList.remove('open'); o.querySelector('.settings-accordion-head').setAttribute('aria-expanded', 'false');
+    });
+    if (abrir){ gaveta.classList.add('open'); cab.setAttribute('aria-expanded', 'true'); }
   });
 });
-atualizarSomTipoUI();
+
+/* ============================================================
+   SOM AMBIENTE: os mesmos sons da extensão (ruído branco, chuva, vento,
+   trovão e rádio Lo-Fi). Toca sozinho enquanto o cronômetro está rodando
+   e pausa junto com ele.
+   ============================================================ */
+let audioCtx = null;
+let somMaster = null, somFonte = null, somNos = [], somLofi = null, somTocando = 'none', somPrevia = null;
+const SOM_ANTIGOS = { chuva: 'rain', branco: 'white', marrom: 'white', ondas: 'rain' };
+const LOFI_URL = 'https://ice5.somafm.com/groovesalad-128-mp3';
+const LOFI_URL_ALT = 'https://ice3.somafm.com/groovesalad-128-mp3';
+function somTipoAtual(){ const t = config.somTipo; return SOM_ANTIGOS[t] || t || 'rain'; }
+function somVolume(){ const v = Number(config.somVolume); return (isFinite(v) ? Math.min(100, Math.max(0, v)) : 50) / 100; }
+function somContexto(){
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!somMaster) { somMaster = audioCtx.createGain(); somMaster.connect(audioCtx.destination); }
+  somMaster.gain.value = somVolume();
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+}
+function somBuffer(){
+  const n = audioCtx.sampleRate * 4, buf = audioCtx.createBuffer(1, n, audioCtx.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  return buf;
+}
+function somLimpar(){
+  if (somFonte) { try { somFonte.stop(); } catch (e) {} try { somFonte.disconnect(); } catch (e) {} somFonte = null; }
+  somNos.forEach(n => { try { if (n.stop) n.stop(); n.disconnect(); } catch (e) {} });
+  somNos = [];
+  if (somLofi) { somLofi.pause(); somLofi.src = ''; somLofi = null; }
+}
+function somFiltro(tipo, freq, q){ const f = audioCtx.createBiquadFilter(); f.type = tipo; f.frequency.value = freq; if (q) f.Q.value = q; return f; }
+function somLfo(freq, prof, alvo){
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.frequency.value = freq; g.gain.value = prof; o.connect(g); g.connect(alvo); o.start();
+  somNos.push(o, g);
+}
+function somTocar(tipo){
+  if (somTocando === tipo) { if (somMaster) somMaster.gain.value = somVolume(); return; }
+  somLimpar(); somTocando = tipo; somContexto();
+  if (tipo === 'lofi') {
+    somLofi = new Audio(LOFI_URL); somLofi.volume = somVolume();
+    let alt = false;
+    somLofi.addEventListener('error', () => { if (!alt && somLofi) { alt = true; somLofi.src = LOFI_URL_ALT; somLofi.play().catch(() => {}); } });
+    somLofi.play().catch(() => {});
+    return;
+  }
+  somFonte = audioCtx.createBufferSource(); somFonte.buffer = somBuffer(); somFonte.loop = true;
+  if (tipo === 'white') {
+    const lp = somFiltro('lowpass', 6000); somFonte.connect(lp); lp.connect(somMaster); somNos.push(lp);
+  } else if (tipo === 'wind') {
+    const bp = somFiltro('bandpass', 500, .6), lp = somFiltro('lowpass', 1800), g = audioCtx.createGain(); g.gain.value = .55;
+    somFonte.connect(bp); bp.connect(lp); lp.connect(g); g.connect(somMaster); somNos.push(bp, lp, g);
+    somLfo(.14, .45, g.gain); somLfo(.37, .12, g.gain);
+  } else if (tipo === 'thunder') {
+    const lp = somFiltro('lowpass', 220), g = audioCtx.createGain(); g.gain.value = .5;
+    somFonte.connect(lp); lp.connect(g); g.connect(somMaster); somNos.push(lp, g);
+    somLfo(.05, .28, g.gain); somLfo(.087, .22, g.gain);
+  } else { // rain
+    const hp = somFiltro('highpass', 700), lp = somFiltro('lowpass', 5000), g = audioCtx.createGain(); g.gain.value = 1;
+    somFonte.connect(hp); hp.connect(lp); lp.connect(g); g.connect(somMaster); somNos.push(hp, lp, g);
+    somLfo(.15, .15, g.gain);
+  }
+  somFonte.start();
+}
+function somParar(){ somLimpar(); somTocando = 'none'; }
+function somDeveTocar(){
+  if (!config.somAtivo) return false;
+  try { return sessao.sessionState === 'running' && !(sessao.pomodoroMode && sessao.pomodoroPhase === 'rest'); } catch (e) { return false; }
+}
+function somSincronizar(){
+  if (somPrevia) return;                      // tocando a prévia de 4 s
+  if (somDeveTocar()) somTocar(somTipoAtual()); else somParar();
+}
+setInterval(somSincronizar, 1000);
+
+function somAtualizarUI(){
+  const sw = document.getElementById('somSwitch'); if (sw) sw.checked = !!config.somAtivo;
+  document.getElementById('somLabelTexto').textContent = config.somAtivo ? 'Tocar som durante o estudo: ligado' : 'Tocar som durante o estudo';
+  document.querySelectorAll('.som-tipo-btn').forEach((b) => b.classList.toggle('ativo', b.dataset.tipo === somTipoAtual()));
+  const vol = document.getElementById('somVolume'); if (vol) vol.value = Math.round(somVolume() * 100);
+}
+document.getElementById('somSwitch').addEventListener('change', (e) => {
+  config.somAtivo = e.target.checked; salvarConfig(); somAtualizarUI();
+  if (config.somAtivo) { try { somContexto(); } catch (err) {} }
+  somSincronizar();
+});
+document.querySelectorAll('.som-tipo-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    config.somTipo = btn.dataset.tipo; salvarConfig(); somAtualizarUI();
+    if (somDeveTocar()) { somSincronizar(); return; }
+    // fora do estudo: toca uma prévia de 4 segundos para a pessoa ouvir como é
+    clearTimeout(somPrevia); somTocar(somTipoAtual());
+    somPrevia = setTimeout(() => { somPrevia = null; somSincronizar(); }, 4000);
+  });
+});
+document.getElementById('somVolume').addEventListener('input', (e) => {
+  config.somVolume = Number(e.target.value); salvarConfig();
+  if (somMaster) somMaster.gain.value = somVolume();
+  if (somLofi) somLofi.volume = somVolume();
+});
+somAtualizarUI();
 
 function destravarAudio(){
   audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
@@ -2189,3 +2196,27 @@ atualizarTudo();
 renderPainel();
 renderAgenda();
 
+
+
+/* ============================================================
+   BARRA LATERAL (PC): esconder e mostrar, lembrando a escolha
+   ============================================================ */
+(function(){
+  const LS_LAT = 'cb2_lateral_oculta';
+  function definir(oculta){
+    document.body.classList.toggle('lat-oculta', oculta);
+    try { localStorage.setItem(LS_LAT, oculta ? '1' : '0'); } catch (e) { /* ok */ }
+  }
+  try { if (localStorage.getItem(LS_LAT) === '1') document.body.classList.add('lat-oculta'); } catch (e) { /* ok */ }
+  const r = document.getElementById('btnLatRecolher'), a = document.getElementById('btnLatAbrir');
+  if (r) r.addEventListener('click', () => definir(true));
+  if (a) a.addEventListener('click', () => definir(false));
+})();
+
+/* Compartilhar no WhatsApp (Ajustes) */
+(function(){
+  const w = document.getElementById('btnWhatsCompartilhar');
+  if (!w) return;
+  const texto = 'Estou estudando para a OAB com o Concurseiro Blindado: cronômetro, revisão, questões e leis com grifos. Experimenta: https://bcursos2025-dot.github.io/timer.html/timer.html';
+  w.href = 'https://wa.me/?text=' + encodeURIComponent(texto);
+})();
