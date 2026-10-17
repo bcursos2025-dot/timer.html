@@ -1,0 +1,165 @@
+{
+ "gerado_em": "2026-10-17",
+ "leis": [
+  {
+   "id": "l8906",
+   "nome": "Estatuto da Advocacia e da OAB",
+   "norma": "Lei nº 8.906/1994",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8906.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 96,
+   "blocos": 527,
+   "bytes": 94347
+  },
+  {
+   "id": "cf88",
+   "nome": "Constituição Federal",
+   "norma": "Constituição da República de 1988",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 412,
+   "blocos": 3505,
+   "bytes": 727752
+  },
+  {
+   "id": "cpc",
+   "nome": "Código de Processo Civil",
+   "norma": "Lei nº 13.105/2015",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 1070,
+   "blocos": 4240,
+   "bytes": 642597
+  },
+  {
+   "id": "cc",
+   "nome": "Código Civil",
+   "norma": "Lei nº 10.406/2002",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 2016,
+   "blocos": 4574,
+   "bytes": 697279
+  },
+  {
+   "id": "cp",
+   "nome": "Código Penal",
+   "norma": "Decreto-Lei nº 2.848/1940",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 403,
+   "blocos": 2195,
+   "bytes": 300670
+  },
+  {
+   "id": "cpp",
+   "nome": "Código de Processo Penal",
+   "norma": "Decreto-Lei nº 3.689/1941",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 809,
+   "blocos": 2312,
+   "bytes": 413377
+  },
+  {
+   "id": "clt",
+   "nome": "CLT",
+   "norma": "Decreto-Lei nº 5.452/1943",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 833,
+   "blocos": 3898,
+   "bytes": 680360
+  },
+  {
+   "id": "cdc",
+   "nome": "Código de Defesa do Consumidor",
+   "norma": "Lei nº 8.078/1990",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 118,
+   "blocos": 489,
+   "bytes": 89860
+  },
+  {
+   "id": "ctn",
+   "nome": "Código Tributário Nacional",
+   "norma": "Lei nº 5.172/1966",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l5172compilado.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 222,
+   "blocos": 983,
+   "bytes": 155039
+  },
+  {
+   "id": "eca",
+   "nome": "Estatuto da Criança e do Adolescente",
+   "norma": "Lei nº 8.069/1990",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8069.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 327,
+   "blocos": 1444,
+   "bytes": 275725
+  },
+  {
+   "id": "l9099",
+   "nome": "Juizados Especiais",
+   "norma": "Lei nº 9.099/1995",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l9099.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 98,
+   "blocos": 295,
+   "bytes": 43817
+  },
+  {
+   "id": "l8429",
+   "nome": "Improbidade Administrativa",
+   "norma": "Lei nº 8.429/1992",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8429.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 30,
+   "blocos": 230,
+   "bytes": 59781
+  },
+  {
+   "id": "l9784",
+   "nome": "Processo Administrativo Federal",
+   "norma": "Lei nº 9.784/1999",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l9784.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 79,
+   "blocos": 237,
+   "bytes": 36049
+  },
+  {
+   "id": "lindb",
+   "nome": "LINDB",
+   "norma": "Decreto-Lei nº 4.657/1942",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del4657compilado.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 29,
+   "blocos": 79,
+   "bytes": 18046
+  },
+  {
+   "id": "lep",
+   "nome": "Lei de Execução Penal",
+   "norma": "Lei nº 7.210/1984",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l7210.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 216,
+   "blocos": 848,
+   "bytes": 119524
+  },
+  {
+   "id": "l12016",
+   "nome": "Mandado de Segurança",
+   "norma": "Lei nº 12.016/2009",
+   "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2007-2010/2009/lei/l12016.htm",
+   "atualizado": "2026-10-17",
+   "artigos": 29,
+   "blocos": 73,
+   "bytes": 16503
+  }
+ ]
+}

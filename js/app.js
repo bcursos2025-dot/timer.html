@@ -1,0 +1,2114 @@
+/* ============================================================
+   UTILITÁRIOS DE DATA
+   ============================================================ */
+function pad2(n){ return String(n).padStart(2, '0'); }
+// Escapa texto de fora (nome de PDF, agenda vinda da extensão) antes de entrar em innerHTML.
+function escHtml(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function chaveData(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+function hojeChave(){ return chaveData(new Date()); }
+
+/* ============================================================
+   ARMAZENAMENTO LOCAL — tudo funciona sem internet e sem parear.
+   ============================================================ */
+const LS = {
+  historico:  'cb2_historico',   // { "AAAA-MM-DD": ms }
+  config:     'cb2_config',      // { dailyGoalMs, pomodoroWorkMin, pomodoroRestMin, somTipo }
+  sessao:     'cb2_sessao',      // { sessionState, inicioSessao, pomodoroMode, pomodoroPhase, pomodoroPhaseEndAt, pomodoroRemainingMs }
+  deviceId:   'cb_deviceId',
+  tema:       'cb_tema',
+  provaOab:   'cb2_prova_oab',   // { data: 'YYYY-MM-DD', fase: '1' | '2' }
+  perfil:     'cb2_perfil',      // { tipo: 'oab' | 'concurso' }
+  questoesEstado:       'cb2_questoes_estado',        // { [indiceCartao]: {intervalo, facilidade, streak, dueEm} }
+  questoesLog:          'cb2_questoes_log',           // { "AAAA-MM-DD": {feitas, acertos} }
+  questoesVitalicio:    'cb2_questoes_vitalicio',     // bool — cache local do vitalício conquistado por indicação
+};
+
+function lerJSON(chave, padrao){
+  try {
+    const bruto = localStorage.getItem(chave);
+    return bruto ? JSON.parse(bruto) : padrao;
+  } catch (e) { return padrao; }
+}
+function salvarJSON(chave, valor){
+  try { localStorage.setItem(chave, JSON.stringify(valor)); } catch (e) { /* armazenamento indisponível — segue só em memória */ }
+}
+
+let historico = lerJSON(LS.historico, {});
+let config = Object.assign({
+  dailyGoalMs: 4 * 60 * 60 * 1000,
+  pomodoroWorkMin: 25,
+  pomodoroRestMin: 5,
+  somTipo: 'chuva',
+}, lerJSON(LS.config, {}));
+// valores vindos de armazenamento/backup podem estar corrompidos: normaliza antes de usar
+(function sanearConfig(){
+  const meta = Number(config.dailyGoalMs);
+  if (!Number.isFinite(meta) || meta < 15 * 60000 || meta > 16 * 3600000) config.dailyGoalMs = 4 * 60 * 60 * 1000;
+  [['pomodoroWorkMin', 25], ['pomodoroRestMin', 5]].forEach(([k, padrao]) => {
+    const v = Number(config[k]);
+    if (!Number.isFinite(v) || v < 1 || v > 180) config[k] = padrao;
+  });
+})();
+let sessao = Object.assign({
+  sessionState: 'stopped',       // 'stopped' | 'running' | 'paused'
+  inicioSessao: null,
+  pomodoroMode: false,
+  pomodoroPhase: 'work',         // 'work' | 'rest'
+  pomodoroPhaseEndAt: null,      // timestamp, só quando running
+  pomodoroRemainingMs: null,     // ms restantes, só quando paused/stopped
+}, lerJSON(LS.sessao, {}));
+
+function salvarHistorico(){ salvarJSON(LS.historico, historico); sincronizarComPC(); }
+function salvarConfig(){ salvarJSON(LS.config, config); }
+function salvarSessao(){ salvarJSON(LS.sessao, sessao); }
+
+/* ============================================================
+   TEMA DE FUNDO
+   ============================================================ */
+const fundo = document.getElementById('fundo');
+// Temas = os mesmos da extensão: 'dark' (Escuro), 'navy' (Marinho) e 'light' (Claro).
+// Os nomes antigos do site (roxo, aurora, meianoite) viram Escuro.
+const TEMA_COR_BARRA = { dark: '#08090c', navy: '#060c1a', light: '#f4f6fb' };
+function aplicarTema(nome){
+  const tema = (nome === 'light' || nome === 'navy') ? nome : 'dark';
+  document.documentElement.dataset.theme = tema;
+  fundo.className = 'fundo';
+  fundo.innerHTML = '';
+  document.querySelectorAll('.tema-btn').forEach(b => b.classList.toggle('ativo', b.dataset.tema === tema));
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = TEMA_COR_BARRA[tema];
+  localStorage.setItem(LS.tema, tema);
+}
+document.querySelectorAll('.tema-btn').forEach(b => {
+  b.addEventListener('click', () => aplicarTema(b.dataset.tema));
+});
+aplicarTema(localStorage.getItem(LS.tema) || 'dark');
+
+/* ============================================================
+   SOM AMBIENTE (sintetizado, sem depender de nenhum arquivo externo)
+   + ALERTA DE FASE DO POMODORO
+   ============================================================ */
+let audioCtx = null, somNode = null, somLigado = false;
+
+function criarBufferRuidoBranco(){
+  const bufferSize = 2 * audioCtx.sampleRate;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+  const fonte = audioCtx.createBufferSource();
+  fonte.buffer = buffer;
+  fonte.loop = true;
+  return fonte;
+}
+// Ruído marrom = integral do ruído branco (passo aleatório acumulado e
+// normalizado) — resulta num "rumor" grave e constante, popular pra foco.
+function criarBufferRuidoMarrom(){
+  const bufferSize = 2 * audioCtx.sampleRate;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  let ultimo = 0;
+  for (let i = 0; i < bufferSize; i++){
+    const branco = Math.random() * 2 - 1;
+    ultimo = (ultimo + 0.02 * branco) / 1.02;
+    data[i] = ultimo * 3.5;
+  }
+  const fonte = audioCtx.createBufferSource();
+  fonte.buffer = buffer;
+  fonte.loop = true;
+  return fonte;
+}
+
+function iniciarSom(tipo){
+  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  const nodesExtras = [];
+  let fonte;
+
+  if (tipo === 'branco') {
+    fonte = criarBufferRuidoBranco();
+    const passaBaixa = audioCtx.createBiquadFilter(); passaBaixa.type = 'lowpass'; passaBaixa.frequency.value = 9000;
+    const ganho = audioCtx.createGain(); ganho.gain.value = 0.10;
+    fonte.connect(passaBaixa).connect(ganho).connect(audioCtx.destination);
+    nodesExtras.push(passaBaixa, ganho);
+
+  } else if (tipo === 'marrom') {
+    fonte = criarBufferRuidoMarrom();
+    const ganho = audioCtx.createGain(); ganho.gain.value = 0.22;
+    fonte.connect(ganho).connect(audioCtx.destination);
+    nodesExtras.push(ganho);
+
+  } else if (tipo === 'ondas') {
+    fonte = criarBufferRuidoBranco();
+    const filtro = audioCtx.createBiquadFilter(); filtro.type = 'lowpass'; filtro.frequency.value = 800;
+    const ganho = audioCtx.createGain(); ganho.gain.value = 0.16;
+    // LFO bem lento que sobe/desce o corte do filtro, simulando o vaivém
+    // de uma onda quebrando e recuando (~8s por ciclo).
+    const lfo = audioCtx.createOscillator(); lfo.frequency.value = 0.12;
+    const lfoGanho = audioCtx.createGain(); lfoGanho.gain.value = 500;
+    lfo.connect(lfoGanho).connect(filtro.frequency);
+    lfo.start();
+    fonte.connect(filtro).connect(ganho).connect(audioCtx.destination);
+    nodesExtras.push(filtro, ganho, lfo, lfoGanho);
+
+  } else { // 'chuva' — padrão
+    fonte = criarBufferRuidoBranco();
+    const passaAlta = audioCtx.createBiquadFilter(); passaAlta.type = 'highpass'; passaAlta.frequency.value = 700;
+    const passaBaixa = audioCtx.createBiquadFilter(); passaBaixa.type = 'lowpass'; passaBaixa.frequency.value = 4000;
+    const ganho = audioCtx.createGain(); ganho.gain.value = 0.18;
+    fonte.connect(passaAlta).connect(passaBaixa).connect(ganho).connect(audioCtx.destination);
+    nodesExtras.push(passaAlta, passaBaixa, ganho);
+  }
+
+  fonte.start();
+  somNode = { fonte, nodesExtras };
+}
+function pararSom(){
+  if (!somNode) return;
+  try { somNode.fonte.stop(); } catch (e) {}
+  somNode.nodesExtras.forEach((n) => { if (n.stop) { try { n.stop(); } catch (e) {} } });
+  somNode = null;
+}
+function ligarSom(){
+  if (somLigado) return;
+  iniciarSom(config.somTipo);
+  somLigado = true;
+  document.getElementById('somLabelTexto').textContent = 'Som ambiente: ligado';
+}
+function desligarSom(){
+  if (!somLigado) return;
+  pararSom();
+  somLigado = false;
+  document.getElementById('somLabelTexto').textContent = 'Som ambiente: desligado';
+}
+document.getElementById('somSwitch').addEventListener('change', (e) => {
+  if (e.target.checked) ligarSom(); else desligarSom();
+});
+function atualizarSomTipoUI(){
+  document.querySelectorAll('.som-tipo-btn').forEach((b) => b.classList.toggle('ativo', b.dataset.tipo === config.somTipo));
+}
+document.querySelectorAll('.som-tipo-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    config.somTipo = btn.dataset.tipo;
+    salvarConfig();
+    atualizarSomTipoUI();
+    if (somLigado) { pararSom(); iniciarSom(config.somTipo); }
+    else { document.getElementById('somSwitch').checked = true; ligarSom(); }
+  });
+});
+atualizarSomTipoUI();
+
+function destravarAudio(){
+  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  document.removeEventListener('touchstart', destravarAudio);
+  document.removeEventListener('click', destravarAudio);
+}
+document.addEventListener('touchstart', destravarAudio, { once: true });
+document.addEventListener('click', destravarAudio, { once: true });
+
+function tocarAlertaFase(){
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const agora = audioCtx.currentTime;
+    [0, 0.28, 0.56].forEach((atraso) => {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 880;
+      g.gain.setValueAtTime(0.0001, agora + atraso);
+      g.gain.exponentialRampToValueAtTime(0.35, agora + atraso + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, agora + atraso + 0.22);
+      osc.connect(g).connect(audioCtx.destination);
+      osc.start(agora + atraso);
+      osc.stop(agora + atraso + 0.25);
+    });
+  } catch (e) { console.warn('[Alerta] falha ao tocar som:', e); }
+  if (navigator.vibrate) navigator.vibrate([180, 90, 180, 90, 180]);
+}
+
+/* ------------------------------------------------------------
+   MANTER A TELA ACESA DURANTE O POMODORO (Screen Wake Lock API)
+   ------------------------------------------------------------
+   O motivo de existir: o Safari do iOS suspende o JavaScript da página
+   assim que a tela apaga ou o app vai pra segundo plano — nenhum truque
+   de site consegue tocar som ou vibrar depois disso, é uma trava do
+   sistema operacional, não do navegador. A única coisa que dá pra fazer
+   de verdade é pedir pro aparelho não apagar a tela sozinho por
+   inatividade ENQUANTO o Pomodoro está rodando — daí o alarme sonoro
+   toca certinho no fim de cada fase. Suportado em iOS 16.4+ e na maioria
+   dos Android; onde não existe, essa função simplesmente não faz nada
+   (nenhum erro, o cronômetro segue normal).
+   ------------------------------------------------------------ */
+let wakeLock = null;
+async function pedirWakeLock(){
+  if (wakeLock || !('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch (e) {
+    // Falha comum e inofensiva: bateria baixa, aba não está visível, etc.
+    wakeLock = null;
+  }
+}
+function liberarWakeLock(){
+  wakeLock?.release();
+  wakeLock = null;
+}
+function gerenciarWakeLock(){
+  const precisa = sessao.sessionState === 'running' && sessao.pomodoroMode;
+  if (precisa) pedirWakeLock(); else liberarWakeLock();
+}
+
+/* ------------------------------------------------------------
+   NOTIFICAÇÃO DO SISTEMA — reforço opcional pro alarme de fase.
+   O iOS Safari comum (fora de PWA instalado com push) nem tem essa API;
+   nesses casos 'Notification' in window já dá false e a função não faz
+   nada. Em desktop/Android funciona como um aviso a mais, além do som.
+   ------------------------------------------------------------ */
+function pedirPermissaoNotificacao(){
+  if (!('Notification' in window) || Notification.permission !== 'default') return;
+  Notification.requestPermission().catch(() => {});
+}
+function notificarFimDeFase(novaFase){
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    new Notification('Concurseiro Blindado', {
+      body: novaFase === 'work' ? 'Pausa terminada — hora de focar de novo.' : 'Sessão de foco terminada — hora da pausa.',
+    });
+  } catch (e) { /* alguns navegadores exigem Service Worker p/ isso — ignora se falhar */ }
+}
+
+/* ============================================================
+   NAVEGAÇÃO POR ABAS
+   ============================================================ */
+const tabBtns = document.querySelectorAll('.tab-btn');
+const paginas = document.querySelectorAll('.pagina');
+function irParaAba(nome){
+  tabBtns.forEach(b => b.classList.toggle('ativa', b.dataset.tab === nome));
+  paginas.forEach(p => p.classList.toggle('ativa', p.dataset.pagina === nome));
+  if (navigator.vibrate) navigator.vibrate(6);
+}
+tabBtns.forEach(b => b.addEventListener('click', () => irParaAba(b.dataset.tab)));
+
+/* ============================================================
+   SHEET DE AJUSTES
+   ============================================================ */
+const sheetOverlay = document.getElementById('sheetOverlay');
+document.getElementById('btnAjustes').addEventListener('click', () => abrirSheet());
+document.getElementById('sheetFechar').addEventListener('click', fecharSheet);
+sheetOverlay.addEventListener('click', (e) => { if (e.target === sheetOverlay) fecharSheet(); });
+function abrirSheet(){ sheetOverlay.classList.add('aberto'); }
+function fecharSheet(){ sheetOverlay.classList.remove('aberto'); }
+
+/* ============================================================
+   SHEET DE SEQUÊNCIA — abre ao tocar no distintivo de fogo.
+   ============================================================ */
+const STREAK_MILESTONES = [3, 7, 14, 30, 60, 100, 180, 365];
+const streakOverlay = document.getElementById('streakOverlay');
+document.getElementById('streakBadge').addEventListener('click', () => abrirStreakSheet());
+document.getElementById('streakFechar').addEventListener('click', fecharStreakSheet);
+streakOverlay.addEventListener('click', (e) => { if (e.target === streakOverlay) fecharStreakSheet(); });
+
+function calcularMelhorStreak(){
+  const dias = Object.keys(historico).filter((k) => historico[k] >= config.dailyGoalMs).sort();
+  if (!dias.length) return 0;
+  let melhor = 1, atual = 1;
+  for (let i = 1; i < dias.length; i++){
+    const diffDias = Math.round((new Date(dias[i]) - new Date(dias[i - 1])) / 86400000);
+    if (diffDias === 1) { atual++; melhor = Math.max(melhor, atual); }
+    else atual = 1;
+  }
+  return melhor;
+}
+
+function abrirStreakSheet(){
+  const atual = calcularStreak();
+  const melhor = Math.max(atual, calcularMelhorStreak());
+  document.getElementById('streakGrandeNumero').textContent = atual;
+  document.getElementById('streakMelhorTexto').textContent = `${melhor} dia${melhor === 1 ? '' : 's'}`;
+
+  const proximaMarca = STREAK_MILESTONES.find((m) => m > atual);
+  document.getElementById('streakProximaTexto').textContent = proximaMarca
+    ? `faltam ${proximaMarca - atual} dia${(proximaMarca - atual) === 1 ? '' : 's'} para ${proximaMarca} dias`
+    : 'você bateu todas as marcas!';
+
+  const grid = document.getElementById('marcosGrid');
+  grid.innerHTML = '';
+  STREAK_MILESTONES.forEach((m) => {
+    const conquistado = melhor >= m;
+    const chip = document.createElement('span');
+    chip.className = 'marco-chip' + (conquistado ? ' conquistado' : '');
+    if (conquistado) {
+      chip.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    }
+    chip.appendChild(document.createTextNode(m + ' dias'));
+    grid.appendChild(chip);
+  });
+
+  streakOverlay.classList.add('aberto');
+}
+function fecharStreakSheet(){ streakOverlay.classList.remove('aberto'); }
+
+/* Meta diária */
+const elMetaValor = document.getElementById('metaValor');
+function atualizarMetaValor(){ elMetaValor.textContent = (config.dailyGoalMs / 3600000).toFixed(0) + 'h'; }
+document.getElementById('metaMenos').addEventListener('click', () => {
+  config.dailyGoalMs = Math.max(1 * 3600000, config.dailyGoalMs - 3600000);
+  salvarConfig(); atualizarMetaValor(); atualizarTudo();
+});
+document.getElementById('metaMais').addEventListener('click', () => {
+  config.dailyGoalMs = Math.min(16 * 3600000, config.dailyGoalMs + 3600000);
+  salvarConfig(); atualizarMetaValor(); atualizarTudo();
+});
+atualizarMetaValor();
+
+/* Durações do Pomodoro */
+const elFocoValor = document.getElementById('focoValor');
+const elPausaValor = document.getElementById('pausaValor');
+function atualizarPomodoroValores(){
+  elFocoValor.textContent = config.pomodoroWorkMin + ' min';
+  elPausaValor.textContent = config.pomodoroRestMin + ' min';
+}
+document.getElementById('focoMenos').addEventListener('click', () => { config.pomodoroWorkMin = Math.max(5, config.pomodoroWorkMin - 5); salvarConfig(); atualizarPomodoroValores(); });
+document.getElementById('focoMais').addEventListener('click', () => { config.pomodoroWorkMin = Math.min(90, config.pomodoroWorkMin + 5); salvarConfig(); atualizarPomodoroValores(); });
+document.getElementById('pausaMenos').addEventListener('click', () => { config.pomodoroRestMin = Math.max(5, config.pomodoroRestMin - 5); salvarConfig(); atualizarPomodoroValores(); });
+document.getElementById('pausaMais').addEventListener('click', () => { config.pomodoroRestMin = Math.min(30, config.pomodoroRestMin + 5); salvarConfig(); atualizarPomodoroValores(); });
+atualizarPomodoroValores();
+
+/* ============================================================
+   PAREAMENTO (opcional) — Firebase só entra em cena se a pessoa pedir.
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyAqpHJny30HIfedbdwq22Ex1K0QDllO5hw",
+  authDomain: "concurseiro-blindado.firebaseapp.com",
+  databaseURL: "https://concurseiro-blindado-default-rtdb.firebaseio.com",
+  projectId: "concurseiro-blindado",
+};
+// O cronômetro em si NUNCA pode depender disso — só o pareamento (opcional)
+// usa o Firebase. Se o script não carregar (sem internet, bloqueador, rede
+// restrita etc.), o app inteiro precisa continuar funcionando normalmente.
+let db = null;
+let firebaseDisponivel = false;
+try {
+  if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    firebaseDisponivel = true;
+  }
+} catch (e) {
+  console.warn('[Concurseiro Blindado] Firebase indisponível — o cronômetro segue funcionando normalmente, só o pareamento fica fora do ar.', e);
+}
+
+const tg = window.Telegram?.WebApp;
+tg?.ready();
+tg?.expand();
+
+let deviceId = localStorage.getItem(LS.deviceId) || null;
+let refExtensao = null;   // dispositivos/{id}          — lido (o PC escreve)
+let refCelular = null;    // dispositivos/{id}/celular  — lido e escrito pelo site
+let estadoExtensao = null;
+// Declaradas aqui (não só lá embaixo, perto de onde são usadas) porque
+// ativarPareamento() pode rodar JÁ NO CARREGAMENTO da página se o
+// aparelho já estava pareado de antes (linha "if (deviceId)
+// ativarPareamento(deviceId)" mais abaixo) — nesse caso ela chama
+// escutarLeituraPdf() bem cedo, antes do script chegar na declaração
+// original dessas variáveis. Como são "let", ficam inacessíveis até a
+// própria linha de declaração rodar ("temporal dead zone"), e usá-las
+// antes disso quebra o script inteiro no meio — foi exatamente esse o
+// bug: o erro parava a execução antes mesmo de chegar no desbloqueio
+// da aba Questões.
+let refLeituraPdf = null;
+let leituraPdfCache = null;
+let periodoLeituraAtivo = 'dia';
+
+const secaoParear = document.getElementById('secaoParear');
+const secaoPareado = document.getElementById('secaoPareado');
+const inputCodigo = document.getElementById('inputCodigo');
+const btnParear = document.getElementById('btnParear');
+const erroPareamento = document.getElementById('erroPareamento');
+const btnDesparear = document.getElementById('btnDesparear');
+const btnAjustesIcone = document.getElementById('btnAjustes');
+
+inputCodigo.addEventListener('input', () => {
+  inputCodigo.value = inputCodigo.value.replace(/\D/g, '').slice(0, 6);
+  btnParear.disabled = inputCodigo.value.length !== 6;
+});
+
+btnParear.addEventListener('click', async () => {
+  if (!firebaseDisponivel) {
+    erroPareamento.textContent = 'Sem conexão com o servidor de pareamento agora. Verifique a internet e tente de novo.';
+    return;
+  }
+  const codigo = inputCodigo.value;
+  btnParear.disabled = true;
+  erroPareamento.textContent = '';
+  try {
+    const snap = await db.ref('pareamentos/' + codigo).once('value');
+    const dado = snap.val();
+    if (!dado || !dado.deviceId) {
+      erroPareamento.textContent = 'Código inválido ou expirado. Gere um novo na extensão.';
+      btnParear.disabled = false;
+      return;
+    }
+    localStorage.setItem(LS.deviceId, dado.deviceId);
+    ativarPareamento(dado.deviceId);
+  } catch (e) {
+    erroPareamento.textContent = 'Falha de conexão. Tente de novo.';
+    btnParear.disabled = false;
+  }
+});
+
+btnDesparear.addEventListener('click', () => {
+  localStorage.removeItem(LS.deviceId);
+  deviceId = null;
+  refExtensao?.off(); refCelular?.off(); refLeituraPdf?.off();
+  refExtensao = null; refCelular = null; estadoExtensao = null; refLeituraPdf = null; leituraPdfCache = null;
+  mostrarEstadoPareamento();
+  renderPainel(); renderAgenda();
+  atualizarStatusPC();
+  if (typeof atualizarDisciplinaDisponivel === 'function') atualizarDisciplinaDisponivel();
+  if (typeof escutarLeituraPdf === 'function') escutarLeituraPdf();
+});
+
+function mostrarEstadoPareamento(){
+  const pareado = !!deviceId;
+  secaoParear.style.display = pareado ? 'none' : 'block';
+  secaoPareado.style.display = pareado ? 'block' : 'none';
+  btnAjustesIcone.classList.toggle('tem-status', pareado);
+}
+
+function ativarPareamento(id){
+  if (!firebaseDisponivel) return;
+  deviceId = id;
+  mostrarEstadoPareamento();
+  inputCodigo.value = '';
+  if (typeof escutarLeituraPdf === 'function') escutarLeituraPdf();
+
+  // ---- Lê o que a extensão publica (nível, histórico, agenda, bloqueio) ----
+  refExtensao = db.ref('dispositivos/' + deviceId);
+  refExtensao.on('value', (snap) => {
+    estadoExtensao = snap.val();
+    if (estadoExtensao && estadoExtensao.questoesVitalicioSite) {
+      salvarJSON(LS.questoesVitalicio, true);
+    }
+    atualizarTudo();
+    renderPainel();
+    renderAgenda();
+    atualizarStatusPC();
+    if (typeof atualizarPainelQuestoes === 'function') atualizarPainelQuestoes();
+    if (typeof atualizarDisciplinaDisponivel === 'function') atualizarDisciplinaDisponivel();
+  });
+
+  // ---- Sincroniza os dados do PRÓPRIO site (backup entre aparelhos) ----
+  refCelular = db.ref('dispositivos/' + deviceId + '/celular');
+  refCelular.once('value').then((snap) => {
+    const remoto = snap.val();
+    if (remoto && !Object.keys(historico).length) {
+      // aparelho novo sem dados locais: adota o que já estava salvo na nuvem
+      if (remoto.historico) { historico = remoto.historico; salvarJSON(LS.historico, historico); }
+      atualizarTudo();
+    }
+    sincronizarComPC();
+  });
+  refCelular.on('value', () => { /* placeholder — reservado pra uso futuro */ });
+}
+
+function sincronizarComPC(){
+  if (!firebaseDisponivel || !deviceId || !refCelular) return;
+  refCelular.set({
+    historico,
+    dailyGoalMs: config.dailyGoalMs,
+    atualizadoEm: Date.now()
+  }).catch(() => { /* sem internet agora — os dados continuam salvos localmente */ });
+}
+
+/* ------------------------------------------------------------
+   CONTROLE REMOTO DO PC — reaproveita o MESMO mecanismo que a
+   extensão já sabia atender (dispositivos/{id}/comandoRemoto), então
+   não precisa mudar nada no lado da extensão pra isso funcionar.
+   ------------------------------------------------------------ */
+function enviarComandoExtensao(acao){
+  if (!firebaseDisponivel || !deviceId) return;
+  if (elFooter) { elFooter.textContent = 'enviando comando pro PC...'; elFooter.classList.remove('offline'); }
+  db.ref('dispositivos/' + deviceId + '/comandoRemoto').set({ acao, ts: Date.now() })
+    .then(() => {
+      if (elFooter) elFooter.textContent = 'comando enviado ao PC — aplica em poucos segundos se alguma aba estiver aberta lá';
+    })
+    .catch((erro) => {
+      if (elFooter) {
+        elFooter.textContent = 'falha ao enviar pro PC: ' + (erro && erro.message ? erro.message : 'sem conexão agora');
+        elFooter.classList.add('offline');
+      }
+    });
+}
+
+const elFooter = document.getElementById('footer');
+function atualizarStatusPC(){
+  if (!elFooter) return;
+  if (!deviceId || !estadoExtensao) {
+    elFooter.textContent = 'funciona sem internet — os dados ficam salvos neste aparelho';
+    return;
+  }
+  const s = estadoExtensao.sessionState;
+  const emExecucaoPC = s === 'running';
+  const emPausaPC = typeof s === 'string' && s.startsWith('paused');
+  elFooter.textContent = 'PC: ' + (emExecucaoPC ? 'estudando agora' : emPausaPC ? 'pausado' : 'parado');
+}
+
+if (deviceId) ativarPareamento(deviceId);
+mostrarEstadoPareamento();
+
+/* ============================================================
+   MOTOR DO CRONÔMETRO — tudo local, funciona sem parear.
+   ============================================================ */
+const elTimer = document.getElementById('timer');
+const elTimerLabel = document.getElementById('timerLabel');
+const elStatus = document.getElementById('statusTexto');
+const elStatusTag = document.getElementById('statusTag');
+const elMetaTexto = document.getElementById('metaTexto');
+const elMetaBarra = document.getElementById('metaBarraFill');
+const elAnel = document.getElementById('anelProgresso');
+const elAnelWrap = document.getElementById('anelWrap');
+const elAbaFoco = document.getElementById('aba-foco');
+const elAbaPausaCurta = document.getElementById('aba-pausa-curta');
+const btnPrimary = document.getElementById('btnPrimary');
+const btnStop = document.getElementById('btnStop');
+const elStreakTexto = document.getElementById('streakTexto');
+const modoTotalBtn = document.getElementById('modoTotalBtn');
+const modoPomodoroBtn = document.getElementById('modoPomodoroBtn');
+
+const RAIO = 98;
+const CIRCUNFERENCIA = 2 * Math.PI * RAIO;
+let tickInterval = null;
+let ultimaFaseAlertada = null;
+
+function fmtCurto(totalSegundos){
+  const s = Math.max(0, Math.floor(totalSegundos));
+  const m = String(Math.floor(s / 60)).padStart(2, '0');
+  const sec = String(s % 60).padStart(2, '0');
+  return `${m}:${sec}`;
+}
+function fmt(ms){
+  // Mesmo formato exato usado pela extensão (função formatTime() do
+  // popup.js): "00h 00m 00s", não "00:00".
+  const s = Math.max(0, Math.floor(ms/1000));
+  const h = String(Math.floor(s/3600)).padStart(2,'0');
+  const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+  const sec = String(s%60).padStart(2,'0');
+  return `${h}h ${m}m ${sec}s`;
+}
+function definirProgressoAnel(fracao){
+  const offset = CIRCUNFERENCIA * (1 - Math.max(0, Math.min(1, fracao)));
+  elAnel.style.strokeDashoffset = offset;
+}
+
+// Soma o tempo decorrido desde inicioSessao ao histórico, dividindo por dia
+// caso a sessão atravesse a meia-noite.
+function commitElapsed(){
+  if (sessao.sessionState !== 'running' || !sessao.inicioSessao) return;
+  let inicio = sessao.inicioSessao;
+  const fim = Date.now();
+  while (inicio < fim) {
+    const chave = chaveData(new Date(inicio));
+    const proximaMeiaNoite = new Date(inicio); proximaMeiaNoite.setHours(24, 0, 0, 0);
+    const limite = Math.min(fim, proximaMeiaNoite.getTime());
+    historico[chave] = (historico[chave] || 0) + (limite - inicio);
+    inicio = limite;
+  }
+  salvarHistorico();
+}
+
+function iniciarPomodoroFresco(){
+  sessao.pomodoroPhase = 'work';
+  sessao.pomodoroRemainingMs = config.pomodoroWorkMin * 60000;
+  sessao.pomodoroPhaseEndAt = null;
+}
+
+function acao_iniciarOuContinuar(){
+  if (sessao.sessionState === 'running') return;
+  sessao.inicioSessao = Date.now();
+  sessao.sessionState = 'running';
+  if (sessao.pomodoroMode) {
+    if (!sessao.pomodoroRemainingMs) iniciarPomodoroFresco();
+    sessao.pomodoroPhaseEndAt = Date.now() + sessao.pomodoroRemainingMs;
+    sessao.pomodoroRemainingMs = null;
+  }
+  salvarSessao();
+  atualizarTudo();
+  enviarComandoExtensao('continuar');
+}
+function acao_pausar(){
+  if (sessao.sessionState !== 'running') return;
+  commitElapsed();
+  if (sessao.pomodoroMode && sessao.pomodoroPhaseEndAt) {
+    sessao.pomodoroRemainingMs = Math.max(0, sessao.pomodoroPhaseEndAt - Date.now());
+    sessao.pomodoroPhaseEndAt = null;
+  }
+  sessao.sessionState = 'paused';
+  sessao.inicioSessao = null;
+  salvarSessao();
+  atualizarTudo();
+  enviarComandoExtensao('pausar');
+}
+function acao_parar(){
+  if (sessao.sessionState === 'running') commitElapsed();
+  sessao.sessionState = 'stopped';
+  sessao.inicioSessao = null;
+  iniciarPomodoroFresco();
+  salvarSessao();
+  atualizarTudo();
+  enviarComandoExtensao('parar');
+}
+
+btnPrimary.addEventListener('click', () => {
+  // A decisão precisa seguir o MESMO estado que o rótulo do botão mostrou
+  // (que é o espelhado da extensão, quando pareado e em modo Cronômetro)
+  // — senão "Pausar" na tela poderia acabar iniciando em vez de pausar.
+  const espelhando = !!(deviceId && estadoExtensao && !sessao.pomodoroMode);
+  const rodandoVisivel = espelhando ? estadoExtensao.sessionState === 'running' : sessao.sessionState === 'running';
+  if (rodandoVisivel) acao_pausar(); else acao_iniciarOuContinuar();
+  if (navigator.vibrate) navigator.vibrate(10);
+});
+btnStop.addEventListener('click', () => { acao_parar(); if (navigator.vibrate) navigator.vibrate(10); });
+
+function definirModoPomodoro(ligado){
+  sessao.pomodoroMode = ligado;
+  if (ligado) {
+    iniciarPomodoroFresco();
+    if (sessao.sessionState === 'running') {
+      sessao.pomodoroPhaseEndAt = Date.now() + sessao.pomodoroRemainingMs;
+      sessao.pomodoroRemainingMs = null;
+    }
+    pedirPermissaoNotificacao();
+  }
+  salvarSessao();
+  atualizarTudo();
+}
+modoTotalBtn.addEventListener('click', () => definirModoPomodoro(false));
+modoPomodoroBtn.addEventListener('click', () => definirModoPomodoro(true));
+
+function calcularStreak(){
+  // meta inválida (0, negativa, texto) viria de um backup adulterado: nunca deixar o laço girar sem fim
+  const meta = Number(config.dailyGoalMs) > 0 ? Number(config.dailyGoalMs) : 4 * 3600000;
+  let streak = 0;
+  let d = new Date();
+  if ((historico[chaveData(d)] || 0) >= meta) streak++;
+  d.setDate(d.getDate() - 1);
+  for (let i = 0; i < 3660; i++) {
+    if ((historico[chaveData(d)] || 0) >= meta) { streak++; d.setDate(d.getDate() - 1); }
+    else break;
+  }
+  return streak;
+}
+
+function atualizarTudo(){
+  clearInterval(tickInterval);
+
+  // Quando pareado e já chegou pelo menos uma leitura da extensão, o
+  // status/número exibidos passam a ser exatamente os dela — pra bater
+  // 100% com o que está no PC. Isso só vale no modo Cronômetro (Total);
+  // no modo Pomodoro o motor continua 100% local, senão o anel ficaria
+  // "pulsando rodando" enquanto a contagem regressiva local está parada.
+  const espelharExtensao = !!(deviceId && estadoExtensao && !sessao.pomodoroMode);
+  const sessionStateVisivel = espelharExtensao ? estadoExtensao.sessionState : sessao.sessionState;
+  const metaMsVisivel = espelharExtensao ? (estadoExtensao.dailyGoalMs || 4 * 60 * 60 * 1000) : config.dailyGoalMs;
+  const msHojeVisivel = espelharExtensao ? (estadoExtensao.msHoje || 0) : (historico[hojeChave()] || 0);
+  const inicioSessaoVisivel = espelharExtensao ? estadoExtensao.inicioSessao : sessao.inicioSessao;
+
+  const emExecucao = sessionStateVisivel === 'running';
+  const emPausa = typeof sessionStateVisivel === 'string' && sessionStateVisivel.startsWith('paused');
+
+  elStatusTag.className = 'tag' + (emExecucao ? ' running' : emPausa ? ' paused' : ' stopped');
+  elStatus.textContent = emExecucao ? 'Estudando agora' : emPausa ? 'Pausado' : 'Parado';
+  elAnelWrap.className = 'anel-wrap' + (emExecucao ? ' is-running' : emPausa ? ' is-paused' : '');
+
+  const streak = calcularStreak();
+  elStreakTexto.textContent = `${streak} dia${streak === 1 ? '' : 's'}`;
+
+  btnPrimary.textContent = emExecucao ? 'Pausar' : (sessionStateVisivel === 'stopped' ? 'Iniciar' : 'Continuar');
+  // "Parar" só faz sentido diferente de "Pausar" quando existe uma fase do
+  // Pomodoro pra resetar — no Cronômetro simples os dois seriam idênticos
+  // na prática, então some com o botão pra não confundir ninguém.
+  btnStop.style.display = sessao.pomodoroMode ? '' : 'none';
+  btnStop.disabled = sessao.sessionState === 'stopped';
+
+  modoTotalBtn.classList.toggle('ativo', !sessao.pomodoroMode);
+  modoPomodoroBtn.classList.toggle('ativo', sessao.pomodoroMode);
+  elAnelWrap.classList.toggle('modo-branco', sessao.pomodoroMode);
+
+  const horasMeta = (metaMsVisivel/3600000).toFixed(0);
+  elMetaTexto.textContent = `${(msHojeVisivel/3600000).toFixed(1)}h / ${horasMeta}h`;
+  elMetaBarra.style.width = Math.min(100, (msHojeVisivel / metaMsVisivel) * 100) + '%';
+
+  if (sessao.pomodoroMode) {
+    document.getElementById('abas').style.display = 'flex';
+    document.getElementById('avisoAlerta').textContent = 'Avisa com som e vibração ao trocar de fase (só com a tela ligada e a aba aberta)';
+    const emFoco = sessao.pomodoroPhase === 'work';
+    elAbaFoco.classList.toggle('ativa', emFoco);
+    elAbaPausaCurta.classList.toggle('ativa', !emFoco);
+    elTimerLabel.textContent = emFoco ? 'sessão de foco' : 'pausa';
+
+    function tickPomodoro(){
+      let restanteMs;
+      if (sessao.sessionState === 'running' && sessao.pomodoroPhaseEndAt) {
+        restanteMs = sessao.pomodoroPhaseEndAt - Date.now();
+        if (restanteMs <= 0) {
+          // troca de fase automaticamente, sem perder o embalo da sessão
+          commitElapsed();
+          sessao.inicioSessao = Date.now();
+          sessao.pomodoroPhase = sessao.pomodoroPhase === 'work' ? 'rest' : 'work';
+          const duracaoMin = sessao.pomodoroPhase === 'work' ? config.pomodoroWorkMin : config.pomodoroRestMin;
+          sessao.pomodoroPhaseEndAt = Date.now() + duracaoMin * 60000;
+          salvarSessao();
+          tocarAlertaFase();
+          notificarFimDeFase(sessao.pomodoroPhase);
+          atualizarTudo();
+          return;
+        }
+      } else {
+        restanteMs = sessao.pomodoroRemainingMs != null ? sessao.pomodoroRemainingMs
+          : config.pomodoroWorkMin * 60000;
+      }
+      const duracaoTotalMin = sessao.pomodoroPhase === 'work' ? config.pomodoroWorkMin : config.pomodoroRestMin;
+      elTimer.textContent = fmtCurto(restanteMs / 1000);
+      definirProgressoAnel(restanteMs / (duracaoTotalMin * 60000));
+    }
+    tickPomodoro();
+    if (emExecucao) tickInterval = setInterval(tickPomodoro, 1000);
+
+  } else {
+    document.getElementById('abas').style.display = 'none';
+    document.getElementById('avisoAlerta').textContent = '';
+    elTimerLabel.textContent = 'tempo estudado hoje';
+
+    function tickSimples(){
+      let msTotal = msHojeVisivel;
+      if (emExecucao && inicioSessaoVisivel) msTotal += (Date.now() - inicioSessaoVisivel);
+      elTimer.textContent = fmt(msTotal);
+      const fracaoHora = (msTotal % 3600000) / 3600000;
+      definirProgressoAnel(fracaoHora);
+      // Atravessou a meia-noite com a sessão LOCAL rodando: confirma o dia
+      // anterior e recomeça a contagem no novo dia. Só se aplica ao registro
+      // local (histórico do próprio site) — o espelho da extensão já vem
+      // certo de lá, cada um cuida do seu dia.
+      if (!espelharExtensao && emExecucao && sessao.inicioSessao && chaveData(new Date(sessao.inicioSessao)) !== hojeChave()) {
+        commitElapsed();
+        sessao.inicioSessao = Date.now();
+        salvarSessao();
+        atualizarTudo();      // o número na tela recomeça no novo dia (antes seguia somando o dia anterior)
+        return;
+      }
+    }
+    tickSimples();
+    if (emExecucao) tickInterval = setInterval(tickSimples, 1000);
+  }
+
+  renderPainelLocal();
+  gerenciarWakeLock();
+}
+
+elAnelWrap.addEventListener('click', () => definirModoPomodoro(!sessao.pomodoroMode));
+
+document.addEventListener('visibilitychange', () => { if (!document.hidden) atualizarTudo(); });
+window.addEventListener('pageshow', atualizarTudo);
+window.addEventListener('focus', atualizarTudo);
+
+/* ============================================================
+   PAINEL — nível/estatísticas locais (cartão de meta) + dados da
+   extensão (nível real, heatmap, bloqueio), só quando pareado.
+   ============================================================ */
+const LEVELS = [
+  { name: 'Calouro',      hours: 0 },
+  { name: 'Iniciante',    hours: 50 },
+  { name: 'Aprendiz',     hours: 100 },
+  { name: 'Dedicado',     hours: 250 },
+  { name: 'Estrategista', hours: 500 },
+  { name: 'Auditor',      hours: 1000 },
+  { name: 'Mestre',       hours: 2000 },
+  { name: 'Lenda',        hours: 3500 }
+];
+
+function renderPainelLocal(){
+  const elHoje = document.getElementById('painelHojeTexto');
+  const elHojeBarra = document.getElementById('painelHojeBarra');
+  if (!elHoje) return;
+  const msHoje = historico[hojeChave()] || 0;
+  elHoje.textContent = `${(msHoje/3600000).toFixed(1)}h estudadas hoje neste cronômetro`;
+  elHojeBarra.style.width = Math.min(100, (msHoje/config.dailyGoalMs)*100) + '%';
+}
+
+function renderNivelExtensao(estado){
+  const totalMs = estado.totalStudyMs || 0;
+  const totalHoras = totalMs / 3600000;
+  const idx = (typeof estado.unlockedLevelIndex === 'number') ? estado.unlockedLevelIndex : 0;
+  const nivel = LEVELS[idx] || LEVELS[0];
+  const proximo = LEVELS[idx + 1];
+
+  document.getElementById('nivelNome').textContent = nivel.name;
+  document.getElementById('nivelHoras').textContent = `${totalHoras.toFixed(1)}h estudadas no total (extensão)`;
+
+  if (proximo){
+    const faixa = proximo.hours - nivel.hours;
+    const progresso = Math.max(0, Math.min(100, ((totalHoras - nivel.hours) / faixa) * 100));
+    document.getElementById('nivelBarraFill').style.width = progresso + '%';
+    const faltam = Math.max(0, proximo.hours - totalHoras).toFixed(1);
+    document.getElementById('nivelProx').textContent = `Faltam ${faltam}h para "${proximo.name}"`;
+  } else {
+    document.getElementById('nivelBarraFill').style.width = '100%';
+    document.getElementById('nivelProx').textContent = 'Nível máximo — lenda dos concursos!';
+  }
+}
+
+function renderSemanaExtensao(hist){
+  const hoje = new Date();
+  const dias = [];
+  for (let i = 6; i >= 0; i--){
+    const d = new Date(hoje); d.setDate(d.getDate() - i);
+    dias.push({ d, ms: (hist && hist[chaveData(d)]) || 0 });
+  }
+  const maxMs = Math.max(...dias.map(x => x.ms), 3600000);
+  const DOW = ['dom','seg','ter','qua','qui','sex','sáb'];
+  const wrap = document.getElementById('semanaChart');
+  wrap.innerHTML = '';
+  dias.forEach(({ d, ms }) => {
+    const ehHoje = chaveData(d) === chaveData(hoje);
+    const col = document.createElement('div');
+    col.className = 'semana-col' + (ehHoje ? ' hoje' : '');
+    const alturaPct = Math.max(3, Math.min(100, (ms / maxMs) * 100));
+    col.innerHTML = `
+      <span style="font-size:10px;color:var(--text-dim);font-weight:700;">${(ms/3600000).toFixed(1)}h</span>
+      <div class="semana-barra"><div class="semana-barra-fill" style="height:${alturaPct}%;"></div></div>
+      <span class="semana-label">${DOW[d.getDay()]}</span>
+    `;
+    wrap.appendChild(col);
+  });
+}
+
+function renderHeatmapExtensao(hist, metaMs){
+  const hoje = new Date();
+  const dias = [];
+  for (let i = 34; i >= 0; i--){
+    const d = new Date(hoje); d.setDate(d.getDate() - i);
+    dias.push({ d, ms: (hist && hist[chaveData(d)]) || 0 });
+  }
+  const grid = document.getElementById('heatGrid');
+  grid.innerHTML = '';
+  const offset = dias[0].d.getDay();
+  for (let i = 0; i < offset; i++){
+    const vazia = document.createElement('div');
+    vazia.className = 'heat-cell vazia';
+    grid.appendChild(vazia);
+  }
+  dias.forEach(({ d, ms }) => {
+    const cel = document.createElement('div');
+    const frac = ms / metaMs;
+    let nivel = 0;
+    if (frac > 0 && frac < 0.25) nivel = 1;
+    else if (frac >= 0.25 && frac < 0.5) nivel = 2;
+    else if (frac >= 0.5 && frac < 1) nivel = 3;
+    else if (frac >= 1) nivel = 4;
+    cel.className = 'heat-cell';
+    if (nivel) cel.dataset.nivel = String(nivel);
+    cel.title = `${d.getDate()}/${d.getMonth()+1}: ${(ms/3600000).toFixed(1)}h`;
+    grid.appendChild(cel);
+  });
+}
+
+function renderBloqueioExtensao(sites){
+  const wrap = document.getElementById('bloqueioLista');
+  wrap.innerHTML = '';
+  if (!sites || !sites.length){
+    wrap.innerHTML = '<div class="vazio-msg" style="padding:10px 0;">Nenhum site marcado pra bloqueio manual agora.</div>';
+    return;
+  }
+  sites.forEach(host => {
+    const chip = document.createElement('span');
+    chip.className = 'chip-site';
+    chip.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+    chip.appendChild(document.createTextNode(host));
+    wrap.appendChild(chip);
+  });
+}
+
+function renderPainel(){
+  const conteudo = document.getElementById('painelExtensaoConteudo');
+  const bloqueado = document.getElementById('painelExtensaoBloqueado');
+  if (!estadoExtensao) {
+    conteudo.style.display = 'none';
+    bloqueado.style.display = 'block';
+    return;
+  }
+  conteudo.style.display = 'block';
+  bloqueado.style.display = 'none';
+  renderNivelExtensao(estadoExtensao);
+  const metaMs = estadoExtensao.dailyGoalMs || (4 * 60 * 60 * 1000);
+  renderSemanaExtensao(estadoExtensao.historico || {});
+  renderHeatmapExtensao(estadoExtensao.historico || {}, metaMs);
+  renderBloqueioExtensao(estadoExtensao.sitesBloqueadosManual || []);
+  const streakCount = estadoExtensao.streakCount || 0;
+  document.getElementById('streakNumero').textContent = `${streakCount} dia${streakCount === 1 ? '' : 's'} seguido${streakCount === 1 ? '' : 's'}`;
+}
+
+/* ============================================================
+   AGENDA — cronograma da extensão, só quando pareado.
+   ============================================================ */
+const CAT_LABEL = { trabalho:'Trabalho', academia:'Academia', leitura:'Leitura', hobby:'Hobby', outro:'Outro' };
+const CAT_COR   = { trabalho:'var(--violet)', academia:'#22d3ee', leitura:'var(--green)', hobby:'var(--gold)', outro:'var(--gray)' };
+const PRIO_COR  = { alta:'var(--red)', media:'var(--yellow)', baixa:'var(--gray)' };
+const DOW_CURTO = ['dom','seg','ter','qua','qui','sex','sáb'];
+let agendaSelecionada = hojeChave();
+
+function minutosAgora(){ const d = new Date(); return d.getHours()*60 + d.getMinutes(); }
+function minutosDe(hhmm){ const [h,m] = (hhmm||'0:0').split(':').map(Number); return h*60+m; }
+
+function renderDiasAgenda(agenda){
+  const hoje = new Date();
+  const wrap = document.getElementById('diasAgenda');
+  wrap.innerHTML = '';
+  for (let i = -1; i <= 6; i++){
+    const d = new Date(hoje); d.setDate(d.getDate() + i);
+    const chave = chaveData(d);
+    const temBloco = agenda && agenda[chave] && agenda[chave].length;
+    const chip = document.createElement('button');
+    chip.className = 'dia-chip' +
+      (chave === chaveData(hoje) ? ' hoje' : '') +
+      (chave === agendaSelecionada ? ' selecionada' : '') +
+      (temBloco ? ' tem-bloco' : '');
+    chip.innerHTML = `<span class="dow">${DOW_CURTO[d.getDay()]}</span><span class="dnum">${d.getDate()}</span><span class="ddot"></span>`;
+    chip.addEventListener('click', () => { agendaSelecionada = chave; renderAgenda(); });
+    wrap.appendChild(chip);
+  }
+}
+function renderBlocosDoDia(agenda){
+  const lista = document.getElementById('blocosLista');
+  lista.innerHTML = '';
+  const blocos = (agenda && agenda[agendaSelecionada]) ? [...agenda[agendaSelecionada]] : [];
+  blocos.sort((a,b) => minutosDe(a.inicio) - minutosDe(b.inicio));
+
+  if (!blocos.length){
+    lista.innerHTML = '<div class="vazio-msg">Nenhum bloco de estudo neste dia.<br>Adicione pela extensão no PC, na aba Cronograma.</div>';
+    return;
+  }
+  const ehHoje = agendaSelecionada === hojeChave();
+  const min = minutosAgora();
+
+  blocos.forEach(b => {
+    const ativo = ehHoje && min >= minutosDe(b.inicio) && min < minutosDe(b.fim);
+    const card = document.createElement('div');
+    card.className = 'bloco-card' + (ativo ? ' agora' : '');
+    card.style.setProperty('--cat-cor', CAT_COR[b.tipo] || 'var(--violet)');
+    card.innerHTML = `
+      <div class="bloco-hora">${escHtml(b.inicio)}<br>${escHtml(b.fim)}</div>
+      <div class="bloco-info">
+        <div class="bloco-titulo">${escHtml(b.materia || CAT_LABEL[b.tipo] || 'Estudo')}</div>
+        <div class="bloco-sub">
+          <span class="bloco-prio" style="background:${PRIO_COR[b.prioridade] || 'var(--gray)'}"></span>
+          ${CAT_LABEL[b.tipo] || 'Outro'}${ativo ? ' · <span class="bloco-tag-agora">agora</span>' : ''}
+        </div>
+      </div>
+    `;
+    lista.appendChild(card);
+  });
+}
+function renderAgenda(){
+  const conteudo = document.getElementById('agendaConteudo');
+  const bloqueado = document.getElementById('agendaBloqueado');
+  if (!estadoExtensao) {
+    conteudo.style.display = 'none';
+    bloqueado.style.display = 'block';
+    return;
+  }
+  conteudo.style.display = 'block';
+  bloqueado.style.display = 'none';
+  const agenda = estadoExtensao.agenda || {};
+  renderDiasAgenda(agenda);
+  renderBlocosDoDia(agenda);
+}
+document.querySelectorAll('.btn-abrir-pareamento').forEach(b => b.addEventListener('click', abrirSheet));
+
+/* ============================================================
+   QUESTÕES — sistema completo com dados de exemplo (o baralho real
+   de CPC/PGM-TJPR que você mandou). Tudo funciona local por enquanto;
+   quando a extensão passar a publicar o próprio banco de questões no
+   Firebase, é só trocar a fonte de dados aqui (DADOS_CPC) por uma
+   leitura do estadoExtensao — o resto (SRS, filtros, prática, telas)
+   não muda nada.
+   ============================================================ */
+const DADOS_CPC = [["Normas Fundamentais","Art. 1º do CPC - como o processo civil deve ser interpretado?","Conforme os valores e as normas fundamentais estabelecidos na CF, observando-se as disposições do CPC."],["Normas Fundamentais","Art. 2º do CPC - como se inicia e como se desenvolve o processo?","Começa por iniciativa da parte (princípio dispositivo) e se desenvolve por impulso oficial, salvo exceções legais."],["Normas Fundamentais","Art. 3º, §1º do CPC - a arbitragem é permitida?","Sim, é permitida a arbitragem, na forma da lei."],["Sumulas","Súmula 485-STJ - a que contratos se aplica a Lei de Arbitragem?","Aplica-se aos contratos que contenham cláusula arbitral, ainda que celebrados antes da sua edição."],["Normas Fundamentais","Art. 3º, §§2º e 3º do CPC - quem deve estimular a solução consensual de conflitos?","Juízes, advogados, defensores públicos e membros do Ministério Público, inclusive no curso do processo judicial."],["Normas Fundamentais","Espécies de autocomposição: o que é TRANSAÇÃO?","Ocorre por meio de transações bilaterais - ambos renunciam a parcela de seus interesses buscando um acordo (judicial ou extrajudicial)."],["Normas Fundamentais","Espécies de autocomposição: diferencie RENÚNCIA e SUBMISSÃO.","Renúncia: o autor renuncia integralmente à sua pretensão. Submissão: o réu reconhece a procedência do pedido do autor."],["Normas Fundamentais","Art. 4º do CPC - qual direito é assegurado às partes?","Direito de obter em prazo razoável a solução integral do mérito, incluída a atividade satisfativa."],["Normas Fundamentais","Art. 5º do CPC - o que estabelece?","Que aquele que de qualquer forma participa do processo deve comportar-se de acordo com a boa-fé (boa-fé objetiva)."],["Normas Fundamentais","FPPC 375/376 - a exigência de boa-fé objetiva se aplica também ao órgão jurisdicional?","Sim; aplica-se também a vedação do comportamento contraditório ao órgão jurisdicional."],["Juizados Especiais","JDPC 2 - como as disposições do CPC se aplicam às Leis 9.099/95, 10.259/01 e 12.153/09?","Supletiva e subsidiariamente, desde que não sejam incompatíveis com as regras e princípios dessas leis."],["Normas Fundamentais","Art. 6º do CPC - princípio da cooperação: o que estabelece?","Todos os sujeitos do processo devem cooperar entre si para que se obtenha, em tempo razoável, decisão de mérito justa e efetiva."],["Normas Fundamentais","Quais são os 4 deveres de cooperação do juiz decorrentes do art. 6º?","Prevenção, esclarecimento, consulta (diálogo) e auxílio (adequação)."],["Normas Fundamentais","Deveres de cooperação do juiz - em que consiste a PREVENÇÃO?","O juiz deve advertir as partes sobre os riscos e deficiências de suas manifestações/estratégias, conclamando-as a corrigir os defeitos sempre que possível."],["Normas Fundamentais","Deveres de cooperação do juiz - em que consiste o AUXÍLIO (adequação)?","O juiz deve ajudar as partes, eliminando obstáculos que lhes dificultem ou impeçam o exercício das faculdades processuais."],["Normas Fundamentais","Art. 7º do CPC - o que é assegurado às partes?","Paridade de tratamento quanto a direitos, faculdades processuais, meios de defesa, ônus, deveres e sanções, cabendo ao juiz zelar pelo efetivo contraditório."],["Normas Fundamentais","Art. 8º do CPC - quais princípios o juiz deve observar ao aplicar o ordenamento jurídico?","Proporcionalidade, razoabilidade, legalidade, publicidade e eficiência, resguardando e promovendo a dignidade da pessoa humana."],["Normas Fundamentais","Art. 9º do CPC - regra geral sobre contraditório prévio.","Não se profere decisão contra uma das partes sem que ela seja previamente ouvida."],["Normas Fundamentais","Art. 9º, parágrafo único do CPC - quais as 3 exceções ao contraditório prévio?","Tutela provisória de urgência; tutela da evidência dos incisos II e III do art. 311; decisão do art. 701 (mandado monitório)."],["Normas Fundamentais","Princípio da não surpresa (art. 10 do CPC) - o que veda?","Que o juiz decida, em qualquer grau de jurisdição, com base em fundamento sobre o qual não se deu às partes oportunidade de manifestação, ainda que de matéria cognoscível de ofício."],["Normas Fundamentais","Art. 11 do CPC - regra sobre publicidade dos julgamentos.","Todos os julgamentos são públicos e todas as decisões fundamentadas, sob pena de nulidade; no segredo de justiça, só podem estar presentes partes, advogados, defensores e MP."],["Normas Fundamentais","Art. 12 do CPC - qual a ordem preferencial para prolação de sentença/acórdão?","A ordem cronológica de conclusão, ressalvadas as exceções do §2º (ex.: repetitivos, embargos de declaração, agravo interno, causas urgentes, processos criminais)."],["Normas Fundamentais","FPPC 382 - juízo com competência cumulada de juizados especiais e outros procedimentos pode ter listas cronológicas?","Sim, pode organizar duas listas cronológicas autônomas, uma para os juizados especiais e outra para os demais processos."],["Normas Fundamentais","Art. 14 do CPC - regra de direito processual intertemporal.","A norma processual não retroage e é aplicável imediatamente aos processos em curso, respeitados os atos já praticados e as situações jurídicas consolidadas."],["Normas Fundamentais","O que é a Teoria dos Atos Processuais Isolados?","Cada ato processual deve ser considerado isoladamente para determinar qual lei o rege - princípio do tempus regit actum."],["Normas Fundamentais","Art. 15 do CPC - em que hipóteses o CPC se aplica supletiva e subsidiariamente?","Aos processos eleitorais, trabalhistas e administrativos, na ausência de normas específicas que os regulem."],["Jurisprudencia","O STF, nas ADIs 5.492/DF e 5.737/DF (25/4/2023), decidiu o quê sobre a expressão 'administrativos' do art. 15?","Declarou-a constitucional."],["Jurisprudencia","Qual é o conteúdo do princípio do caráter nacional e cogente do CPC/2015 (STF, ADIs 5.492 e 5.737)?","Impõe tratamento processual uniforme a todos os jurisdicionados no território nacional, não podendo o tratamento variar conforme a unidade federada do litígio."],["Normas Fundamentais","Quais são as características essenciais da jurisdição?","Substitutividade, definitividade, imperatividade, inafastabilidade, indelegabilidade, inércia e investidura."],["Normas Fundamentais","Característica da jurisdição - SUBSTITUTIVIDADE: o que significa?","O Estado-juiz substitui as partes na resolução do litígio, garantindo uma solução imparcial."],["Normas Fundamentais","Característica da jurisdição - INÉRCIA: o que significa?","A jurisdição não se movimenta de ofício, dependendo sempre de provocação do interessado."],["Normas Fundamentais","Característica da jurisdição - INDELEGABILIDADE: o que significa?","A função jurisdicional só pode ser exercida pelo Poder Judiciário, sob pena de ofensa ao princípio do juiz natural."],["Normas Fundamentais","Art. 18 do CPC - regra geral sobre legitimação para agir em nome próprio.","Ninguém poderá pleitear direito alheio em nome próprio, salvo quando autorizado pelo ordenamento jurídico (substituição processual)."],["Normas Fundamentais","Art. 18, parágrafo único do CPC - o que pode fazer o substituído havendo substituição processual?","Pode intervir como assistente litisconsorcial."],["Normas Fundamentais","Art. 20 do CPC - é admissível a ação meramente declaratória mesmo após violação do direito?","Sim, é admissível a ação meramente declaratória, ainda que já tenha ocorrido a violação do direito."],["Sumulas","Súmula 181-STJ - sobre a ação declaratória.","É admissível ação declaratória visando a obter certeza quanto à exata interpretação de cláusula contratual."],["Sumulas","Súmula 258-STF - sobre reconvenção em ação declaratória.","É admissível reconvenção em ação declaratória."],["Normas Fundamentais","Teorias da ação - qual foi adotada pelo CPC/2015?","A Teoria Eclética do Direito de Ação, de Liebman: o direito de ação é autônomo, mas seu exercício depende das condições da ação."],["Jurisprudencia","Teoria da Asserção - em que consiste e quem a adota?","As condições da ação (interesse e legitimidade) são analisadas in status assertionis, com base nas afirmações da petição inicial, sem aprofundamento do mérito; é a teoria adotada pelo STJ."],["Normas Fundamentais","Modelos de processo - diferencie ADVERSARIAL e INQUISITORIAL.","Adversarial (simétrico): partes são protagonistas, juiz é fiscal/julgador, prepondera o princípio dispositivo. Inquisitorial (assimétrico): juiz tem amplos poderes de condução (ex.: produção de provas de ofício), prepondera o princípio inquisitivo."],["Normas Fundamentais","Modelo cooperativo de processo - qual sua característica central?","Prevalece diálogo, lealdade e equilíbrio entre os sujeitos; o juiz é paritário na condução do processo e assimétrico apenas no momento de decidir."],["Competencia","Art. 21 do CPC - hipóteses de competência concorrente da autoridade judiciária brasileira.","Réu domiciliado no Brasil; obrigação a ser cumprida no Brasil; fundamento em fato ocorrido ou ato praticado no Brasil."],["Competencia","Art. 22 do CPC - hipóteses adicionais de competência concorrente brasileira.","Ações de alimentos (credor domiciliado no Brasil ou réu com vínculos no Brasil); relações de consumo (consumidor domiciliado no Brasil); submissão expressa ou tácita das partes."],["Competencia","Art. 23 do CPC - hipóteses de competência EXCLUSIVA da autoridade judiciária brasileira.","Ações relativas a imóveis situados no Brasil; inventário e partilha de bens situados no Brasil; partilha de bens situados no Brasil em divórcio/dissolução de união estável."],["Competencia","Art. 24 do CPC - a ação proposta perante tribunal estrangeiro gera litispendência no Brasil?","Não; não obsta que a autoridade judiciária brasileira conheça da mesma causa e das conexas."],["Competencia","Art. 25 do CPC - efeito de cláusula de eleição de foro exclusivo estrangeiro em contrato internacional.","Afasta a competência da autoridade judiciária brasileira, se arguida pelo réu na contestação (ressalvada a competência exclusiva brasileira)."],["Jurisprudencia","STJ, REsp 2.210.341/CE (2025) - cláusula de eleição de foro estrangeiro em contrato de adesão pela internet com consumidor brasileiro.","Pode ser declarada nula quando cria obstáculos ao acesso à Justiça pelo consumidor brasileiro."],["Jurisprudencia","Quais os 3 requisitos cumulativos para o Judiciário brasileiro anular cláusula de eleição de foro exclusivo estrangeiro em contrato de adesão?","1) cláusula em contrato de adesão; 2) aderente hipossuficiente técnico, econômico ou jurídico; 3) manutenção da cláusula gera significativa dificuldade/impossibilidade de acesso à jurisdição."],["Cooperacao Internacional","Art. 26 do CPC - por que é regida a cooperação jurídica internacional?","Por tratado do qual o Brasil faça parte; na sua ausência, pode realizar-se com base em reciprocidade manifestada por via diplomática."],["Cooperacao Internacional","Art. 26, §2º do CPC - é exigida reciprocidade para homologação de sentença estrangeira?","Não."],["Cooperacao Internacional","Art. 28 do CPC - quando cabe auxílio direto?","Quando a medida não decorrer diretamente de decisão de autoridade jurisdicional estrangeira a ser submetida a juízo de delibação no Brasil."],["Cooperacao Internacional","Art. 36 do CPC - natureza do procedimento de carta rogatória perante o STJ.","É de jurisdição contenciosa; a defesa se restringe aos requisitos para produção de efeitos no Brasil; é vedada a revisão do mérito do pronunciamento estrangeiro."],["Cooperacao Internacional","Art. 40 do CPC - como se dá a cooperação para execução de decisão estrangeira?","Por meio de carta rogatória ou de ação de homologação de sentença estrangeira (art. 960)."],["Competencia","Competência Absoluta x Relativa: quanto ao interesse tutelado.","Absoluta: tutela interesse público. Relativa: tutela interesse particular das partes."],["Competencia","Competência Absoluta x Relativa: pode ser reconhecida de ofício pelo juiz?","Absoluta: sim. Relativa: em regra não (Súmula 33-STJ), salvo incompetência territorial nos Juizados Especiais (art. 55, III, Lei 9.099/95)."],["Competencia","Competência Absoluta x Relativa: pode ser alterada pela vontade das partes?","Absoluta: não. Relativa: sim (ex.: cláusula de eleição de foro)."],["Competencia","Competência Absoluta x Relativa: pode ser modificada por conexão ou continência?","Absoluta: não - é inderrogável (art. 62). Relativa: sim - é derrogável (arts. 55 a 57)."],["Competencia","Mudança superveniente de regra de competência: efeito conforme seja absoluta ou relativa.","Absoluta: desloca a competência (processos remetidos ao novo juízo). Relativa: não desloca; aplica-se a perpetuatio jurisdictionis (art. 43)."],["Competencia","Art. 43 do CPC - princípio da perpetuatio jurisdictionis.","A competência se determina no momento do registro/distribuição da petição inicial; mudanças de fato/direito posteriores são irrelevantes, salvo supressão de órgão judiciário ou alteração de competência absoluta."],["Competencia","Art. 46 do CPC - foro competente regra geral (direito pessoal ou real sobre bens móveis).","Foro de domicílio do réu."],["Jurisprudencia","STF (ADIs 5.492 e 5.737/DF) - interpretação conforme aos arts. 46, §5º, e 52, parágrafo único, do CPC.","A competência para execução fiscal ou ação contra Estados/DF deve se limitar aos respectivos limites territoriais; entes subnacionais não podem ser demandados em qualquer comarca do país."],["Competencia","Art. 47 do CPC - foro competente para ações fundadas em direito real sobre imóveis.","Foro de situação da coisa; nas ações possessórias imobiliárias, essa competência é absoluta (§2º)."],["Competencia","Art. 51 do CPC - foro competente quando a União é ré.","A ação pode ser proposta no foro de domicílio do autor, no de ocorrência do ato/fato, no de situação da coisa ou no Distrito Federal."],["Competencia","Art. 53, I do CPC - ordem de foros competentes para ação de divórcio/dissolução de união estável.","Domicílio do guardião de filho incapaz; na falta, último domicílio do casal; na falta, domicílio do réu; domicílio da vítima de violência doméstica (Lei Maria da Penha) tem prioridade."],["Jurisprudencia","STJ, REsp 2.032.427-SP - foro competente para dano moral por ofensa em rede social.","Foro do domicílio da vítima, em razão da ampla divulgação do ato ilícito."],["Competencia","Art. 55 do CPC - o que caracteriza a conexão entre ações?","Quando lhes for comum o pedido ou a causa de pedir."],["Competencia","Art. 56 do CPC - o que caracteriza a continência entre ações?","Identidade quanto às partes e à causa de pedir, mas o pedido de uma ação, por ser mais amplo, abrange o das demais."],["Sumulas","Súmula 235-STJ - sobre conexão de processos.","A conexão não determina a reunião dos processos se um deles já foi julgado."],["Competencia","Arts. 58/59 do CPC - o que torna o juízo prevento?","O registro ou a distribuição da petição inicial."],["Competencia","Art. 62 do CPC - a competência em razão da matéria, pessoa ou função pode ser alterada por convenção das partes?","Não; é inderrogável."],["Competencia","Art. 63, §1º do CPC - requisitos de validade da cláusula de eleição de foro.","Constar de instrumento escrito, aludir expressamente a determinado negócio jurídico e guardar pertinência com domicílio/residência de uma das partes ou com o local da obrigação."],["Competencia","Art. 63, §3º do CPC - exceção à Súmula 33-STJ (incompetência relativa de ofício).","Antes da citação, cláusula de eleição de foro abusiva pode ser reputada ineficaz de ofício pelo juiz, que remeterá os autos ao foro de domicílio do réu."],["Competencia","Art. 63, §5º do CPC (Lei 14.879/24) - o que é 'juízo aleatório'?","Ajuizamento em foro sem vinculação com domicílio/residência das partes ou com o negócio jurídico discutido; é prática abusiva que justifica declinação de competência de ofício."],["Competencia","Art. 64, §1º do CPC - quando e como a incompetência absoluta pode ser alegada?","Em qualquer tempo e grau de jurisdição, devendo ser declarada de ofício."],["Sumulas","Súmula 428-STJ - conflito de competência entre juizado especial federal e juízo federal.","Compete ao TRF decidir os conflitos de competência entre juizado especial federal e juízo federal da mesma seção judiciária."],["Sumulas","Súmula 59-STJ - sobre conflito de competência.","Não há conflito de competência se já existe sentença com trânsito em julgado, proferida por um dos juízos conflitantes."],["Sujeitos Processo","Art. 72 do CPC - hipóteses de nomeação de curador especial.","Incapaz sem representante legal ou com interesses colidentes com o representante; réu preso revel; réu revel citado por edital ou com hora certa (enquanto não constituir advogado)."],["Sujeitos Processo","Quem exerce a curatela especial, nos termos do art. 72, parágrafo único, do CPC?","A Defensoria Pública."],["Sujeitos Processo","Art. 73 do CPC - quando o cônjuge precisa do consentimento do outro para propor ação?","Para ações que versem sobre direito real imobiliário, salvo casamento sob regime de separação absoluta de bens."],["Sujeitos Processo","Art. 74, parágrafo único do CPC - consequência da falta de consentimento não suprido pelo juiz.","Invalida o processo."],["Sujeitos Processo","Art. 75 do CPC - quem representa a União em juízo?","A Advocacia-Geral da União, diretamente ou mediante órgão vinculado."],["Sujeitos Processo","Art. 75 do CPC - quem representa o Estado e o Distrito Federal em juízo?","Seus procuradores."],["Sujeitos Processo","Art. 75 do CPC - quem representa o Município em juízo?","Seu prefeito, procurador, ou Associação de Representação de Municípios quando expressamente autorizada."],["Sujeitos Processo","Art. 76 do CPC - o que faz o juiz ao verificar incapacidade processual ou irregularidade de representação?","Suspende o processo e designa prazo razoável para que seja sanado o vício."],["Sujeitos Processo","Art. 76, §1º do CPC - consequência do descumprimento da regularização, na instância originária, conforme o polo.","Autor: extinção do processo. Réu: revelia. Terceiro: revelia ou exclusão do processo, conforme o polo."],["Deveres Partes","Art. 77 do CPC - cite 3 deveres das partes e procuradores.","Expor os fatos conforme a verdade; não formular pretensão/defesa cientes de sua falta de fundamento; cumprir com exatidão as decisões jurisdicionais e não criar embaraços à sua efetivação (há outros: não praticar atos inúteis, declinar endereço, não inovar ilegalmente o estado de fato)."],["Deveres Partes","Art. 77, §2º do CPC - qual a multa por ato atentatório à dignidade da justiça (descumprir decisão ou inovar ilegalmente)?","Multa de até 20% do valor da causa, de acordo com a gravidade da conduta."],["Deveres Partes","Art. 77, §6º do CPC - a multa por ato atentatório à dignidade da justiça se aplica a advogados públicos, membros da Defensoria e do MP?","Não; a responsabilidade disciplinar deles é apurada pelo respectivo órgão de classe ou corregedoria."],["Deveres Partes","Art. 80 do CPC - cite hipóteses de litigância de má-fé.","Deduzir pretensão contra texto expresso de lei; alterar a verdade dos fatos; usar o processo para fim ilegal; resistir injustificadamente ao andamento do processo; proceder de modo temerário; provocar incidente infundado; interpor recurso protelatório."],["Deveres Partes","Art. 81 do CPC - qual o percentual da multa por litigância de má-fé?","Superior a 1% e inferior a 10% do valor corrigido da causa, além de indenização à parte contrária e honorários/despesas."],["Despesas Processuais","Art. 83 do CPC - quando o autor deve prestar caução (cautio judicatum solvi)?","Quando residir fora do Brasil ou deixar de residir no país durante a tramitação, se não tiver bens imóveis no Brasil que assegurem o pagamento de custas e honorários."],["Despesas Processuais","Art. 83, §1º do CPC - em quais hipóteses NÃO se exige a caução do autor não residente no Brasil?","Quando houver dispensa por acordo/tratado internacional; na execução de título extrajudicial e cumprimento de sentença; na reconvenção."],["Honorarios","Art. 85, §1º do CPC - em quais fases são devidos honorários cumulativamente?","Na reconvenção, no cumprimento de sentença (provisório ou definitivo), na execução (resistida ou não) e nos recursos interpostos."],["Honorarios","Art. 85, §2º do CPC - qual a faixa geral de honorários e sobre que base incidem?","Entre 10% e 20%, sobre o valor da condenação, do proveito econômico obtido ou, não sendo possível mensurá-lo, sobre o valor atualizado da causa."],["Honorarios","Art. 85, §3º do CPC - qual a faixa de honorários contra a Fazenda Pública para condenação/proveito econômico até 200 salários-mínimos?","Mínimo de 10% e máximo de 20%."],["Honorarios","Art. 85, §3º do CPC - qual a faixa de honorários contra a Fazenda Pública acima de 20 mil até 100 mil salários-mínimos?","Mínimo de 3% e máximo de 5%."],["Honorarios","Art. 85, §5º do CPC - como se aplicam as faixas do §3º quando o valor supera a faixa inicial?","Aplica-se a faixa inicial e, no que exceder, a faixa subsequente, sucessivamente (cálculo por faixas, como tabela progressiva)."],["Honorarios","Art. 85, §6º-A do CPC - quando é proibida a apreciação equitativa dos honorários?","Quando o valor da condenação, do proveito econômico ou o valor atualizado da causa for líquido ou liquidável (salvo hipóteses do §8º)."],["Honorarios","Art. 85, §7º do CPC - são devidos honorários no cumprimento de sentença contra a Fazenda Pública que gere expedição de precatório?","Não, desde que não tenha sido impugnado."],["Honorarios","Art. 85, §8º do CPC - quando cabe fixação de honorários por apreciação equitativa?","Quando o proveito econômico for inestimável ou irrisório, ou quando o valor da causa for muito baixo."],["Jurisprudencia","STJ, Tema Repetitivo 1076 - a fixação de honorários por equidade é permitida quando os valores são elevados?","Não; é obrigatória a observância dos percentuais dos §§2º/3º; a equidade só se aplica quando o proveito econômico for inestimável/irrisório ou o valor da causa muito baixo."],["Honorarios","Art. 85, §8º-A do CPC - parâmetro para fixação equitativa dos honorários.","O juiz deve observar os valores recomendados pela tabela do Conselho Seccional da OAB ou o limite mínimo de 10% do §2º, aplicando-se o que for maior (o STJ entende que a tabela é apenas referencial, não vinculante)."],["Honorarios","Art. 85, §11 do CPC - o que ocorre com os honorários em grau de recurso?","O tribunal majorará os honorários fixados anteriormente considerando o trabalho adicional recursal, respeitados os limites dos §§2º e 3º para a fase de conhecimento."],["Honorarios","Art. 85, §14 do CPC - qual a natureza dos honorários advocatícios?","Natureza alimentar, com os mesmos privilégios dos créditos trabalhistas, vedada compensação em caso de sucumbência parcial."],["Jurisprudencia","STF, RE 1.326.559/SC (Tema 1220) - honorários advocatícios x crédito tributário: qual tem preferência?","Os honorários advocatícios (inclusive contratuais) têm preferência em relação ao crédito tributário, por força do art. 85, §14, do CPC."],["Jurisprudencia","STJ, Tema 1313 - honorários em demandas de saúde contra o Poder Público: como são fixados?","Por apreciação equitativa, sem aplicação do art. 85, §8º-A, do CPC."],["Honorarios","Art. 85, §17 do CPC - são devidos honorários quando o advogado atua em causa própria?","Sim."],["Honorarios","Art. 85, §18 do CPC - se a decisão transitada em julgado for omissa quanto aos honorários, o que é cabível?","Ação autônoma para sua definição e cobrança."],["Sumulas","Súmula Vinculante 47 - natureza dos honorários advocatícios incluídos na condenação.","Verba de natureza alimentar, cuja satisfação ocorre por precatório ou RPV, observada ordem especial restrita a créditos dessa natureza."],["Sumulas","Súmula 201-STJ - sobre a forma de fixação dos honorários advocatícios.","Os honorários advocatícios não podem ser fixados em salários-mínimos."],["Sumulas","Súmula 450-STF - honorários e beneficiário de justiça gratuita.","São devidos honorários de advogado sempre que vencedor o beneficiário de justiça gratuita."],["Sumulas","Súmula 421-STJ - honorários e Defensoria Pública.","Não são devidos honorários advocatícios à Defensoria Pública quando ela atua contra a pessoa jurídica de direito público à qual pertença."],["Sumulas","Súmula 345-STJ - honorários da Fazenda Pública em execuções individuais de sentença coletiva.","São devidos honorários advocatícios pela Fazenda Pública nas execuções individuais de sentença de ação coletiva, ainda que não embargadas."],["Sumulas","Súmula 517-STJ - honorários no cumprimento de sentença.","São devidos honorários no cumprimento de sentença, haja ou não impugnação, depois de escoado o prazo para pagamento voluntário."],["Sumulas","Súmula 303-STJ - honorários em embargos de terceiro.","Em embargos de terceiro, quem deu causa à constrição indevida deve arcar com os honorários advocatícios."],["Jurisprudencia","Jurisprudência em Teses STJ nº128 - qual o marco temporal para aplicação das normas do CPC/15 sobre honorários?","A data da prolação da sentença/acórdão que os impõe."],["Jurisprudencia","Jurisprudência em Teses STJ nº128 - honorários recursais têm autonomia da sucumbência fixada na origem?","Não; são um acréscimo ao ônus estabelecido previamente; se não houver fixação anterior, não há honorários recursais."],["Jurisprudencia","Jurisprudência em Teses STJ nº129 - é possível penhorar verba remuneratória para pagar honorários advocatícios?","Sim, por sua natureza alimentar."],["Jurisprudencia","Jurisprudência em Teses STJ nº129 - cabe condenação da parte vencida em honorários em favor do MP em ação civil pública?","Não, por critério de simetria, salvo comprovada má-fé."],["Despesas Processuais","Art. 86, parágrafo único do CPC - se um litigante sucumbir em parte mínima do pedido, quem arca com as despesas?","O outro litigante responderá por inteiro pelas despesas e honorários."],["Despesas Processuais","Art. 87 do CPC - havendo diversos autores/réus, como respondem pelas despesas e honorários?","Proporcionalmente, salvo distribuição diversa expressa na sentença; se não houver distribuição, respondem solidariamente."],["Despesas Processuais","Art. 90, §4º do CPC - o que ocorre com os honorários se o réu reconhece a procedência do pedido e cumpre integralmente de imediato?","Os honorários são reduzidos pela metade."],["Gratuidade Justica","Art. 98 do CPC - quem tem direito à gratuidade da justiça?","A pessoa natural ou jurídica, brasileira ou estrangeira, com insuficiência de recursos para pagar custas, despesas processuais e honorários advocatícios."],["Jurisprudencia","STJ, Tema Repetitivo 1178 - é permitido usar critérios objetivos para indeferir de plano a gratuidade requerida por pessoa natural?","Não, é vedado; havendo elementos que afastem a presunção de hipossuficiência, o juiz deve antes determinar a comprovação da condição pelo requerente."],["Sumulas","Súmula 481-STJ - gratuidade da justiça para pessoa jurídica.","Faz jus ao benefício a pessoa jurídica, com ou sem fins lucrativos, que demonstrar sua impossibilidade de arcar com os encargos processuais (precisa comprovar, diferente da pessoa física)."],["Gratuidade Justica","Art. 98, §1º do CPC - a gratuidade da justiça compreende, entre outros, quais itens?","Taxas/custas judiciais, selos postais, publicações oficiais, indenização de testemunha, exames de DNA, honorários de advogado/perito/tradutor, depósitos recursais, emolumentos notariais/registrais."],["Gratuidade Justica","Art. 98, §2º do CPC - a gratuidade afasta a responsabilidade do beneficiário pelas despesas de sucumbência?","Não; apenas suspende a exigibilidade dessas obrigações."],["Gratuidade Justica","Art. 98, §3º do CPC - por quanto tempo fica suspensa a exigibilidade das obrigações de sucumbência do beneficiário vencido?","Por 5 anos após o trânsito em julgado; passado esse prazo sem prova de alteração da hipossuficiência, extinguem-se as obrigações."],["Gratuidade Justica","Art. 99, §1º do CPC - o pedido superveniente de gratuidade suspende o curso do processo?","Não; pode ser formulado por petição simples nos autos, sem suspender o processo."],["Gratuidade Justica","Art. 99, §3º do CPC - a alegação de insuficiência de recursos por pessoa natural goza de que presunção?","Presume-se verdadeira (presunção relativa/juris tantum)."],["Gratuidade Justica","Art. 99, §6º do CPC - o direito à gratuidade da justiça é extensível a litisconsorte ou sucessor?","Não; é pessoal, salvo requerimento e deferimento expressos."],["Gratuidade Justica","Art. 101 do CPC - qual recurso cabe contra a decisão que indefere a gratuidade da justiça?","Agravo de instrumento, exceto quando resolvida na sentença, caso em que cabe apelação."],["Jurisprudencia","Jurisprudência em Teses STJ nº148 - a hipossuficiência se presume pelo simples fato de a parte ser representada pela Defensoria Pública?","Não; é necessário o preenchimento dos requisitos legais."],["Jurisprudencia","Jurisprudência em Teses STJ nº149 - o benefício da gratuidade pode ser concedido de ofício pelo juiz?","Não; depende de expresso pedido da parte."],["Jurisprudencia","Jurisprudência em Teses STJ nº149 - a partir de quando operam os efeitos da concessão da gratuidade?","Ex nunc; não alcançam encargos pretéritos ao requerimento do benefício."],["Jurisprudencia","Jurisprudência em Teses STJ nº150 - a revogação da gratuidade exige o quê?","Fundamentação em fato novo que altere a condição de hipossuficiência da parte."],["Jurisprudencia","Jurisprudência em Teses STJ nº150 - o benefício concedido no processo de conhecimento persiste na execução?","Sim, inclusive nos embargos à execução, salvo revogação expressa."],["Procuradores","Art. 103, parágrafo único do CPC - a parte pode postular em causa própria?","Sim, quando tiver habilitação legal (for advogada/o)."],["Procuradores","Art. 104 do CPC - em que hipóteses o advogado pode postular sem procuração?","Para evitar preclusão, decadência ou prescrição, ou para praticar ato urgente; deve exibir a procuração em 15 dias, prorrogáveis por igual período."],["Procuradores","Art. 105 do CPC - quais atos exigem cláusula específica na procuração (além dos poderes gerais)?","Receber citação, confessar, reconhecer procedência do pedido, transigir, desistir, renunciar ao direito, receber e dar quitação, firmar compromisso e assinar declaração de hipossuficiência."],["Procuradores","Art. 105, §4º do CPC - a procuração outorgada na fase de conhecimento vale para o cumprimento de sentença?","Sim, salvo disposição em sentido contrário no próprio instrumento."],["Sucessao Partes","Art. 109, §1º do CPC - o adquirente/cessionário da coisa litigiosa pode suceder o alienante no processo?","Só com o consentimento da parte contrária; sem ele, pode intervir como assistente litisconsorcial."],["Procuradores","Art. 111 do CPC - qual o prazo para constituir novo procurador quando a parte revoga o mandato?","A parte deve constituir novo advogado no mesmo ato; se não o fizer em 15 dias, aplica-se o art. 76 (suspensão/consequências pela irregularidade de representação)."],["Procuradores","Art. 112 do CPC - por quanto tempo o advogado renunciante deve continuar representando o mandante?","Pelos 10 dias seguintes à comunicação da renúncia, desde que necessário para evitar prejuízo ao mandante."],["Procuradores","Renúncia de mandato - é ato unilateral do advogado (direito potestativo)?","Sim; o advogado pode renunciar sem precisar justificar o motivo nem obter concordância do cliente."],["Procuradores","Renúncia de mandato - quando se consuma?","Quando regularmente comunicada à parte, por qualquer meio idôneo (carta com AR, ciência firmada, notificação judicial/extrajudicial)."],["Jurisprudencia","Jurisprudência STJ sobre renúncia de mandato - é necessária determinação judicial para intimar a parte após a renúncia comunicada?","Não; a renúncia regularmente comunicada dispensa determinação judicial, cabendo à parte o ônus de constituir novo advogado."],["Litisconsorcio","Art. 113 do CPC - quais as 3 hipóteses de litisconsórcio?","Comunhão de direitos/obrigações relativa à lide; conexão pelo pedido ou causa de pedir; afinidade de questões por ponto comum de fato ou direito."],["Litisconsorcio","Art. 113, §1º do CPC - o juiz pode limitar o litisconsórcio facultativo multitudinário?","Sim, quando comprometer a rápida solução do litígio ou dificultar a defesa/cumprimento de sentença."],["Litisconsorcio","Art. 114 do CPC - quando o litisconsórcio é necessário?","Por disposição de lei, ou quando, pela natureza da relação jurídica controvertida, a eficácia da sentença depender da citação de todos os litisconsortes."],["Litisconsorcio","Art. 115, I do CPC - qual a consequência de sentença de mérito sem integração do contraditório em litisconsórcio necessário-unitário?","A sentença é NULA (deveria ser uniforme para todos que deveriam integrar o processo)."],["Litisconsorcio","Art. 115, II do CPC - qual a consequência de sentença de mérito sem integração do contraditório em litisconsórcio necessário simples?","A sentença é INEFICAZ apenas em relação aos que não foram citados."],["Litisconsorcio","Art. 116 do CPC - quando o litisconsórcio é unitário?","Quando, pela natureza da relação jurídica, o juiz tiver que decidir o mérito de modo uniforme para todos os litisconsortes."],["Litisconsorcio","Litisconsórcio necessário SIMPLES x UNITÁRIO: diferencie.","Simples: necessário só por força de lei, sem relação jurídica una e indivisível (ex.: usucapião). Unitário: relação una, incindível, com vários titulares - todos devem participar e o resultado deve ser igual para todos."],["Litisconsorcio","No litisconsórcio unitário, os atos praticados por um litisconsorte podem prejudicar os demais?","Não; atos e omissões de um não prejudicam os outros, mas podem beneficiá-los (art. 117)."],["Litisconsorcio","No litisconsórcio simples, os atos de um litisconsorte prejudicam ou beneficiam os demais?","Em regra, são considerados litigantes distintos - não se prejudicam nem se beneficiam automaticamente, exceto quanto a alegações de interesse comum (matéria comum a todos)."],["Litisconsorcio","No litisconsórcio unitário, atos de disposição desfavoráveis (confissão, renúncia) praticados por um litisconsorte produzem efeito?","Não; são ineficazes, não prejudicando sequer quem os praticou. Já atos vantajosos (defesa, recurso) beneficiam a todos."],["Intervencao Terceiros","Art. 119 do CPC - quem pode intervir como assistente?","O terceiro juridicamente interessado em que a sentença seja favorável a uma das partes de causa pendente."],["Intervencao Terceiros","Art. 121 do CPC - qual a posição processual do assistente simples?","Atua como auxiliar da parte principal, exercendo os mesmos poderes e sujeitando-se aos mesmos ônus processuais do assistido."],["Intervencao Terceiros","Art. 122 do CPC - a assistência simples impede que a parte principal desista da ação ou reconheça o pedido?","Não; a parte principal pode desistir, reconhecer a procedência, renunciar ou transigir, mesmo com a assistência simples."],["Intervencao Terceiros","Art. 123 do CPC - após o trânsito em julgado, o assistente simples pode discutir a justiça da decisão em processo posterior?","Em regra não, salvo se alegar e provar hipóteses específicas (ex.: cerceamento de suas alegações/provas por conduta dolosa/culposa do assistido)."],["Intervencao Terceiros","Art. 124 do CPC - quando o assistente é considerado litisconsorcial?","Sempre que a sentença influir na relação jurídica entre ele e o adversário do assistido."],["Intervencao Terceiros","Art. 125 do CPC - quais as duas hipóteses de denunciação da lide?","Ao alienante imediato, para exercer direitos da evicção; e a quem estiver obrigado por lei ou contrato a indenizar em ação regressiva o prejuízo de quem for vencido."],["Intervencao Terceiros","Art. 125, §1º do CPC - se a denunciação da lide for indeferida ou não promovida, o que ocorre com o direito de regresso?","Pode ser exercido por ação autônoma."],["Intervencao Terceiros","Art. 125, §2º do CPC - é possível denunciação sucessiva?","Admite-se uma única denunciação sucessiva pelo denunciado contra seu antecessor imediato; o denunciado sucessivo não pode denunciar novamente (direito de regresso por ação autônoma)."],["Intervencao Terceiros","Denunciação da lide - quem pode promovê-la, diferente do chamamento ao processo?","Pode ser promovida tanto pelo autor quanto pelo réu; o chamamento ao processo só pode ser requerido pelo réu."],["Intervencao Terceiros","Denunciação da lide - qual sua natureza jurídica?","Natureza de ação (amplia o objeto do processo), mas não forma processo autônomo - há processo único para a ação e a denunciação."],["Intervencao Terceiros","Art. 130 do CPC - hipóteses de chamamento ao processo (requerido pelo réu).","Do afiançado, na ação em que o fiador for réu; dos demais fiadores; dos demais devedores solidários quando o credor exigir de um ou alguns o pagamento da dívida comum."],["Intervencao Terceiros","Art. 131 do CPC - prazo para promover a citação no chamamento ao processo.","30 dias (2 meses se o chamado residir em outra comarca/seção/subseção ou em local incerto), sob pena de ficar sem efeito o chamamento."],["Intervencao Terceiros","Art. 132 do CPC - efeito da sentença de procedência no chamamento ao processo.","Vale como título executivo em favor do réu que satisfizer a dívida, para exigi-la do devedor principal ou a quota de cada codevedor."],["Intervencao Terceiros","Art. 133, §2º do CPC - o incidente de desconsideração da personalidade jurídica se aplica à desconsideração inversa?","Sim."],["Intervencao Terceiros","Art. 134 do CPC - em que fases cabe o incidente de desconsideração da personalidade jurídica?","Em todas as fases do processo de conhecimento, no cumprimento de sentença e na execução fundada em título extrajudicial."],["Intervencao Terceiros","Art. 134, §2º e §3º do CPC - quando se dispensa a instauração do incidente de desconsideração, e o que ocorre se instaurado?","Dispensa-se quando a desconsideração for requerida já na petição inicial (citação direta do sócio/PJ); se instaurado como incidente, suspende o processo."],["Intervencao Terceiros","Art. 135 do CPC - prazo do sócio/PJ para se manifestar no incidente de desconsideração.","15 dias."],["Intervencao Terceiros","Recurso cabível contra decisão que julga o incidente de desconsideração da personalidade jurídica: e se tramitou em 1ª instância?","Agravo de instrumento (art. 1.015, IV)."],["Intervencao Terceiros","Recurso cabível contra decisão que julga o incidente de desconsideração da personalidade jurídica: e se decidido monocraticamente pelo relator no Tribunal?","Agravo interno (art. 136, parágrafo único)."],["Jurisprudencia","STJ, REsp 2.120.429/SP - aplica-se a técnica de julgamento ampliado (art. 942) ao agravo de instrumento que reforma decisão sobre desconsideração da personalidade jurídica?","Sim, quando reformada por maioria, seja para admitir ou rejeitar o pedido, por se tratar de decisão de mérito."],["Intervencao Terceiros","Art. 137 do CPC - efeito de atos de alienação/oneração de bens em fraude de execução após acolhida a desconsideração.","São ineficazes em relação ao requerente."],["Intervencao Terceiros","Art. 138 do CPC - a decisão que admite ou rejeita o amicus curiae é recorrível?","É irrecorrível."],["Intervencao Terceiros","Art. 138, §1º do CPC - a intervenção do amicus curiae autoriza recursos?","Não, ressalvados embargos de declaração e a hipótese do §3º (recurso contra decisão que julgar IRDR)."],["Intervencao Terceiros","Panorama das intervenções de terceiros - quem tem a iniciativa na assistência?","Sempre do terceiro, que espontaneamente requer seu ingresso em processo alheio."],["Intervencao Terceiros","Panorama das intervenções de terceiros - o amicus curiae figura como parte ou auxiliar do juízo?","Como auxiliar do juízo (não é parte nem auxiliar de parte); sua intervenção se limita à manifestação/opinião sobre a questão jurídica."],["Poderes Juiz","Art. 139, IV do CPC - o que pode o juiz determinar para assegurar o cumprimento de ordem judicial?","Todas as medidas indutivas, coercitivas, mandamentais ou sub-rogatórias necessárias, inclusive em ações de prestação pecuniária (medidas executivas atípicas)."],["Jurisprudencia","STF, ADI 5.941/DF - as medidas executivas atípicas do art. 139, IV, são constitucionais?","Sim, desde que respeitados direitos fundamentais e observados proporcionalidade e razoabilidade."],["Jurisprudencia","Quais os requisitos para adoção de medidas executivas atípicas (STJ, REsp 1.788.950/MT)?","Indícios de patrimônio expropriável; adoção subsidiária; decisão fundamentada às especificidades do caso; observância do contraditório substancial e da proporcionalidade."],["Jurisprudencia","STJ, HC 453.870-PR - cabem medidas atípicas aflitivas pessoais (ex.: suspensão de passaporte/CNH) em execução fiscal?","Não; são excessivas em execução fiscal, pois o Poder Público já goza de privilégios processuais da Lei 6.830/80."],["Jurisprudencia","O que é a Central Nacional de Indisponibilidade de Bens (CNIB) e quando pode ser usada em demandas cíveis?","Sistema eletrônico do CNJ que interliga registros de bens; pode ser usada subsidiariamente nas demandas cíveis, desde que exauridos os meios executivos típicos (STJ, REsp 2.141.068/PR)."],["Poderes Juiz","Art. 139, VIII do CPC - o comparecimento pessoal das partes determinado pelo juiz para inquiri-las gera pena de confesso se não comparecerem?","Não incide a pena de confesso nessa hipótese."],["Poderes Juiz","Art. 140, parágrafo único do CPC - quando o juiz pode decidir por equidade?","Somente nos casos previstos em lei."],["Poderes Juiz","Art. 141 do CPC - o que é o princípio da congruência (adstrição)?","O juiz decide o mérito nos limites propostos pelas partes, sendo-lhe vedado conhecer de questões não suscitadas cuja iniciativa a lei exige da parte."],["Poderes Juiz","Art. 143 do CPC - em quais hipóteses o juiz responde civil e regressivamente por perdas e danos?","Quando proceder com dolo ou fraude no exercício das funções; ou quando recusar, omitir ou retardar sem justo motivo providência de ofício ou requerida, não apreciada em 10 dias após requerimento."],["Impedimento Suspeicao","Art. 144 do CPC - cite hipóteses de impedimento do juiz.","Quando interveio como mandatário/perito/testemunha/MP no processo; conheceu em outro grau tendo decidido; parente até 3º grau é parte ou advogado; é sócio ou administrador de PJ parte; é herdeiro presuntivo/donatário/empregador de parte; promove ação contra a parte ou seu advogado."],["Jurisprudencia","STF, ADI 5.953/DF - o que decidiu sobre o art. 144, VIII, do CPC (cliente de escritório de parente do juiz)?","Declarou sua inconstitucionalidade, por violar juiz natural, razoabilidade e proporcionalidade."],["Impedimento Suspeicao","Art. 144, §2º do CPC - é possível criar fato superveniente para caracterizar impedimento do juiz?","Não, é vedado."],["Impedimento Suspeicao","Art. 145 do CPC - cite hipóteses de suspeição do juiz.","Amigo íntimo ou inimigo de parte/advogado; recebeu presentes de interessado na causa ou aconselhou/custeou despesas do litígio; parte é credora/devedora sua ou de parente até 3º grau; interessado no julgamento em favor de parte."],["Impedimento Suspeicao","Art. 145, §1º do CPC - o juiz pode se declarar suspeito por motivo de foro íntimo?","Sim, sem necessidade de declarar suas razões."],["Impedimento Suspeicao","Art. 146 do CPC - qual o prazo para alegar impedimento ou suspeição?","15 dias a contar do conhecimento do fato, em petição específica dirigida ao juiz do processo."],["Impedimento Suspeicao","Art. 148 do CPC - a quem mais se aplicam os motivos de impedimento e suspeição além do juiz?","Ao membro do Ministério Público, aos auxiliares da justiça e aos demais sujeitos imparciais do processo."],["Auxiliares Justica","Art. 149 do CPC - quem são os auxiliares da justiça?","Escrivão, chefe de secretaria, oficial de justiça, perito, depositário, administrador, intérprete, tradutor, mediador, conciliador judicial, partidor, distribuidor, contabilista e regulador de avarias."],["Sumulas","Súmula Vinculante 25 - prisão civil do depositário infiel.","É ilícita a prisão civil de depositário infiel, qualquer que seja a modalidade do depósito."],["Auxiliares Justica","Art. 156, §5º do CPC - se não houver perito cadastrado no tribunal na localidade, como se dá a nomeação?","É de livre escolha pelo juiz, devendo recair sobre profissional/órgão comprovadamente detentor do conhecimento necessário."],["Auxiliares Justica","Art. 157 do CPC - qual o prazo para o perito apresentar escusa ao encargo, sob pena de renúncia ao direito de alegá-la?","15 dias, contados da intimação, da suspeição ou do impedimento supervenientes."],["Auxiliares Justica","Art. 158 do CPC - consequência para o perito que, por dolo ou culpa, presta informações inverídicas.","Responde pelos prejuízos causados e fica inabilitado para atuar em outras perícias por 2 a 5 anos."],["Conciliacao Mediacao","Art. 165, §2º e §3º do CPC - diferencie conciliador e mediador quanto ao vínculo entre as partes.","Conciliador: atua preferencialmente onde NÃO há vínculo anterior entre as partes, podendo sugerir soluções. Mediador: atua preferencialmente onde HÁ vínculo anterior, auxiliando a identificar soluções por si próprias."],["Conciliacao Mediacao","Art. 166 do CPC - quais os princípios que informam a conciliação e a mediação?","Independência, imparcialidade, autonomia da vontade, confidencialidade, oralidade, informalidade e decisão informada."],["Conciliacao Mediacao","Art. 167, §5º do CPC - conciliadores/mediadores advogados podem exercer a advocacia nos juízos em que atuam?","Não, ficam impedidos."],["Conciliacao Mediacao","Art. 172 do CPC - por quanto tempo o conciliador/mediador fica impedido de assessorar/representar as partes após a última audiência?","1 ano."],["Ministerio Publico","Art. 176 do CPC - qual a atuação do Ministério Público no processo civil?","Defesa da ordem jurídica, do regime democrático e dos interesses e direitos sociais e individuais indisponíveis."],["Ministerio Publico","Art. 178 do CPC - em quais hipóteses o MP deve intervir como fiscal da ordem jurídica?","Interesse público ou social; interesse de incapaz; litígios coletivos pela posse de terra rural ou urbana (prazo de 30 dias para intervir)."],["Ministerio Publico","Art. 178, parágrafo único do CPC - a participação da Fazenda Pública, por si só, exige intervenção do MP?","Não."],["Ministerio Publico","Art. 179 do CPC - quando atua como fiscal da ordem jurídica, o MP tem vista dos autos antes ou depois das partes?","Depois das partes, sendo intimado de todos os atos do processo."],["Ministerio Publico","Art. 180 do CPC - o MP goza de que prazo processual?","Prazo em dobro para manifestar-se, contado da intimação pessoal."],["Advocacia Publica","Art. 182 do CPC - qual a função da Advocacia Pública?","Defender e promover os interesses públicos da União, Estados, DF e Municípios, representando judicialmente as pessoas jurídicas de direito público da administração direta e indireta."],["Advocacia Publica","Art. 183 do CPC - qual o prazo processual dos entes públicos (União, Estados, DF, Municípios, autarquias e fundações)?","Prazo em dobro para todas as manifestações processuais, contado da intimação pessoal (por carga, remessa ou meio eletrônico)."],["Defensoria Publica","Art. 185 do CPC - qual a função institucional da Defensoria Pública?","Orientação jurídica, promoção dos direitos humanos e defesa dos direitos individuais e coletivos dos necessitados, de forma integral e gratuita."],["Defensoria Publica","O que significa a atuação da Defensoria Pública como 'custos vulnerabilis'?","'Guardiã dos vulneráveis' - intervenção em processos que discutam interesses de vulneráveis (econômicos, sociais, técnicos, informacionais), independentemente de haver advogado particular constituído, protegendo os interesses dos necessitados em geral."],["Defensoria Publica","Amicus curiae x Custos vulnerabilis - quem pode exercer cada função?","Amicus curiae: qualquer pessoa/órgão com representatividade adequada. Custos vulnerabilis: somente a Defensoria Pública."],["Defensoria Publica","Amicus curiae x Custos vulnerabilis - quanto à possibilidade de recorrer.","Amicus curiae: em regra não pode recorrer (exceções: embargos de declaração; recurso contra decisão de IRDR). Custos vulnerabilis: pode interpor qualquer espécie de recurso."],["Defensoria Publica","Art. 186 do CPC - a Defensoria Pública goza de qual prazo processual?","Prazo em dobro para todas as manifestações processuais, contado da intimação pessoal do defensor."],["Jurisprudencia","STJ, REsp 1.986.064-RS - o prazo em dobro da Defensoria se estende aos núcleos de prática jurídica de faculdades privadas?","Sim, a prerrogativa de prazo em dobro também se aplica aos escritórios de prática jurídica de instituições privadas de ensino superior."],["Atos Processuais","Art. 188 do CPC - princípio da instrumentalidade das formas.","Os atos processuais independem de forma determinada, salvo exigência legal expressa, sendo válidos os que, de outro modo, preencham a finalidade essencial."],["Atos Processuais","Art. 189 do CPC - cite hipóteses de tramitação em segredo de justiça.","Interesse público/social; causas de família (casamento, divórcio, filiação, alimentos, guarda); dados protegidos pela intimidade; processos sobre arbitragem com confidencialidade comprovada."],["Negocio Juridico Processual","Art. 190 do CPC - o que são os negócios jurídicos processuais?","Em direitos que admitam autocomposição, partes plenamente capazes podem convencionar mudanças no procedimento e sobre ônus, poderes, faculdades e deveres processuais, antes ou durante o processo."],["Negocio Juridico Processual","Art. 190, parágrafo único do CPC - em que casos o juiz recusa aplicação às convenções processuais?","Nulidade, inserção abusiva em contrato de adesão, ou manifesta vulnerabilidade de alguma parte."],["Atos Processuais","Art. 191 do CPC - o que é o calendário processual e qual seu efeito?","Fixado de comum acordo entre juiz e partes para prática de atos; vincula ambos, dispensando intimação das partes para os atos/audiências nele previstos."],["Atos Processuais","Art. 200, parágrafo único do CPC - quando a desistência da ação produz efeitos?","Somente após homologação judicial."],["Atos Processuais","Art. 203, §1º do CPC - o que é sentença, segundo o CPC?","Pronunciamento que, com base nos arts. 485 e 487, põe fim à fase cognitiva do procedimento comum ou extingue a execução."],["Atos Processuais","Art. 203, §2º e §3º do CPC - diferencie decisão interlocutória e despacho.","Decisão interlocutória: pronunciamento de natureza decisória que não é sentença. Despacho: demais pronunciamentos do juiz, sem conteúdo decisório."],["Atos Processuais","Art. 204 do CPC - o que é acórdão?","O julgamento colegiado proferido pelos tribunais."],["Atos Processuais","Art. 212 do CPC - em que horário são realizados os atos processuais?","Em dias úteis, das 6 às 20 horas."],["Atos Processuais","Art. 212, §2º do CPC - citações, intimações e penhoras podem ocorrer fora do horário/em férias forenses?","Sim, independentemente de autorização judicial, respeitado o art. 5º, XI, da CF (inviolabilidade domiciliar)."],["Prazos","Art. 213 do CPC - até que horário pode ocorrer a prática eletrônica de ato processual?","Até as 24 horas do último dia do prazo, considerado o horário do juízo perante o qual o ato deve ser praticado."],["Prazos","Art. 218, §3º do CPC - qual o prazo supletivo para prática de ato processual a cargo da parte, inexistindo prazo legal ou judicial?","5 dias."],["Prazos","Art. 219 do CPC - como se conta o prazo processual em dias?","Computam-se somente os dias úteis (aplica-se apenas a prazos processuais, não a prazos de direito material)."],["Prazos","Art. 220 do CPC - em que período se suspende o curso do prazo processual (recesso forense)?","Entre 20 de dezembro e 20 de janeiro, inclusive."],["Prazos","Art. 222 do CPC - por quanto tempo o juiz pode prorrogar prazos em comarca de transporte difícil?","Até 2 meses (podendo exceder esse limite em caso de calamidade pública)."],["Prazos","Art. 223, §1º do CPC - o que se considera justa causa para não praticar o ato no prazo?","Evento alheio à vontade da parte que a impediu de praticar o ato por si ou por mandatário."],["Prazos","Art. 224 do CPC - como se conta o prazo processual (dia do começo e do vencimento)?","Excluindo o dia do começo e incluindo o dia do vencimento."],["Jurisprudencia","STJ - a indisponibilidade do sistema eletrônico do tribunal durante o curso do prazo recursal gera prorrogação?","Não, salvo se a indisponibilidade coincidir com o primeiro ou o último dia do prazo, caso em que o termo é protraído para o próximo dia útil."],["Prazos","Art. 226 do CPC - prazos do juiz: despacho, decisão interlocutória e sentença.","Despachos: 5 dias. Decisões interlocutórias: 10 dias. Sentenças: 30 dias."],["Prazos","Art. 229 do CPC - quando os litisconsortes têm prazo em dobro para suas manifestações?","Quando tiverem procuradores de escritórios de advocacia distintos, em qualquer juízo ou tribunal, independentemente de requerimento (não se aplica em autos eletrônicos)."],["Prazos","Art. 229, §1º do CPC - cessa o prazo em dobro se, havendo apenas 2 réus, apenas um oferece defesa?","Sim."],["Jurisprudencia","STJ, REsp 1.579.704/PR - o prazo recursal em dobro se aplica no litisconsórcio com procuradores distintos mesmo que só um recorra?","Sim, desde que os litisconsortes tenham interesses autônomos."],["Prazos","Art. 231, §1º do CPC - havendo mais de um réu, quando começa o prazo para contestar?","Na última das datas de citação/intimação de todos os réus."],["Prazos","Art. 231, §2º do CPC (e jurisprudência do STJ) - havendo mais de um intimado, como se conta o prazo recursal?","Individualmente para cada um, mesmo que a intimação ocorra simultaneamente à citação (a regra da última data do §1º é restrita à contestação)."],["Prazos","Art. 234, §2º do CPC - o que ocorre se o advogado intimado não devolver os autos em 3 dias?","Perde o direito à vista fora de cartório e incorre em multa correspondente à metade do salário-mínimo."],["Citacao","Art. 238 do CPC - o que é citação e qual o prazo para sua efetivação?","Ato pelo qual são convocados réu, executado ou interessado para integrar a relação processual; deve ser efetivada em até 45 dias da propositura da ação."],["Citacao","Art. 239, §1º do CPC - o comparecimento espontâneo do réu supre a falta de citação?","Sim; supre a falta ou nulidade, fluindo daí o prazo para contestação/embargos."],["Citacao","Art. 240 do CPC - quais os efeitos da citação válida, ainda que por juízo incompetente?","Induz litispendência, torna litigiosa a coisa e constitui em mora o devedor."],["Citacao","Art. 240, §1º do CPC - a interrupção da prescrição pela citação retroage a que data?","À data de propositura da ação (desde que o autor adote em 10 dias as providências para viabilizar a citação)."],["Citacao","Efeitos da citação - o que significa 'induzir litispendência'?","Havendo duas ou mais causas idênticas, apenas o processo em que primeiro houve citação válida prossegue; os demais são extintos sem resolução de mérito."],["Citacao","Efeitos da citação - o que significa 'fazer litigiosa a coisa'?","Somente após a citação válida o bem passa a ser 'coisa litigiosa', relevante para fraude à execução (arts. 109 e 792 do CPC)."],["Citacao","Art. 242, §3º do CPC - onde é realizada a citação de entes públicos (União, Estados, DF, Municípios)?","Perante o órgão de Advocacia Pública responsável por sua representação judicial."],["Citacao","Art. 244 do CPC - cite hipóteses em que não se fará citação (salvo para evitar perecimento de direito).","Quem participa de culto religioso; parentes de falecido no dia da morte e 7 dias seguintes; noivos nos 3 dias após o casamento; doente em estado grave."],["Citacao","Art. 246 do CPC - qual a forma preferencial de citação e em que prazo deve ocorrer?","Por meio eletrônico, em até 2 dias úteis contados da decisão que a determinar."],["Citacao","Art. 246, §1º-C do CPC - qual a consequência de não confirmar, sem justa causa, o recebimento da citação eletrônica?","Configura ato atentatório à dignidade da justiça, com multa de até 5% do valor da causa."],["Citacao","Art. 256 do CPC - hipóteses de citação por edital.","Quando desconhecido ou incerto o citando; quando ignorado, incerto ou inacessível o lugar onde se encontra; nos casos expressos em lei."],["Citacao","Art. 257 do CPC - qual o prazo do edital de citação?","Entre 20 e 60 dias, fixado pelo juiz, fluindo da publicação única ou da primeira publicação."],["Citacao","Art. 258 do CPC - qual a multa para quem requer citação por edital alegando dolosamente as circunstâncias autorizadoras?","5 vezes o salário-mínimo, revertida em benefício do citando."],["Sumulas","Súmula 429-STJ - sobre citação postal.","A citação postal, quando autorizada por lei, exige o aviso de recebimento."],["Sumulas","Súmula 106-STJ - sobre demora na citação.","Proposta a ação no prazo fixado para seu exercício, a demora na citação por motivos inerentes ao mecanismo da justiça não justifica o acolhimento de prescrição ou decadência."],["Comunicacao Atos","Art. 267 do CPC - em quais hipóteses o juiz deprecado recusa cumprimento à carta precatória/arbitral?","Carta sem os requisitos legais; falta de competência em razão da matéria ou hierarquia; dúvida sobre a autenticidade da carta."],["Nulidades","Art. 276 do CPC - quem não pode arguir a nulidade de um ato processual?","A parte que deu causa ao vício de forma prescrito por lei sob pena de nulidade."],["Nulidades","Art. 277 do CPC - princípio da instrumentalidade das formas aplicado às nulidades.","O juiz considerará válido o ato realizado de outro modo, se alcançar sua finalidade."],["Nulidades","Art. 278 do CPC - quando deve ser alegada a nulidade, sob pena de preclusão?","Na primeira oportunidade em que couber à parte falar nos autos (exceto nulidades de ofício ou legítimo impedimento)."],["Nulidades","Art. 279 do CPC - consequência de o MP não ser intimado para intervir quando devia?","Nulidade do processo a partir do momento em que deveria ter sido intimado, mas a nulidade só é decretada após ouvir o MP sobre a existência de prejuízo."],["Nulidades","Art. 282, §2º do CPC - o juiz decreta a nulidade se puder decidir o mérito a favor da parte prejudicada?","Não; se puder decidir o mérito a favor de quem a nulidade aproveitaria, não pronunciará a nulidade nem mandará repetir o ato."],["Nulidades","Art. 283 do CPC - o que é o 'erro de forma' e qual sua consequência?","Acarreta apenas a anulação dos atos que não possam ser aproveitados, praticando-se os necessários para observar a lei; os atos aproveitáveis são mantidos, sem prejuízo à defesa."],["Distribuicao","Art. 286 do CPC - quando as causas são distribuídas por dependência?","Quando conexas/continentes com ação já ajuizada; quando reiterado pedido de processo extinto sem mérito; nas ações do art. 55, §3º, ao juízo prevento."],["Distribuicao","Art. 290 do CPC - o que ocorre se a parte, intimada na pessoa do advogado, não pagar custas de ingresso em 15 dias?","Será cancelada a distribuição do feito."],["Jurisprudencia","STJ - o art. 290 do CPC (cancelamento por falta de custas) se aplica ao pagamento parcial das custas?","Não; no pagamento parcial, exige-se intimação pessoal do autor para complementar em 5 dias, sob pena de abandono da causa (art. 485, III); o art. 290 aplica-se à ausência total de recolhimento."],["Valor Causa","Art. 292, III do CPC - como se calcula o valor da causa na ação de alimentos?","Soma de 12 prestações mensais pedidas pelo autor."],["Valor Causa","Art. 292, §3º do CPC - o juiz pode corrigir de ofício o valor da causa?","Sim, por arbitramento, quando não corresponder ao conteúdo patrimonial em discussão ou ao proveito econômico perseguido."],["Valor Causa","Art. 293 do CPC - como o réu deve impugnar o valor da causa?","Em preliminar de contestação, sob pena de preclusão."],["Tutela Provisoria","Art. 294, parágrafo único do CPC - a tutela provisória de urgência pode ser concedida de que formas quanto ao momento?","Em caráter antecedente ou incidental."],["Tutela Provisoria","Art. 300 do CPC - quais os requisitos para a tutela de urgência?","Elementos que evidenciem a probabilidade do direito e o perigo de dano ou risco ao resultado útil do processo."],["Tutela Provisoria","Art. 300, §3º do CPC - quando a tutela antecipada não pode ser concedida?","Quando houver perigo de irreversibilidade dos efeitos da decisão."],["Tutela Provisoria","Tutela de urgência - diferencie ANTECIPADA (satisfativa) e CAUTELAR.","Antecipada: antecipa o próprio direito/bem da vida pretendido ao final. Cautelar: apenas assegura esse direito/bem da vida (ex.: arresto de bens)."],["Tutela Provisoria","Tutela de urgência - diferencie tutela INCIDENTAL e ANTECEDENTE.","Incidental: requerida no curso do processo já instaurado. Antecedente: requerida antes do pedido principal ou de sua argumentação completa."],["Tutela Provisoria","Art. 302 do CPC - em quais hipóteses a parte responde objetivamente pelo prejuízo causado pela efetivação da tutela de urgência?","Sentença desfavorável; não citação do réu em 5 dias quando concedida liminarmente em caráter antecedente; cessação de eficácia da medida; acolhimento de decadência/prescrição da pretensão do autor."],["Tutela Provisoria","Art. 302, parágrafo único do CPC - como é liquidada a indenização pelos prejuízos da tutela de urgência revogada?","Nos próprios autos em que a medida foi concedida, sempre que possível, dispensando ação autônoma."],["Tutela Provisoria","Art. 303, §1º, I do CPC - qual o prazo para o autor aditar a petição inicial após concedida a tutela antecipada antecedente?","15 dias, ou outro prazo maior fixado pelo juiz."],["Tutela Provisoria","Art. 303, §2º do CPC - o que ocorre se o autor não realizar o aditamento da tutela antecipada antecedente?","O processo será extinto sem resolução do mérito."],["Tutela Provisoria","Art. 304 do CPC - quando a tutela antecipada antecedente se torna estável?","Se da decisão que a concede não for interposto o respectivo recurso."],["Jurisprudencia","Divergência no STJ sobre o art. 304 do CPC: a mera contestação impede a estabilização da tutela antecipada?","1ª Turma (interpretação restritiva): não, só o recurso (agravo de instrumento) impede. 3ª e 4ª Turmas (interpretação sistemática/teleológica): sim, qualquer impugnação, inclusive contestação, impede a estabilização."],["Tutela Provisoria","Art. 304, §5º do CPC - qual o prazo para ação que vise rever, reformar ou invalidar a tutela antecipada estabilizada?","2 anos, contados da ciência da decisão que extinguiu o processo."],["Tutela Provisoria","Art. 304, §6º do CPC - a decisão que concede a tutela antecipada estabilizada faz coisa julgada?","Não; apenas a estabilidade dos efeitos, afastável por decisão na ação prevista no §2º."],["Tutela Provisoria","Art. 308 do CPC - qual o prazo para formular o pedido principal após efetivada a tutela cautelar antecedente?","30 dias, nos mesmos autos, sem necessidade de novas custas (a contagem é em dias úteis, conforme entendimento do STJ)."],["Sumulas","Súmula 482-STJ - consequência da falta de ajuizamento da ação principal no prazo do art. 308.","Acarreta a perda da eficácia da liminar deferida e a extinção do processo cautelar."],["Tutela Provisoria","Art. 309 do CPC - cite hipóteses de cessação da eficácia da tutela concedida em caráter antecedente.","Autor não deduzir o pedido principal no prazo legal; pedido principal não efetivado em 30 dias; julgamento de improcedência ou extinção sem mérito do pedido principal."],["Tutela Provisoria","Art. 310 do CPC - o indeferimento da tutela cautelar impede o pedido principal?","Não, salvo se o motivo do indeferimento for reconhecimento de decadência ou prescrição."],["Tutela Provisoria","Art. 311 do CPC - em quais hipóteses cabe tutela da evidência, independentemente de perigo de dano?","Abuso do direito de defesa ou propósito protelatório; alegações comprováveis apenas documentalmente com tese repetitiva/súmula vinculante; pedido reipersecutório de contrato de depósito; petição inicial com prova documental suficiente sem contraprova que gere dúvida razoável."],["Tutela Provisoria","Art. 311, parágrafo único do CPC - em quais incisos o juiz pode decidir a tutela de evidência liminarmente?","Incisos II (tese repetitiva/súmula vinculante) e III (pedido reipersecutório de depósito)."],["Suspensao Processo","Art. 313, I do CPC - o que suspende o processo em relação às partes?","Morte ou perda da capacidade processual de qualquer das partes, de seu representante legal ou de seu procurador."],["Suspensao Processo","Art. 313, §4º do CPC - qual o prazo máximo de suspensão do processo por prejudicialidade externa (inciso V) e por habilitação de sucessores (inciso II)?","1 ano para a hipótese do inciso V; 6 meses para a hipótese do inciso II."],["Suspensao Processo","Art. 315 do CPC - suspensão por questão prejudicial penal: qual o prazo se a ação penal não for proposta?","3 meses contados da intimação da suspensão; se proposta, o processo fica suspenso por até 1 ano."],["Peticao Inicial","Art. 319, VII do CPC - o que deve o autor indicar na petição inicial quanto à audiência?","Sua opção pela realização ou não de audiência de conciliação ou de mediação."],["Peticao Inicial","Art. 321 do CPC - qual o prazo para emendar a petição inicial com defeitos, sob pena de indeferimento?","15 dias."],["Pedido","Art. 322, §1º do CPC - o que se compreende no pedido principal, mesmo sem menção expressa?","Juros legais, correção monetária e verbas de sucumbência, inclusive honorários advocatícios."],["Pedido","Art. 324, §1º do CPC - em quais hipóteses é lícito formular pedido genérico?","Ações universais sem individuação possível dos bens; impossibilidade de determinar desde logo as consequências do ato/fato; determinação do objeto/valor dependente de ato do réu."],["Pedido","Art. 326 do CPC - diferencie pedido subsidiário (eventual) e pedido alternativo.","Subsidiário: o juiz conhece do posterior se não acolher o anterior (ordem de preferência). Alternativo: o juiz pode acolher qualquer um deles."],["Pedido","Art. 327, §1º do CPC - quais os requisitos para cumulação de pedidos?","Pedidos compatíveis entre si; competência do mesmo juízo; adequação do mesmo tipo de procedimento para todos."],["Peticao Inicial","Art. 329, I do CPC - até quando o autor pode aditar/alterar pedido ou causa de pedir sem consentimento do réu?","Até a citação."],["Peticao Inicial","Art. 329, II do CPC - até quando o autor pode aditar/alterar pedido ou causa de pedir COM consentimento do réu?","Até o saneamento do processo, assegurado ao réu prazo mínimo de 15 dias para manifestação."],["Peticao Inicial","Art. 330, §1º do CPC - quando a petição inicial é considerada inepta?","Faltar pedido ou causa de pedir; pedido indeterminado (fora das exceções legais); conclusão não decorrer logicamente da narração dos fatos; pedidos incompatíveis entre si."],["Peticao Inicial","Art. 331 do CPC - indeferida a petição inicial, o que pode fazer o autor e o juiz?","O autor pode apelar; o juiz pode se retratar em 5 dias."],["Improcedencia Liminar","Art. 332 do CPC - em quais hipóteses o juiz julga liminarmente improcedente o pedido (sem citar o réu)?","Quando o pedido contrariar súmula do STF/STJ, acórdão de recursos repetitivos, entendimento de IRDR/IAC, ou súmula de TJ sobre direito local; também se verificar decadência ou prescrição."],["Improcedencia Liminar","Art. 332, §3º e §4º do CPC - interposta apelação contra improcedência liminar, o juiz pode se retratar?","Sim, em 5 dias; se não houver retratação, o réu é citado para contrarrazões em 15 dias."],["Audiencia Conciliacao","Art. 334 do CPC - com que antecedência mínima deve ser designada a audiência de conciliação/mediação e citado o réu?","Audiência com antecedência mínima de 30 dias; citação do réu com pelo menos 20 dias de antecedência."],["Audiencia Conciliacao","Art. 334, §4º do CPC - quando a audiência de conciliação/mediação não será realizada?","Se ambas as partes manifestarem desinteresse na composição consensual, ou quando não se admitir autocomposição."],["Audiencia Conciliacao","Art. 334, §5º do CPC - com que antecedência o réu deve manifestar desinteresse na audiência?","10 dias antes da data da audiência, por petição."],["Audiencia Conciliacao","Art. 334, §8º do CPC - qual a consequência do não comparecimento injustificado à audiência de conciliação?","Ato atentatório à dignidade da justiça, com multa de até 2% da vantagem econômica pretendida ou do valor da causa, revertida à União/Estado."],["Contestacao","Art. 335 do CPC - qual o prazo para contestação e quando começa a fluir (regra geral)?","15 dias, contados da audiência de conciliação/mediação (ou última sessão) sem acordo, ou do protocolo de pedido de cancelamento pelo réu (art. 334, §4º, I), ou na forma do art. 231 nos demais casos."],["Contestacao","Art. 337 do CPC - cite matérias preliminares que o réu deve alegar na contestação.","Inexistência/nulidade da citação; incompetência absoluta e relativa; incorreção do valor da causa; inépcia da inicial; perempção; litispendência; coisa julgada; conexão; incapacidade/defeito de representação; convenção de arbitragem; ilegitimidade/falta de interesse; falta de caução; indevida gratuidade."],["Contestacao","Art. 337, §5º do CPC - quais preliminares o juiz NÃO conhece de ofício?","Convenção de arbitragem e incompetência relativa."],["Contestacao","Art. 337, §6º do CPC - a ausência de alegação de convenção de arbitragem gera qual consequência?","Aceitação da jurisdição estatal e renúncia ao juízo arbitral."],["Contestacao","Art. 338 do CPC - alegada ilegitimidade passiva na contestação, o que pode o autor fazer?","Alterar a petição inicial para substituir o réu, em 15 dias, reembolsando despesas e honorários (3% a 5% do valor da causa) ao réu excluído."],["Contestacao","Art. 341 do CPC - o que ocorre com fatos não impugnados especificamente pelo réu?","Presumem-se verdadeiros, salvo exceções (inadmissibilidade de confissão, ausência de instrumento essencial, contradição com a defesa em conjunto)."],["Contestacao","Art. 341, parágrafo único do CPC - a quem não se aplica o ônus da impugnação especificada?","Ao defensor público, ao advogado dativo e ao curador especial."],["Reconvencao","Art. 343 do CPC - o que é a reconvenção?","Pretensão própria do réu, formulada na contestação, conexa com a ação principal ou com o fundamento da defesa."],["Reconvencao","Art. 343, §6º do CPC - o réu pode reconvir sem contestar?","Sim, independentemente de oferecer contestação."],["Jurisprudencia","STJ, REsp 2.046.666/SP - a reconvenção em litisconsórcio com terceiro inclui esse terceiro no polo passivo da ação principal?","Não; a reconvenção é autônoma e independente, não alterando os polos da ação principal."],["Revelia","Art. 344 do CPC - efeito principal da revelia.","Presumem-se verdadeiras as alegações de fato formuladas pelo autor."],["Revelia","Art. 345 do CPC - quando a revelia NÃO produz o efeito da presunção de veracidade?","Havendo pluralidade de réus e algum contestar; litígio sobre direitos indisponíveis; falta de instrumento indispensável à prova do ato; alegações inverossímeis ou contraditórias com prova nos autos."],["Sumulas","Súmula 231-STF - o revel pode produzir provas?","Sim, desde que compareça em tempo oportuno."],["Revelia","Art. 346 do CPC - de quando fluem os prazos contra o revel sem advogado nos autos?","Da data de publicação do ato decisório no órgão oficial."],["Julgamento Conforme Estado Processo","Art. 355 do CPC - quando o juiz julga antecipadamente o mérito?","Quando não houver necessidade de outras provas; ou quando o réu for revel, ocorrer o efeito da revelia e não houver requerimento de prova."],["Julgamento Conforme Estado Processo","Art. 356 do CPC - o que é o julgamento antecipado parcial do mérito?","O juiz decide parcela do mérito quando um dos pedidos (ou parte dele) for incontroverso ou estiver em condições de julgamento imediato; a parte pode liquidar/executar desde logo essa parcela, mesmo com recurso."],["Julgamento Conforme Estado Processo","Art. 356, §5º do CPC - qual recurso cabe contra a decisão de julgamento antecipado parcial do mérito?","Agravo de instrumento."],["Saneamento","Art. 357 do CPC - o que a decisão de saneamento e organização do processo deve conter?","Resolução de questões processuais pendentes; delimitação das questões de fato e meios de prova; distribuição do ônus da prova; delimitação das questões de direito relevantes; designação de audiência de instrução se necessário."],["Saneamento","Art. 357, §1º do CPC - após o saneamento, qual o prazo para as partes pedirem esclarecimentos/ajustes?","5 dias (prazo comum), findo o qual a decisão se torna estável."],["Saneamento","Art. 357, §6º do CPC - qual o número máximo de testemunhas por parte e por fato?","10 testemunhas no total, no máximo 3 para prova de cada fato."],["Audiencia Instrucao","Art. 361 do CPC - qual a ordem preferencial de produção das provas orais em audiência?","Perito e assistentes técnicos; depoimento pessoal do autor e depois do réu; testemunhas do autor e do réu."],["Audiencia Instrucao","Art. 362, III do CPC - por qual motivo de atraso a audiência pode ser adiada?","Atraso injustificado de seu início por mais de 30 minutos do horário marcado."],["Audiencia Instrucao","Art. 364 do CPC - qual o prazo para alegações finais orais na audiência de instrução?","20 minutos para cada parte, prorrogável por 10 minutos, a critério do juiz."],["Audiencia Instrucao","Art. 364, §2º do CPC - em causas complexas, o debate oral pode ser substituído por quê?","Razões finais escritas, em prazos sucessivos de 15 dias."],["Audiencia Instrucao","Art. 365 do CPC - a audiência de instrução é una e contínua; quando pode ser cindida?","Excepcional e justificadamente, na ausência de perito ou testemunha, com concordância das partes."],["Provas","Art. 373, I e II do CPC - regra geral de distribuição do ônus da prova.","Autor: prova o fato constitutivo de seu direito. Réu: prova fato impeditivo, modificativo ou extintivo do direito do autor."],["Provas","Art. 373, §1º do CPC - quando o juiz pode atribuir o ônus da prova de modo diverso da regra geral (distribuição dinâmica)?","Diante de impossibilidade/excessiva dificuldade de cumprir o encargo, ou maior facilidade de obtenção da prova do fato contrário, por decisão fundamentada, dando oportunidade à parte de se desincumbir."],["Provas","Prova diabólica UNILATERAL x BILATERAL: diferencie.","Unilateral: difícil só para quem tem o ônus, mas possível para a outra parte - cabe inversão do ônus. Bilateral: impossível/difícil para ambas as partes - não cabe inversão."],["Provas","Diferencie inversão do ônus da prova e distribuição dinâmica do ônus da prova.","Inversão: mudança prévia e abstrata das regras (ex.: art. 6º, VIII, CDC), sem ampla liberdade do juiz. Distribuição dinâmica: mudança no caso concreto, com base em quem está em melhores condições de produzir a prova (art. 373, §1º, CPC), com maior ingerência do juiz."],["Provas","Art. 373, §3º do CPC - a distribuição diversa do ônus da prova pode se dar por convenção das partes?","Sim, exceto quando recair sobre direito indisponível ou tornar excessivamente difícil o exercício do direito por uma parte."],["Provas","Art. 374 do CPC - quais fatos não dependem de prova?","Fatos notórios; afirmados por uma parte e confessados pela contrária; admitidos como incontroversos; que gozem de presunção legal de existência ou veracidade."],["Provas","Art. 375 do CPC - o juiz pode julgar com base em conhecimento técnico pessoal, sem perícia?","Não; deve aplicar regras de experiência comum, mas quanto às técnicas, ressalva-se o exame pericial (STJ: conhecimento técnico do juiz não supre a perícia necessária)."],["Provas","Art. 372 do CPC - o que é prova emprestada e é necessária identidade de partes?","Prova produzida em outro processo, admitida com o valor que o juiz considerar adequado, observado o contraditório; não é necessária identidade de partes (STJ, EREsp 617.428-SP)."],["Provas","Art. 381 do CPC - em quais hipóteses cabe produção antecipada de prova?","Fundado receio de que se torne impossível/difícil a verificação de fatos; prova útil para viabilizar autocomposição; prévio conhecimento dos fatos pode justificar ou evitar ajuizamento de ação."],["Provas","Art. 381, §3º do CPC - a produção antecipada de prova previne a competência para a ação futura?","Não."],["Provas","Art. 382, §4º do CPC - na produção antecipada de prova, cabe defesa ou recurso?","Em regra não, salvo contra decisão que indeferir totalmente a prova pleiteada (mas o STJ admite arguição de matérias defensivas cognoscíveis de ofício)."],["Provas","Art. 384 do CPC - o que é a ata notarial?","Documento lavrado por tabelião, a requerimento do interessado, para atestar a existência e o modo de existir de algum fato (pode incluir dados de imagem/som em arquivos eletrônicos)."],["Depoimento Pessoal","Art. 388 do CPC - sobre quais fatos a parte não é obrigada a depor?","Fatos criminosos/torpes a ela imputados; sigilo profissional; fatos que gerem desonra própria/de cônjuge/parente; fatos que ponham em perigo a vida do depoente ou de parentes (não se aplica às ações de estado e família)."],["Confissao","Art. 389 do CPC - o que é confissão?","Quando a parte admite a verdade de fato contrário ao seu interesse e favorável ao do adversário (pode ser judicial ou extrajudicial)."],["Confissao","Art. 391 do CPC - a confissão judicial prejudica os litisconsortes do confitente?","Não; faz prova apenas contra o próprio confitente."],["Confissao","Art. 392 do CPC - vale como confissão a admissão de fatos relativos a direitos indisponíveis?","Não."],["Confissao","Art. 393 do CPC - a confissão é revogável?","É irrevogável, mas pode ser anulada se decorreu de erro de fato ou coação."],["Confissao","Art. 395 do CPC - a confissão é divisível?","Em regra é indivisível, mas se cinde quando o confitente aduzir fatos novos capazes de fundamentar defesa de direito material ou reconvenção."],["Exibicao Documento","Art. 400 do CPC - se o requerido não exibir o documento nem se manifestar, ou a recusa for ilegítima, o que ocorre?","O juiz admitirá como verdadeiros os fatos que a parte pretendia provar por meio do documento."],["Exibicao Documento","Art. 404 do CPC - cite hipóteses em que a parte/terceiro se escusa de exibir documento.","Negócios da própria vida familiar; violação de dever de honra; desonra à parte/terceiro/parentes ou risco de ação penal; sigilo profissional; motivos graves a critério do juiz; disposição legal que justifique a recusa."],["Prova Documental","Art. 406 do CPC - quando a lei exige instrumento público como da substância do ato, outra prova pode suprir sua falta?","Não, nenhuma outra prova pode suprir a falta do instrumento público exigido como da substância do ato."],["Prova Documental","Art. 408, parágrafo único do CPC - o documento particular com declaração de ciência de um fato prova o próprio fato?","Não; prova apenas a ciência, cabendo à parte interessada provar o fato em si."],["Prova Documental","Art. 412, parágrafo único do CPC - o documento particular admitido é divisível?","Não; é indivisível - a parte não pode aceitar os fatos favoráveis e recusar os desfavoráveis, salvo se provar que estes não ocorreram."],["Prova Documental","Art. 422, §1º do CPC - fotografias digitais/da internet, se impugnadas, exigem o quê?","Autenticação eletrônica ou, não sendo possível, realização de perícia."],["Prova Documental","Art. 425, VI do CPC - reproduções digitalizadas juntadas por órgãos da Justiça, MP, Defensoria e advogados têm mesma força que o original?","Sim, ressalvada alegação motivada e fundamentada de adulteração; os originais devem ser preservados até o fim do prazo de ação rescisória."],["Prova Documental","Art. 427 do CPC - em que consiste a falsidade documental?","Formar documento não verdadeiro (falsidade material) ou alterar documento verdadeiro."],["Prova Documental","Art. 429 do CPC - a quem incumbe o ônus da prova da falsidade documental e da autenticidade?","Falsidade/preenchimento abusivo: à parte que os arguir. Impugnação de autenticidade: à parte que produziu o documento."],["Prova Documental","Art. 430 do CPC - qual o prazo para arguir falsidade documental?","Na contestação, réplica, ou em 15 dias da intimação da juntada do documento aos autos."],["Prova Documental","Art. 435, parágrafo único do CPC - é possível juntar documentos formados após a petição inicial/contestação?","Sim, cabendo à parte comprovar o motivo do atraso e ao juiz avaliar a conduta conforme a boa-fé (art. 5º)."],["Prova Testemunhal","Art. 442 do CPC - a prova testemunhal é sempre admissível?","Sim, salvo disposição legal em contrário."],["Prova Testemunhal","Art. 443 do CPC - quando o juiz indefere a inquirição de testemunhas?","Sobre fatos já provados por documento/confissão, ou que só possam ser provados por documento ou perícia."],["Prova Testemunhal","Art. 447, §1º do CPC - quem são as testemunhas INCAPAZES?","Interdito por enfermidade/deficiência mental; quem não podia discernir os fatos ou transmitir percepções por enfermidade; menor de 16 anos; cego/surdo quando o fato dependa do sentido que falta."],["Prova Testemunhal","Art. 447, §2º do CPC - quem são as testemunhas IMPEDIDAS?","Cônjuge/companheiro/ascendente/descendente/colateral até 3º grau de parte; quem é parte na causa; quem intervém em nome de parte (tutor, representante legal, juiz, advogado etc.)."],["Prova Testemunhal","Art. 447, §3º do CPC - quem são as testemunhas SUSPEITAS?","Inimigo da parte ou seu amigo íntimo; quem tem interesse no litígio."],["Prova Testemunhal","Art. 447, §4º do CPC - o juiz pode admitir depoimento de testemunhas incapazes/impedidas/suspeitas?","Sim, se necessário, sem compromisso, atribuindo-lhe o valor que merecer (como informante)."],["Prova Testemunhal","Art. 454 do CPC - quem é inquirido em sua residência/local de trabalho, em vez de comparecer à sede do juízo?","Autoridades de alto escalão: Presidente da República, Ministros de Estado, Ministros de tribunais superiores, Senadores, Deputados Federais, Governadores, Prefeitos, Desembargadores, entre outros elencados no art. 454."],["Prova Testemunhal","Art. 455 do CPC - a quem cabe intimar a testemunha arrolada, em regra?","Ao próprio advogado da parte, por carta com aviso de recebimento, dispensando-se a intimação pelo juízo."],["Prova Testemunhal","Art. 455, §3º do CPC - a inércia do advogado em intimar a testemunha implica o quê?","Presunção de desistência da inquirição da testemunha."],["Prova Testemunhal","Art. 456 do CPC - qual a ordem de inquirição das testemunhas?","Separada e sucessivamente, primeiro as do autor, depois as do réu (salvo concordância das partes para alterar a ordem)."],["Prova Testemunhal","Art. 457, §1º do CPC - o que é a contradita de testemunha?","Faculdade da parte de arguir incapacidade, impedimento ou suspeição da testemunha, podendo provar com até 3 documentos/testemunhas."],["Prova Pericial","Art. 464, §1º do CPC - quando o juiz indefere a perícia?","Quando o fato não depender de conhecimento técnico especial; for desnecessária vista outras provas; ou a verificação for impraticável."],["Prova Pericial","Art. 464, §§2º e 3º do CPC - o que é a prova técnica simplificada?","Substitui a perícia em pontos controvertidos de menor complexidade, consistindo na inquirição de especialista pelo juiz."],["Prova Pericial","Art. 465, §1º do CPC - qual o prazo das partes para arguir impedimento/suspeição do perito, indicar assistente técnico e apresentar quesitos?","15 dias, contados da intimação do despacho de nomeação do perito."],["Prova Pericial","Art. 465, §4º do CPC - qual o percentual máximo de honorários periciais que pode ser pago antecipadamente?","Até 50%, no início dos trabalhos; o remanescente é pago ao final, após entrega do laudo."],["Prova Pericial","Art. 466, §1º do CPC - os assistentes técnicos das partes estão sujeitos a impedimento/suspeição?","Não; são de confiança da parte."],["Prova Pericial","Art. 471 do CPC - é possível a escolha consensual do perito pelas partes?","Sim, se plenamente capazes e a causa admitir autocomposição; a perícia consensual substitui a que seria feita por perito nomeado pelo juiz."],["Prova Pericial","Art. 477 do CPC - com que antecedência mínima o perito deve protocolar o laudo antes da audiência de instrução?","Pelo menos 20 dias antes da audiência."],["Prova Pericial","Art. 480 do CPC - a segunda perícia substitui a primeira?","Não; ambas subsistem, cabendo ao juiz apreciar o valor de cada uma."],["Inspecao Judicial","Art. 483 do CPC - quando o juiz vai pessoalmente ao local para inspeção judicial?","Quando necessário para melhor verificação dos fatos; quando a coisa não puder ser apresentada em juízo sem grandes despesas/dificuldades; ou para reconstituição dos fatos."],["Sentenca Coisa Julgada","Art. 485 do CPC - cite hipóteses de extinção do processo sem resolução de mérito.","Indeferimento da inicial; processo parado por 1 ano por negligência das partes; abandono da causa pelo autor por mais de 30 dias; ausência de pressupostos processuais; perempção/litispendência/coisa julgada; ilegitimidade/falta de interesse; convenção de arbitragem; desistência homologada; ação intransmissível por morte."],["Sentenca Coisa Julgada","Art. 485, §3º do CPC - quais hipóteses de extinção sem mérito o juiz conhece de ofício em qualquer tempo e grau?","Ausência de pressupostos processuais, perempção/litispendência/coisa julgada, ilegitimidade/falta de interesse, e ação intransmissível por morte (incisos IV, V, VI e IX)."],["Sentenca Coisa Julgada","Art. 485, §4º do CPC - oferecida a contestação, o autor pode desistir da ação livremente?","Não; precisa do consentimento do réu."],["Sumulas","Súmula 240-STJ - extinção por abandono da causa pelo autor.","Depende de requerimento do réu."],["Sentenca Coisa Julgada","Art. 487 do CPC - cite hipóteses de resolução de mérito.","Acolher/rejeitar o pedido; decidir sobre decadência/prescrição; homologar reconhecimento da procedência, transação ou renúncia à pretensão."],["Sentenca Coisa Julgada","Art. 489 do CPC - quais são os elementos essenciais da sentença?","Relatório, fundamentos (questões de fato e direito) e dispositivo."],["Sentenca Coisa Julgada","Art. 489, §1º do CPC - cite 3 hipóteses em que a decisão NÃO é considerada fundamentada.","Limitar-se a reproduzir ato normativo sem relacioná-lo ao caso; empregar conceito jurídico indeterminado sem explicar sua incidência; invocar motivos genéricos aplicáveis a qualquer decisão; não enfrentar argumento capaz de infirmar a conclusão; invocar precedente/súmula sem identificar fundamentos e ajuste ao caso; não seguir precedente invocado sem distinguir ou superar."],["Sentenca Coisa Julgada","Art. 492 do CPC - princípio da congruência: o que é vedado ao juiz?","Proferir decisão de natureza diversa da pedida, ou condenar em quantidade superior ou objeto diverso do demandado."],["Sentenca Coisa Julgada","Diferencie sentença CITRA, ULTRA e EXTRA petita.","Citra (infra) petita: deixa de apreciar um dos pedidos. Ultra petita: condena em quantidade superior à pedida. Extra petita: julga com base em causa de pedir/pedido diverso do que consta na inicial."],["Sentenca Coisa Julgada","Art. 493 do CPC - fato constitutivo/modificativo/extintivo superveniente à propositura deve ser considerado pelo juiz?","Sim, de ofício ou a requerimento, no momento de decidir, ouvidas as partes se constatado de ofício."],["Sentenca Coisa Julgada","Art. 494 do CPC - após publicada, como o juiz pode alterar a sentença?","Apenas para corrigir inexatidões materiais/erros de cálculo, ou por meio de embargos de declaração."],["Sentenca Coisa Julgada","Art. 495 do CPC - o que é a hipoteca judiciária?","A decisão que condena ao pagamento em dinheiro (ou converte obrigação em pecúnia) vale como título constitutivo de hipoteca judiciária, mesmo com condenação genérica ou pendente recurso com efeito suspensivo."],["Remessa Necessaria","Art. 496 do CPC - quais sentenças estão sujeitas à remessa necessária (duplo grau obrigatório)?","Proferidas contra União, Estados, DF, Municípios e suas autarquias/fundações; e as que julgarem procedentes embargos à execução fiscal."],["Remessa Necessaria","Art. 496, §3º do CPC - quais os limites de valor que dispensam a remessa necessária?","1.000 salários-mínimos para a União; 500 para Estados/DF/capitais; 100 para os demais Municípios (e respectivas autarquias/fundações)."],["Remessa Necessaria","Art. 496, §4º do CPC - cite hipóteses em que a remessa necessária é dispensada independentemente do valor.","Sentença fundada em súmula de tribunal superior; acórdão de recursos repetitivos; entendimento de IRDR/IAC; ou orientação vinculante do próprio ente público."],["Sumulas","Súmula 325-STJ - o que a remessa oficial devolve ao tribunal?","O reexame de todas as parcelas da condenação suportadas pela Fazenda Pública, inclusive honorários advocatícios."],["Sumulas","Súmula 45-STJ - no reexame necessário, o tribunal pode agravar a condenação da Fazenda Pública?","Não, é defeso (proibido) agravar a condenação imposta à Fazenda Pública."],["Obrigacoes Fazer Nao Fazer","Art. 499 do CPC - quando a obrigação de fazer/não fazer é convertida em perdas e danos?","Se o autor requerer, ou se for impossível a tutela específica ou o resultado prático equivalente."],["Coisa Julgada","Art. 502 do CPC - o que é coisa julgada material?","A autoridade que torna imutável e indiscutível a decisão de mérito não mais sujeita a recurso."],["Coisa Julgada","Art. 503, §1º do CPC - quando a resolução de questão prejudicial incidental também faz coisa julgada?","Se dela depender o julgamento do mérito; se houve contraditório prévio e efetivo (não em revelia); e se o juízo tinha competência para resolvê-la como questão principal."],["Coisa Julgada","Art. 504 do CPC - o que NÃO faz coisa julgada?","Os motivos da sentença (ainda que importantes para seu alcance) e a verdade dos fatos estabelecida como fundamento."],["Coisa Julgada","Art. 505, I do CPC - em que hipótese cabe revisão do que foi decidido em relação jurídica de trato continuado?","Se sobreveio modificação no estado de fato ou de direito."],["Coisa Julgada","Art. 506 do CPC - a sentença faz coisa julgada em relação a terceiros?","Não; faz coisa julgada apenas entre as partes, não prejudicando terceiros."],["Liquidacao Sentenca","Art. 509 do CPC - quais as duas formas de liquidação de sentença?","Por arbitramento (quando determinado pela sentença/partes ou exigido pela natureza do objeto) e pelo procedimento comum (quando houver necessidade de alegar e provar fato novo)."],["Sumulas","Súmula 318-STJ - sobre interesse recursal em sentença ilíquida.","Formulado pedido certo e determinado, somente o autor tem interesse recursal em arguir o vício da sentença ilíquida."],["Sumulas","Súmula 344-STJ - liquidação por forma diversa da sentença ofende a coisa julgada?","Não."],["Liquidacao Sentenca","Art. 509, §4º do CPC - na liquidação é possível discutir novamente a lide?","Não; é vedado discutir de novo a lide ou modificar a sentença já transitada."],["Cumprimento Sentenca","Art. 513, §5º do CPC - o cumprimento de sentença pode ser promovido contra fiador que não participou da fase de conhecimento?","Não."],["Cumprimento Sentenca","Art. 515 do CPC - cite exemplos de títulos executivos judiciais.","Decisões que reconhecem obrigação de pagar/fazer/não fazer/entregar coisa; decisão homologatória de autocomposição judicial ou extrajudicial; formal/certidão de partilha; crédito de auxiliar da justiça aprovado; sentença penal condenatória; sentença arbitral; sentença estrangeira homologada pelo STJ."],["Cumprimento Sentenca","Art. 516, parágrafo único do CPC - nas hipóteses de sentença penal/arbitral/estrangeira, o exequente pode escolher o juízo?","Sim: domicílio atual do executado, local dos bens sujeitos à execução, ou local de execução da obrigação de fazer/não fazer."],["Cumprimento Sentenca","Art. 517 do CPC - a decisão transitada em julgado pode ser levada a protesto?","Sim, após transcorrido o prazo para pagamento voluntário do art. 523."],["Cumprimento Provisorio","Art. 520 do CPC - o cumprimento provisório corre por iniciativa e responsabilidade de quem?","Do exequente, que se obriga a reparar danos se a sentença for reformada."],["Cumprimento Provisorio","Art. 520, IV do CPC - de que depende o levantamento de depósito em dinheiro ou atos de transferência de posse/alienação no cumprimento provisório?","De caução suficiente e idônea, arbitrada pelo juiz e prestada nos próprios autos."],["Cumprimento Provisorio","Art. 521 do CPC - em quais hipóteses a caução do cumprimento provisório pode ser dispensada?","Crédito de natureza alimentar; credor em situação de necessidade; pendência de agravo em recurso especial/extraordinário retido; sentença em consonância com súmula do STF/STJ ou repetitivos."],["Cumprimento Sentenca","Art. 523 do CPC - qual o prazo para pagamento voluntário no cumprimento definitivo e quais os acréscimos se não pago?","15 dias; se não pago, acréscimo de multa de 10% e honorários de advogado de 10%."],["Jurisprudencia","STJ - cabe multa diária (astreinte) para forçar cumprimento de obrigação de pagar quantia?","Não; a multa diária só cabe nas obrigações de fazer/não fazer, sendo vedada nas obrigações de pagar."],["Cumprimento Sentenca","Art. 525 do CPC - qual o prazo para impugnação ao cumprimento de sentença, após escoado o prazo de pagamento voluntário?","15 dias, independentemente de penhora ou nova intimação."],["Cumprimento Sentenca","Art. 525, §1º do CPC - cite matérias alegáveis em impugnação ao cumprimento de sentença.","Falta/nulidade de citação com revelia; ilegitimidade de parte; inexequibilidade/inexigibilidade; penhora/avaliação incorreta; excesso de execução; incompetência; causa modificativa/extintiva superveniente (pagamento, novação, compensação, transação, prescrição)."],["Cumprimento Sentenca","Art. 525, §6º do CPC - a impugnação suspende automaticamente os atos executivos?","Não; só terá efeito suspensivo se o juiz o conceder, mediante garantia do juízo e relevância dos fundamentos com risco de grave dano."],["Cumprimento Sentenca","Art. 525, §12 do CPC - quando se considera inexigível a obrigação reconhecida em título executivo judicial, quanto à constitucionalidade?","Quando fundada em lei/ato normativo declarado inconstitucional pelo STF, ou em interpretação tida como incompatível com a CF, em controle concentrado ou difuso, desde que a decisão do STF seja anterior ao trânsito em julgado da decisão exequenda."],["Execucao Alimentos","Art. 528 do CPC - no cumprimento de sentença de alimentos, qual o prazo do executado para pagar, provar que pagou ou justificar impossibilidade?","3 dias."],["Execucao Alimentos","Art. 528, §3º do CPC - se o executado não pagar nem justificar, o que o juiz faz, além de mandar protestar?","Decreta a prisão do devedor de alimentos, pelo prazo de 1 a 3 meses."],["Execucao Alimentos","Art. 528, §4º do CPC - em que regime é cumprida a prisão civil por dívida de alimentos?","Regime fechado, separado dos presos comuns."],["Execucao Alimentos","Art. 528, §7º do CPC - qual o débito alimentar que autoriza a prisão civil?","Até as 3 prestações anteriores ao ajuizamento da execução, mais as que se vencerem no curso do processo."],["Execucao Alimentos","Art. 528, §8º do CPC - se o exequente optar pelo rito do art. 523 (penhora) em vez do art. 528, é possível a prisão?","Não; optando pelo rito de expropriação patrimonial, não será admissível a prisão do executado."],["Jurisprudencia","STJ - a decisão que decreta a prisão civil do devedor de alimentos, ao fixar prazo superior ao mínimo, deve considerar quais critérios?","Capacidade econômica do devedor, comportamento do devedor, características pessoais e consequências da inadimplência, com fundamentação individualizada e proporcional."],["Execucao Alimentos","Art. 529, §3º do CPC - qual o limite de desconto em folha para pagamento de alimentos, somando vencidos e vincendos?","Não pode ultrapassar 50% dos ganhos líquidos do executado."],["Sumulas","Súmula 313-STJ - constituição de capital para pensão por ato ilícito.","Em ação de indenização, procedente o pedido, é necessária a constituição de capital ou caução fidejussória para garantir o pagamento da pensão, independentemente da situação financeira do demandado."],["Sumulas","Súmula 309-STJ - débito alimentar que autoriza prisão civil.","Compreende as 3 prestações anteriores ao ajuizamento da execução e as que se vencerem no curso do processo."],["Sumulas","Súmula 596-STJ - natureza da obrigação alimentar dos avós.","Complementar e subsidiária, só se configurando na impossibilidade total ou parcial de cumprimento pelos pais."],["Sumulas","Súmula 621-STJ - a partir de quando retroagem os efeitos da sentença que reduz/majora/exonera alimentos?","Da data da citação, vedadas a compensação e a repetibilidade."],["Execucao Fazenda Publica","Art. 534, §2º do CPC - a multa de 10% do art. 523, §1º, se aplica à Fazenda Pública?","Não."],["Execucao Fazenda Publica","O que é a 'execução invertida'?","Prática em que, havendo condenação da Fazenda Pública, o próprio Poder Público (devedor) apresenta os cálculos do valor devido, invertendo o ônus que caberia ao credor - amplamente admitida nos Juizados Especiais Federais (Enunciado 129 FONAJEF)."],["Jurisprudencia","STF, ADPF 219 e Tema 1.396 - a execução invertida é exigível nos Juizados Especiais Federais e da Fazenda Pública?","Sim, em ambos; não ofende a ordem constitucional determinar que a União/Fazenda apresente cálculos e documentos para o cumprimento de sentença nesses juizados."],["Jurisprudencia","A execução invertida pode ser imposta à Fazenda Pública no procedimento comum?","Não; o STJ entende que não é possível determinar a adoção da execução invertida no procedimento comum, diferente dos Juizados Especiais."],["Execucao Fazenda Publica","Art. 535 do CPC - qual o prazo da Fazenda Pública para impugnar a execução (cumprimento de sentença que reconhece pagar quantia)?","30 dias."],["Execucao Fazenda Publica","Art. 535, §3º do CPC - não impugnada a execução contra a Fazenda, como se dá o pagamento?","Por precatório (via presidente do tribunal) ou, se obrigação de pequeno valor, por requisição (RPV) em 2 meses, mediante depósito em agência bancária."],["Jurisprudencia","STF, ADIs 5.492 e 5.737 - sobre a expressão 'de banco oficial' no art. 535, §3º, II?","Foi declarada inconstitucional; a 'agência' pode ser entendida como instituição financeira pública ou privada, respeitado o procedimento licitatório."],["Obrigacoes Fazer Nao Fazer","Art. 536, §1º do CPC - cite medidas que o juiz pode adotar para efetivar obrigação de fazer/não fazer.","Multa, busca e apreensão, remoção de pessoas e coisas, desfazimento de obras, impedimento de atividade nociva, requisição de força policial."],["Astreintes","Art. 537 do CPC - a multa (astreinte) depende de requerimento da parte?","Não; independe de requerimento e pode ser aplicada na fase de conhecimento, tutela provisória, sentença ou execução."],["Astreintes","Art. 537, §1º do CPC - o juiz pode modificar o valor da multa vincenda?","Sim, de ofício ou a requerimento, se insuficiente/excessiva ou se houve cumprimento parcial/justa causa."],["Astreintes","Astreinte (multa cominatória) - qual sua finalidade e tem caráter ressarcitório?","Finalidade coercitiva (pressionar o devedor); NÃO tem finalidade ressarcitória, podendo ser cumulada com perdas e danos."],["Jurisprudencia","STJ, Tema 706 - a decisão que comina astreintes faz coisa julgada?","Não; a multa cominatória não preclui nem faz coisa julgada material, podendo ser alterada a qualquer tempo."],["Jurisprudencia","STJ (Corte Especial) - incide preclusão sobre o montante JÁ ACUMULADO da multa cominatória após modificação?","Sim; incide preclusão consumativa sobre o montante acumulado - já havendo modificação, não é possível nova alteração retroativa (a multa vincenda continua modificável)."],["Obrigacao Entregar Coisa","Art. 538 do CPC - não cumprida obrigação de entregar coisa, o que é expedido?","Mandado de busca e apreensão (coisa móvel) ou de imissão na posse (coisa imóvel)."],["Obrigacao Entregar Coisa","Art. 538, §2º do CPC - quando deve ser exercido o direito de retenção por benfeitorias?","Na contestação, na fase de conhecimento."],["Consignacao Pagamento","Art. 539, §1º do CPC - na consignação em pagamento de obrigação em dinheiro, qual o prazo do credor para manifestar recusa?","10 dias, contados do retorno do aviso de recebimento da carta de cientificação."],["Consignacao Pagamento","Art. 539, §3º do CPC - havendo recusa do credor, qual o prazo para propor a ação de consignação?","1 mês, contado da recusa manifestada por escrito."],["Consignacao Pagamento","Art. 541 do CPC - em prestações sucessivas já iniciada a consignação, o devedor pode continuar depositando no mesmo processo?","Sim, sem mais formalidades, desde que o faça em até 5 dias do vencimento de cada uma."],["Consignacao Pagamento","Art. 545, §2º do CPC - a sentença que reconhece insuficiência do depósito na consignação tem qual efeito?","Determinará o montante devido e valerá como título executivo, podendo o credor promover cumprimento nos mesmos autos."],["Acao Exigir Contas","Art. 550, §5º do CPC - julgado procedente o pedido de exigir contas e o réu não as prestar, qual a consequência?","Não lhe será lícito impugnar as contas que o autor apresentar."],["Acao Exigir Contas","Art. 552 do CPC - o que faz a sentença na ação de exigir contas?","Apura o saldo e constitui título executivo judicial."],["Acoes Possessorias","Tutela jurídica da posse - relacione ameaça, turbação e esbulho com os interditos possessórios correspondentes.","Ameaça: interdito proibitório. Turbação: manutenção de posse. Esbulho: reintegração de posse."],["Acoes Possessorias","Tutela jurídica da posse - relacione turbação e esbulho com a autotutela cabível.","Turbação: legítima defesa da posse. Esbulho: desforço imediato."],["Jurisprudencia","STJ, REsp 1.812.987-RJ - qual a via adequada para o locador retomar a posse do imóvel locado?","Ação de despejo, não ação possessória, pois há relação contratual locatícia subjacente regida por lei especial."],["Acoes Possessorias","Art. 554, §1º do CPC - em ação possessória com muitos réus, como se dá a citação?","Citação pessoal dos ocupantes encontrados no local e citação por edital dos demais, com intimação do MP e, se houver hipossuficientes, da Defensoria Pública."],["Acoes Possessorias","Art. 557 do CPC - na pendência de ação possessória, é permitido discutir o domínio (propriedade)?","É vedado propor ação de reconhecimento de domínio; a alegação de propriedade também não obsta a manutenção/reintegração de posse (exceção de domínio não se aplica)."],["Sumulas","Súmula 228-STJ - cabe interdito proibitório para proteger direito autoral?","Não, é inadmissível."],["Acoes Possessorias","Art. 558 do CPC - qual o prazo que caracteriza a ação possessória como de 'força nova' (rito especial)?","Ano e dia da turbação/esbulho; passado esse prazo, o procedimento é comum, mas mantém o caráter possessório (posse velha)."],["Acoes Possessorias","Art. 561 do CPC - o que incumbe ao autor provar nas ações possessórias?","Sua posse; a turbação/esbulho pelo réu; a data da turbação/esbulho; a continuação (turbação) ou perda (esbulho) da posse."],["Acoes Possessorias","Art. 562 do CPC - quando o juiz concede liminarmente a manutenção/reintegração de posse?","Quando a petição inicial estiver devidamente instruída; caso contrário, determina audiência de justificação prévia."],["Acoes Possessorias","Art. 562, parágrafo único do CPC - contra pessoas jurídicas de direito público, é possível liminar possessória sem ouvi-las?","Não; exige-se prévia audiência dos respectivos representantes judiciais."],["Acoes Possessorias","Art. 565 do CPC - em litígio coletivo pela posse com esbulho/turbação de mais de ano e dia, o que o juiz deve fazer antes da liminar?","Designar audiência de mediação, em até 30 dias, com intimação do MP (e Defensoria, se houver gratuidade)."],["Acoes Possessorias","Art. 567 do CPC - o que é o interdito proibitório?","Ação cabível a quem tem justo receio de ser molestado na posse, para que o juiz comine pena pecuniária ao réu caso transgrida a proibição de turbar/esbulhar."],["Dissolucao Parcial Sociedade","Art. 599 do CPC - o que pode ser objeto da ação de dissolução parcial de sociedade?","Resolução da sociedade em relação a sócio falecido/excluído/retirante; apuração de haveres desse sócio; ou apenas uma dessas."],["Dissolucao Parcial Sociedade","Art. 599, §2º do CPC - a ação de dissolução parcial pode envolver sociedade anônima fechada?","Sim, quando acionista(s) com 5% ou mais do capital social demonstrarem que ela não pode preencher seu fim."],["Dissolucao Parcial Sociedade","Art. 605 do CPC - qual a data da resolução da sociedade em caso de falecimento do sócio?","A data do óbito."],["Dissolucao Parcial Sociedade","Art. 605, II do CPC - qual a data da resolução da sociedade na retirada imotivada?","O 60º dia seguinte ao recebimento, pela sociedade, da notificação do sócio retirante."],["Dissolucao Parcial Sociedade","Art. 606 do CPC - na omissão do contrato social, qual o critério de apuração de haveres?","Valor patrimonial apurado em balanço de determinação, na data da resolução, avaliando ativo e passivo a preço de saída."],["Inventario Partilha","Art. 610, §1º do CPC - quando o inventário e partilha podem ser feitos por escritura pública?","Quando todos forem capazes e concordes (sem testamento e sem interessado incapaz), desde que assistidos por advogado ou defensor público."],["Inventario Partilha","Art. 611 do CPC - quais os prazos para instaurar e ultimar o inventário?","Instauração em 2 meses da abertura da sucessão; ultimação em 12 meses subsequentes (prorrogáveis)."],["Inventario Partilha","Art. 616 do CPC - cite legitimados concorrentes para requerer o inventário, além de quem estiver na posse do espólio.","Cônjuge/companheiro supérstite, herdeiro, legatário, testamenteiro, cessionário, credor do herdeiro/legatário/autor da herança, MP (se houver incapaz), Fazenda Pública, administrador judicial de falência."],["Jurisprudencia","STJ - o credor do falecido tem legitimidade para requerer abertura de inventário?","Sim, legitimidade concorrente, conforme art. 616, VI, do CPC."],["Inventario Partilha","Art. 617 do CPC - qual a ordem de nomeação de inventariante?","Cônjuge/companheiro sobrevivente convivente; herdeiro na posse do espólio; qualquer herdeiro; herdeiro menor por representante; testamenteiro; cessionário; inventariante judicial; pessoa estranha idônea."],["Inventario Partilha","O que é o 'inventariante digital' e ele se submete à ordem de preferência do art. 617?","Profissional de TI que auxilia o juiz a acessar bens digitais do falecido de forma técnica e sigilosa; NÃO se submete à ordem de preferência do art. 617 nem representa o espólio."],["Inventario Partilha","Art. 620 do CPC - qual o prazo do inventariante para prestar as primeiras declarações?","20 dias, contados da data em que prestou o compromisso."],["Inventario Partilha","Art. 622 do CPC - cite hipóteses de remoção do inventariante.","Não prestar declarações no prazo; não dar andamento regular/suscitar dúvidas infundadas; deterioração de bens por sua culpa; não defender o espólio; não prestar contas; sonegar/ocultar/desviar bens."],["Inventario Partilha","Art. 627 do CPC - após as citações, qual o prazo comum para as partes se manifestarem sobre as primeiras declarações?","15 dias, podendo arguir erros/omissões/sonegação, reclamar da nomeação do inventariante, ou contestar a qualidade de herdeiro."],["Inventario Partilha","Art. 633 do CPC - quando se dispensa a avaliação dos bens do espólio?","Sendo todas as partes capazes e a Fazenda Pública concordando expressamente com o valor atribuído nas primeiras declarações."],["Inventario Partilha","Art. 639 do CPC - o que é a colação e como se calcula o valor dos bens conferidos?","É a conferência pelo herdeiro dos bens recebidos em vida do autor da herança; calcula-se pelo valor que tinham ao tempo da abertura da sucessão."],["Inventario Partilha","Art. 650 do CPC - se um interessado for nascituro, como se procede quanto ao seu quinhão?","O quinhão é reservado em poder do inventariante até o nascimento."],["Inventario Partilha","Art. 651 do CPC - qual a ordem de pagamentos no esboço da partilha?","Dívidas atendidas; meação do cônjuge; meação disponível; quinhões hereditários (a começar pelo coerdeiro mais velho)."],["Inventario Partilha","Art. 655, parágrafo único do CPC - quando o formal de partilha pode ser substituído por certidão?","Quando o quinhão hereditário não exceder a 5 salários-mínimos."],["Inventario Partilha","Art. 657, parágrafo único do CPC - qual o prazo para anular partilha amigável por dolo/coação/erro/incapacidade?","1 ano, contado do dia em que cessou a coação, do dia do ato (erro/dolo) ou do dia em que cessar a incapacidade."],["Inventario Partilha","Art. 658 do CPC - cite hipóteses de partilha rescindível (julgada por sentença).","Casos do art. 657 (dolo, coação, erro, incapacidade); preterição de formalidades legais; preterição de herdeiro ou inclusão de quem não o seja."],["Inventario Partilha","Art. 664 do CPC - qual o valor limite do espólio para o inventário processar-se na forma de arrolamento?","Valor igual ou inferior a 1.000 salários-mínimos."],["Arrolamento","Art. 665 do CPC - o arrolamento (art. 664) pode ocorrer mesmo havendo interessado incapaz?","Sim, desde que concordem todas as partes e o Ministério Público."],["Inventario Partilha","Art. 669 do CPC - quais bens estão sujeitos a sobrepartilha?","Bens sonegados; descobertos após a partilha; litigiosos ou de liquidação difícil/morosa; situados em local remoto da sede do juízo."],["Embargos Terceiro","Art. 674 do CPC - o que são embargos de terceiro?","Meio processual para quem, não sendo parte, sofrer constrição ou ameaça de constrição sobre bens que possua ou sobre os quais tenha direito incompatível com o ato constritivo."],["Embargos Terceiro","Art. 674, §2º do CPC - cite hipóteses em que se considera 'terceiro' para embargos.","Cônjuge/companheiro defendendo posse de bens próprios/meação; adquirente de bem cuja constrição decorreu de fraude à execução; quem sofre constrição por desconsideração de personalidade sem ter integrado o incidente; credor com garantia real não intimado."],["Embargos Terceiro","Art. 675 do CPC - qual o prazo para opor embargos de terceiro no cumprimento de sentença/execução?","Até 5 dias depois da adjudicação, alienação particular ou arrematação, mas sempre antes da assinatura da respectiva carta."],["Sumulas","Súmula 84-STJ - embargos de terceiro fundados em compromisso de compra e venda sem registro.","São admissíveis, ainda que o compromisso esteja desprovido de registro."],["Sumulas","Súmula 134-STJ - cônjuge intimado da penhora pode opor embargos de terceiro?","Sim, mesmo intimado da penhora sobre imóvel do casal, pode opor embargos para defesa de sua meação."],["Sumulas","Súmula 195-STJ - em embargos de terceiro é possível anular ato por fraude contra credores?","Não; em embargos de terceiro não se anula ato jurídico por fraude contra credores."],["Embargos Terceiro","Art. 680 do CPC - contra embargos de terceiro opostos por credor com garantia real, o que o embargado pode alegar?","Apenas que o devedor comum é insolvente; que o título é nulo ou não obriga terceiro; ou que outra é a coisa dada em garantia."],["Oposicao","Art. 682 do CPC - o que é a oposição?","Ação pela qual quem pretender, no todo ou em parte, a coisa/direito controvertido entre autor e réu pode intervir contra ambos, até a sentença."],["Habilitacao","Art. 687 do CPC - quando ocorre a habilitação?","Quando, por falecimento de parte, os interessados devem sucedê-la no processo."],["Acoes Familia","Art. 693 do CPC - a quais processos se aplicam as normas do Capítulo das Ações de Família?","Processos contenciosos de divórcio, separação, reconhecimento/extinção de união estável, guarda, visitação e filiação."],["Acoes Familia","Art. 695, §1º do CPC - o mandado de citação nas ações de família deve vir acompanhado da petição inicial?","Não; deve conter apenas os dados necessários à audiência, sem cópia da petição inicial (assegurado ao réu examiná-la a qualquer tempo)."],["Acoes Familia","Art. 698 do CPC - quando o MP intervém nas ações de família?","Somente quando houver interesse de incapaz, devendo ser ouvido antes da homologação de acordo (também intervém quando parte é vítima de violência doméstica)."],["Acoes Familia","Art. 699-A do CPC - antes da audiência de mediação em ações de guarda, o que o juiz deve indagar?","Se há risco de violência doméstica ou familiar, fixando prazo de 5 dias para apresentação de provas/indícios."],["Acao Monitoria","Art. 700 do CPC - em que se baseia a ação monitória?","Prova escrita sem eficácia de título executivo, para exigir pagamento de quantia, entrega de coisa, ou obrigação de fazer/não fazer."],["Acao Monitoria","Art. 700, §6º do CPC - é cabível ação monitória contra a Fazenda Pública?","Sim, é admissível."],["Acao Monitoria","Art. 701 do CPC - sendo evidente o direito do autor na ação monitória, o que o juiz determina e qual o prazo do réu?","Defere mandado de pagamento/entrega/obrigação de fazer, com prazo de 15 dias para cumprimento, com honorários de 5% do valor da causa."],["Acao Monitoria","Art. 701, §2º do CPC - se o réu não pagar nem embargar a ação monitória, o que ocorre?","Constitui-se de pleno direito o título executivo judicial, independentemente de qualquer formalidade."],["Acao Monitoria","Art. 702 do CPC - os embargos à ação monitória exigem prévia garantia do juízo?","Não, são opostos independentemente de prévia segurança do juízo, no mesmo prazo de 15 dias."],["Acao Monitoria","Art. 702, §4º do CPC - a oposição de embargos monitórios suspende a eficácia da decisão que deferiu o mandado?","Sim, até o julgamento em primeiro grau."],["Acao Monitoria","Art. 702, §6º do CPC - na ação monitória é cabível reconvenção?","Sim, mas é vedado reconvenção à reconvenção."],["Acao Monitoria","Art. 702, §9º do CPC - qual recurso cabe contra a sentença que acolhe ou rejeita os embargos monitórios?","Apelação."],["Sumulas","Súmula 247-STJ - contrato de abertura de crédito em conta-corrente serve para ação monitória?","Sim, acompanhado do demonstrativo de débito, constitui documento hábil para o ajuizamento da ação monitória."],["Sumulas","Súmula 282-STJ - cabe citação por edital em ação monitória?","Sim, é cabível."],["Sumulas","Súmula 292-STJ - quando é cabível reconvenção na ação monitória?","É cabível após a conversão do procedimento em ordinário (hoje: comum)."],["Sumulas","Súmula 299-STJ - é admissível ação monitória fundada em cheque prescrito?","Sim."],["Sumulas","Súmula 339-STJ - é cabível ação monitória contra a Fazenda Pública?","Sim."],["Sumulas","Súmula 503-STJ - qual o prazo para ação monitória contra emitente de cheque sem força executiva?","Quinquenal (5 anos), a contar do dia seguinte à data de emissão estampada na cártula."],["Sumulas","Súmula 504-STJ - qual o prazo para ação monitória contra emitente de nota promissória sem força executiva?","Quinquenal (5 anos), a contar do dia seguinte ao vencimento do título."],["Acao Monitoria","Art. 702, §§10 e 11 do CPC - qual a multa para ação monitória ou embargos monitórios propostos de má-fé?","Até 10% sobre o valor da causa, em favor da parte contrária."],["Jurisdicao Voluntaria","Art. 719/720 do CPC - como se inicia o procedimento de jurisdição voluntária?","Por provocação do interessado, do MP ou da Defensoria Pública, com pedido instruído e indicação da providência judicial."],["Jurisdicao Voluntaria","Art. 723, parágrafo único do CPC - na jurisdição voluntária, o juiz deve observar critério de legalidade estrita?","Não; pode adotar a solução mais conveniente ou oportuna (juízo de equidade)."],["Jurisdicao Voluntaria","Art. 724 do CPC - qual recurso cabe da sentença em jurisdição voluntária?","Apelação."],["Divorcio Consensual","Art. 733 do CPC - o divórcio/separação/extinção de união estável consensuais por escritura pública dependem de homologação judicial?","Não, desde que não haja nascituro ou filhos incapazes; a escritura é título hábil para registro, sem necessidade de homologação."],["Alteracao Regime Bens","Art. 734, §1º do CPC - na alteração de regime de bens do casamento, o que o juiz determina antes de decidir?","Intimação do MP e publicação de edital, só podendo decidir após 30 dias da publicação."],["Interdicao Curatela","Art. 747 do CPC - quem pode promover a interdição?","Cônjuge/companheiro; parentes ou tutores; representante da entidade de abrigo; Ministério Público."],["Interdicao Curatela","Art. 748 do CPC - quando o MP pode promover a interdição?","Apenas em caso de doença mental grave, se os demais legitimados não existirem ou não promoverem, ou forem incapazes."],["Interdicao Curatela","Art. 751 do CPC - o interditando deve ser entrevistado pelo juiz sobre o quê?","Sua vida, negócios, bens, vontades, preferências e laços familiares/afetivos."],["Interdicao Curatela","Art. 752 do CPC - se o interditando não constituir advogado, o que ocorre?","Deve ser nomeado curador especial; o cônjuge/companheiro/parente sucessível pode intervir como assistente."],["Interdicao Curatela","Art. 753 do CPC - a prova pericial é sempre obrigatória na interdição?","Em regra sim, mas o juiz pode dispensá-la excepcionalmente (arts. 464, §1º, II e 472), quando houver pareceres/documentos suficientes e entrevista."],["Interdicao Curatela","Art. 755 do CPC - o que a sentença de interdição deve fazer quanto aos limites da curatela?","Fixar os limites segundo o estado e desenvolvimento mental do interdito, considerando suas potencialidades, habilidades, vontades e preferências."],["Interdicao Curatela","Art. 756, §4º do CPC - é possível o levantamento parcial da curatela?","Sim, quando demonstrada a capacidade do interdito para praticar alguns atos da vida civil."],["Execucao Titulo Extrajudicial","Art. 771 do CPC - o Livro II do CPC regula qual tipo de execução?","A execução fundada em título executivo extrajudicial (aplicando-se subsidiariamente ao cumprimento de sentença e demais execuções especiais)."],["Execucao Titulo Extrajudicial","Art. 774 do CPC - cite condutas do executado consideradas atentatórias à dignidade da justiça na execução.","Fraudar a execução; opor-se maliciosamente; dificultar/embaraçar a penhora; resistir injustificadamente a ordens judiciais; não indicar bens penhoráveis quando intimado."],["Execucao Titulo Extrajudicial","Art. 774, parágrafo único do CPC - qual a multa por ato atentatório à dignidade da justiça na execução?","Até 20% do valor atualizado do débito, revertida ao exequente."],["Sumulas","Súmula 233-STJ - o contrato de abertura de crédito é título executivo?","Não, mesmo acompanhado de extrato de conta-corrente."],["Sumulas","Súmula 300-STJ - o instrumento de confissão de dívida oriundo de contrato de abertura de crédito é título executivo?","Sim, constitui título executivo extrajudicial."],["Sumulas","Súmula 375-STJ - de que depende o reconhecimento de fraude à execução?","Do registro da penhora do bem alienado ou da prova de má-fé do terceiro adquirente (não se aplica a execuções fiscais, que seguem o art. 185 do CTN)."],["Sumulas","Súmula 417-STJ - a penhora em dinheiro na ordem de nomeação de bens tem caráter absoluto?","Segundo a súmula, não; mas o art. 835, §1º, do CPC/15 estabelece que é prioritária a penhora em dinheiro (discussão doutrinária sobre superação da súmula)."],["Sumulas","Súmula 451-STJ - é legítima a penhora da sede do estabelecimento comercial?","Sim."],["Sumulas","Súmula 27-STJ - a execução pode se fundar em mais de um título extrajudicial?","Sim, relativos ao mesmo negócio."],["Sumulas","Súmula 46-STJ - na execução por carta, onde são decididos os embargos do devedor?","No juízo deprecante, salvo se versarem unicamente sobre vícios da penhora, avaliação ou alienação dos bens (decididos no deprecado)."],["Sumulas","Súmula 196-STJ - o executado citado por edital ou hora certa que fica revel tem direito a curador especial?","Sim, com legitimidade para apresentar embargos."],["Sumulas","Súmula 317-STJ - a execução de título extrajudicial é definitiva mesmo pendente apelação contra sentença de improcedência dos embargos?","Sim, é definitiva (não há mais a 'execução provisória' de título extrajudicial que existia no CPC/73)."],["Sumulas","Súmula 328-STJ - na execução contra instituição financeira, é penhorável o numerário disponível?","Sim, exceto as reservas bancárias mantidas no Banco Central."],["Execucao Titulo Extrajudicial","Art. 778, §1º do CPC - quem pode promover a execução em sucessão ao exequente originário?","MP (nos casos legais); espólio/herdeiros/sucessores do credor; cessionário; sub-rogado."],["Execucao Titulo Extrajudicial","Art. 779 do CPC - contra quem pode ser promovida a execução?","Devedor; espólio/herdeiros/sucessores; novo devedor (assunção de dívida); fiador; titular do bem com garantia real; responsável tributário."],["Execucao Titulo Extrajudicial","Art. 780 do CPC - é possível cumular várias execuções contra o mesmo executado?","Sim, ainda que fundadas em títulos diferentes, desde que competente o mesmo juízo e idêntico o procedimento."],["Competencia Execucao","Art. 781 do CPC - em que foros pode ser proposta a execução de título extrajudicial?","Domicílio do executado, foro de eleição no título, ou situação dos bens sujeitos à execução."],["Titulo Executivo","Art. 783 do CPC - quais as características da obrigação exigidas para a execução?","Certa, líquida e exigível."],["Titulo Executivo","Art. 784 do CPC - cite exemplos de títulos executivos extrajudiciais.","Letra de câmbio, nota promissória, duplicata, debênture, cheque; escritura pública; documento particular assinado pelo devedor e 2 testemunhas; instrumento de transação referendado por MP/Defensoria/Advocacia Pública/advogados/conciliador; contrato com garantia real; CDA da Fazenda Pública."],["Titulo Executivo","Art. 784, IV do CPC - o instrumento de transação extrajudicial referendado por advogados dos transatores é título executivo?","Sim."],["Titulo Executivo","Art. 785 do CPC - detendo título executivo extrajudicial, o credor pode optar pelo processo de conhecimento?","Sim, inclusive pode usar ação monitória mesmo tendo título extrajudicial."],["Jurisprudencia","STJ - existência de cláusula de arbitragem no contrato impede a execução judicial do título executivo extrajudicial?","Não; a execução (medidas expropriatórias) corre na Justiça estatal, mas questões sobre o mérito do contrato devem ser discutidas na arbitragem."],["Responsabilidade Patrimonial","Art. 789 do CPC - por quais bens o devedor responde por suas obrigações?","Todos os seus bens presentes e futuros, salvo restrições legais."],["Responsabilidade Patrimonial","Art. 790 do CPC - cite bens sujeitos à execução além dos do próprio devedor.","Do sucessor a título singular (execução real); do sócio (nos termos da lei); do cônjuge/companheiro (bens próprios/meação); alienados em fraude à execução ou fraude contra credores; do responsável por desconsideração de personalidade jurídica."],["Fraude Execucao","Art. 792 do CPC - cite hipóteses em que a alienação/oneração de bem é considerada fraude à execução.","Bem com ação real/reipersecutória averbada; pendência de execução averbada; hipoteca judiciária/constrição averbada; alienação enquanto tramitava ação capaz de reduzir o devedor à insolvência."],["Fraude Execucao","Art. 792, §2º do CPC - na aquisição de bem não sujeito a registro, de quem é o ônus da prova da boa-fé?","Do terceiro adquirente, que deve provar ter adotado as cautelas necessárias (certidões no domicílio do vendedor e local do bem)."],["Fraude Execucao","Art. 792, §3º do CPC - na desconsideração da personalidade jurídica, a partir de quando se verifica a fraude à execução?","A partir da citação da parte cuja personalidade se pretende desconsiderar."],["Fraude Execucao","Art. 792, §4º do CPC - antes de declarar a fraude à execução, o que o juiz deve fazer?","Intimar o terceiro adquirente, que pode opor embargos de terceiro em 15 dias."],["Fraude Execucao","Fraude à execução - regra geral e exceção quanto à necessidade de citação válida.","Regra: exige-se citação válida do devedor. Exceção: mesmo sem citação, há fraude se já havia averbação da execução no registro público antes da alienação (art. 828)."],["Jurisprudencia","STJ, Tema 243 - sem registro da penhora, de quem é o ônus de provar má-fé do terceiro adquirente?","Do credor (presunção de boa-fé do terceiro)."],["Responsabilidade Patrimonial","Art. 794 do CPC - o fiador executado tem direito ao benefício de ordem?","Sim, pode exigir que primeiro sejam executados os bens do devedor na mesma comarca, salvo se tiver renunciado ao benefício."],["Responsabilidade Patrimonial","Art. 795 do CPC - os bens particulares dos sócios respondem pelas dívidas da sociedade?","Em regra não, salvo casos legais; o sócio réu pode exigir que primeiro sejam excutidos os bens da sociedade (benefício de ordem)."],["Execucao Quantia Certa","Art. 796 do CPC - até onde cada herdeiro responde pelas dívidas do falecido, após a partilha?","Dentro das forças da herança e na proporção da parte que lhe coube (não responde com patrimônio próprio além disso)."],["Execucao Quantia Certa","Art. 797 do CPC - a execução se realiza em benefício de quem, e que direito adquire pela penhora?","Em benefício do exequente, que adquire direito de preferência sobre os bens penhorados."],["Jurisprudencia","O que é a técnica 'teimosinha' e o STJ considera lícita?","Reiteração automática de ordens de bloqueio online (SISBAJUD); é lícita em regra, mas sua legalidade deve ser avaliada em cada caso concreto."],["Execucao Titulo Extrajudicial","Art. 803 do CPC - cite hipóteses de execução nula.","Título extrajudicial não corresponde a obrigação certa/líquida/exigível; executado não regularmente citado; instaurada antes de verificada condição/termo."],["Execucao Titulo Extrajudicial","Art. 805 do CPC - princípio da menor onerosidade: em que consiste?","Havendo vários meios de promover a execução, deve-se escolher o menos gravoso para o executado (mas cabe a ele indicar meio mais eficaz e menos oneroso)."],["Execucao Entrega Coisa","Art. 806, §1º do CPC - na execução para entrega de coisa certa, o juiz pode fixar multa diária?","Sim, ao despachar a inicial, podendo ser alterada se insuficiente ou excessiva."],["Execucao Fazer Nao Fazer","Art. 814 do CPC - na execução de obrigação de fazer/não fazer fundada em título extrajudicial, quando o juiz fixa a multa?","Ao despachar a inicial, fixando o valor por período de atraso e a data a partir da qual é devida."],["Execucao Fazer Nao Fazer","Art. 816 do CPC - se o executado não satisfizer a obrigação de fazer, o que pode requerer o exequente?","Satisfação à custa do executado (por terceiro) ou conversão em perdas e danos."],["Expropriacao","Art. 824/825 do CPC - em que consiste a expropriação de bens na execução por quantia certa?","Adjudicação, alienação, ou apropriação de frutos e rendimentos de empresa/estabelecimento e outros bens."],["Jurisprudencia","STJ - a penhora é pressuposto necessário para a adjudicação, alienação e demais formas de expropriação?","Sim; há sequência procedimental obrigatória: penhora, depois avaliação, e só então expropriação."],["Execucao Quantia Certa","Art. 826 do CPC - o executado pode remir a execução (pagar/consignar a dívida) até quando?","A todo tempo, antes de adjudicados ou alienados os bens (segundo o STJ/JDPC, até a lavratura do auto de adjudicação/alienação)."],["Execucao Quantia Certa","Art. 827 do CPC - qual o percentual de honorários fixado de plano na execução, e o que ocorre se pago em 3 dias?","10% dos honorários; se integralmente pago em 3 dias, os honorários são reduzidos pela metade."],["Fraude Execucao","Art. 828, §4º do CPC - a alienação de bem após averbação da execução no registro gera qual presunção?","Presume-se em fraude à execução."],["Execucao Quantia Certa","Art. 829 do CPC - qual o prazo do executado para pagar a dívida na execução por quantia certa?","3 dias, contados da citação."],["Arresto Executivo","Art. 830 do CPC - se o oficial de justiça não encontrar o executado, o que faz?","Arresta bens suficientes para garantir a execução (arresto executivo), convertendo-se em penhora após citação válida e transcurso do prazo de pagamento."],["Arresto Executivo","Diferencie arresto executivo (art. 830) e a tutela cautelar de arresto (art. 301).","Arresto executivo: visa assegurar a conversão em penhora quando o devedor não é localizado para citação. Arresto cautelar (art. 301): medida de tutela de urgência para assegurar direito antes/durante o processo de conhecimento."],["Penhora","Art. 831 do CPC - sobre quantos bens deve recair a penhora?","Tantos bens quantos bastem para pagamento do principal atualizado, juros, custas e honorários."],["Impenhorabilidade","Art. 833, IV do CPC - salários e proventos são, em regra, impenhoráveis?","Sim, em regra são impenhoráveis (ressalvado o §2º: pensão alimentícia e quantia que exceda 50 salários-mínimos mensais)."],["Impenhorabilidade","Art. 833, X do CPC - qual o limite de impenhorabilidade da caderneta de poupança?","40 salários-mínimos."],["Jurisprudencia","STJ - a impenhorabilidade de até 40 salários-mínimos se estende a outras aplicações financeiras além da poupança?","Sim, pode ser estendida a conta corrente/outras aplicações, desde que comprovado que o valor constitui reserva para o mínimo existencial."],["Impenhorabilidade","Art. 833, VIII do CPC - quais os requisitos para impenhorabilidade da pequena propriedade rural?","Ser pequena propriedade rural (até 4 módulos fiscais) e ser trabalhada pela família (ônus da prova do executado)."],["Impenhorabilidade","Art. 833, §2º do CPC - a impenhorabilidade de salários/poupança não se aplica em qual hipótese?","Penhora para pagamento de prestação alimentícia, e valores excedentes a 50 salários-mínimos mensais."],["Impenhorabilidade","Art. 833, §1º do CPC - a impenhorabilidade pode ser oposta na execução de dívida relativa ao próprio bem?","Não; não é oponível à dívida relativa ao próprio bem, inclusive a contraída para sua aquisição."],["Penhora","Art. 835 do CPC - qual a ordem preferencial de penhora?","Dinheiro; títulos da dívida pública; títulos/valores mobiliários; veículos; imóveis; móveis em geral; semoventes; navios/aeronaves; ações/quotas de sociedades; percentual de faturamento; pedras/metais preciosos; direitos aquisitivos; outros direitos."],["Penhora","Art. 835, §1º do CPC - a penhora em dinheiro é prioritária de forma absoluta?","É prioritária, mas o juiz pode alterar a ordem nas demais hipóteses conforme as circunstâncias do caso concreto."],["Penhora","Art. 835, §2º do CPC - o que se equipara a dinheiro para fins de substituição da penhora?","Fiança bancária e seguro garantia judicial, em valor não inferior ao débito acrescido de 30%."],["Jurisprudencia","STJ, Tema 1203 - o credor pode recusar a fiança bancária/seguro garantia oferecidos nos termos legais?","Não, salvo se demonstrar insuficiência, defeito formal ou inidoneidade da garantia."],["Penhora","Art. 836 do CPC - quando não se leva a efeito a penhora?","Quando ficar evidente que o produto da execução será totalmente absorvido pelo pagamento das custas da execução."],["Penhora","Art. 842 do CPC - ao penhorar bem imóvel, quem mais deve ser intimado além do executado?","O cônjuge do executado, salvo se casados em regime de separação absoluta de bens."],["Penhora","Art. 843 do CPC - na penhora de bem indivisível de coproprietário/cônjuge alheio à execução, o que ocorre?","O equivalente à quota-parte deles recai sobre o produto da alienação, com preferência na arrematação em igualdade de condições."],["Penhora","Art. 845, §2º do CPC - se o executado não tiver bens no foro do processo, como se realiza a penhora?","Por carta, penhorando-se, avaliando-se e alienando-se os bens no foro da situação."],["Penhora","Art. 847 do CPC - qual o prazo do executado para requerer substituição do bem penhorado?","10 dias, contados da intimação da penhora, desde que comprove ser menos onerosa e sem prejuízo ao exequente."],["Penhora","Art. 848, parágrafo único do CPC - a penhora pode ser substituída por fiança bancária/seguro garantia?","Sim, em valor não inferior ao débito acrescido de 30%."],["Penhora","Art. 851 do CPC - em regra não se procede a segunda penhora; quais as exceções?","Se a primeira for anulada; se o produto não bastar para pagamento; se o exequente desistir da primeira por serem bens litigiosos ou sob constrição judicial."],["Penhora Online","Art. 854 do CPC - o que é a 'penhora online' e ela dá ciência prévia ao executado?","Determinação a instituições financeiras (via sistema eletrônico) de tornar indisponíveis ativos financeiros do executado, SEM ciência prévia (após, o executado é intimado e tem 5 dias para se manifestar)."],["Penhora Online","Art. 854, §5º do CPC - rejeitada ou não apresentada a manifestação do executado, o que ocorre com a indisponibilidade?","Converte-se em penhora, sem necessidade de termo, transferindo-se o valor para conta vinculada ao juízo em 24 horas."],["Penhora Online","Art. 854, §8º do CPC - qual a natureza da responsabilidade da instituição financeira por indisponibilidade excessiva não cancelada?","Objetiva (segundo enunciado doutrinário FPPC 541)."],["Penhora Creditos","Art. 856, §3º do CPC - se o terceiro negar o débito em conluio com o executado e este lhe der quitação, o que caracteriza?","Fraude à execução."],["Penhora Creditos","Art. 857 do CPC - penhorado direito e ação do executado, não embargada ou rejeitados os embargos, o que ocorre?","O exequente fica sub-rogado nos direitos do executado até a concorrência de seu crédito (ou pode preferir a alienação judicial do direito, em 10 dias)."],["Penhora Quotas Acoes","Art. 861 do CPC - penhoradas quotas/ações de sócio, qual o prazo para a sociedade agir (balanço, oferta aos sócios, liquidação)?","Prazo razoável, não superior a 3 meses."],["Penhora Empresa","Art. 865 do CPC - quando cabe a penhora de empresa/estabelecimento como um todo?","Somente se não houver outro meio eficaz para a efetivação do crédito."],["Penhora Faturamento","Art. 866 do CPC - quando cabe a penhora de percentual de faturamento de empresa?","Quando o executado não tiver outros bens penhoráveis, ou estes forem de difícil alienação/insuficientes."],["Jurisprudencia","STJ, Tema 769 - a penhora de faturamento pode ser equiparada à penhora de dinheiro?","Não; a penhora de faturamento tem regime próprio e o percentual deve respeitar a menor onerosidade, sem inviabilizar a atividade empresarial."],["Avaliacao","Art. 870 do CPC - quem realiza a avaliação dos bens penhorados?","O oficial de justiça; se necessários conhecimentos especializados, o juiz nomeia avaliador (prazo de até 10 dias)."],["Avaliacao","Art. 871 do CPC - quando não se procede à avaliação?","Quando uma parte aceita a estimativa da outra; bens com cotação em bolsa; títulos da dívida pública/ações negociáveis; veículos/bens com preço médio de mercado conhecido."],["Avaliacao","Art. 873 do CPC - cite hipóteses de nova avaliação.","Erro ou dolo do avaliador arguido fundamentadamente; majoração/diminuição posterior do valor do bem; fundada dúvida do juiz sobre o valor."],["Adjudicacao","Art. 876 do CPC - o que é a adjudicação e qual o preço mínimo oferecido pelo exequente?","O exequente requer que os bens penhorados lhe sejam adjudicados, oferecendo preço não inferior ao da avaliação."],["Adjudicacao","Art. 876, §6º do CPC - havendo mais de um pretendente à adjudicação, como se procede?","Licitação entre eles, com preferência em igualdade de oferta ao cônjuge, companheiro, descendente ou ascendente, nessa ordem."],["Adjudicacao","Diferencie licitação entre pretendentes (arts. 876/877) e concurso de preferências (arts. 908/909).","Licitação entre pretendentes: disputa pelo BEM penhorado entre vários legitimados à adjudicação. Concurso de preferências: disputa pelo DINHEIRO arrecadado com a adjudicação/alienação a terceiro."],["Adjudicacao","Art. 877, §3º do CPC - na penhora de bem hipotecado, até quando o executado pode remi-lo (resgatar)?","Até a assinatura do auto de adjudicação, oferecendo preço igual ao da avaliação (ou ao maior lance, se houve licitantes)."],["Alienacao","Art. 879 do CPC - quais as formas de alienação de bens penhorados?","Por iniciativa particular, ou em leilão judicial (eletrônico ou presencial)."],["Alienacao","Alienação por iniciativa particular x leilão judicial: diferencie.","Iniciativa particular: o próprio exequente (ou corretor/leiloeiro credenciado) busca comprador, seguindo regras legais. Leilão judicial: oferta do bem em evento organizado pelo Estado-juiz."],["Alienacao","Art. 881, §1º do CPC - por quem é realizado o leilão do bem penhorado?","Por leiloeiro público."],["Arrematacao","Art. 891, parágrafo único do CPC - o que é considerado preço vil?","Preço inferior ao mínimo estipulado pelo juiz/edital; não havendo mínimo fixado, preço inferior a 50% do valor da avaliação."],["Arrematacao","Art. 892, §2º do CPC - havendo mais de um pretendente no leilão, como se decide?","Licitação entre eles, com preferência em igualdade de oferta ao cônjuge, companheiro, descendente ou ascendente do executado, nessa ordem."],["Arrematacao","Art. 895, §1º do CPC - proposta de aquisição parcelada do bem penhorado: qual o percentual mínimo à vista e prazo de parcelamento?","Pelo menos 25% à vista, restante em até 30 meses."],["Arrematacao","Art. 895, §7º do CPC - proposta de pagamento à vista prevalece sobre proposta parcelada?","Sim, sempre."],["Arrematacao","Art. 896 do CPC - se o imóvel de incapaz não alcançar em leilão pelo menos qual percentual da avaliação, o que ocorre?","80%; o juiz confia o bem a depositário e adia a alienação por até 1 ano."],["Arrematacao","Art. 903 do CPC - assinado o auto de arrematação, ela é considerada como quê?","Perfeita, acabada e irretratável, mesmo se julgados procedentes embargos do executado (assegurada reparação por prejuízos)."],["Arrematacao","Art. 903, §1º do CPC - a arrematação pode ser invalidada, considerada ineficaz ou resolvida em quais hipóteses?","Invalidada: preço vil ou outro vício. Ineficaz: falta de intimação dos titulares de direitos reais (art. 804). Resolvida: não pago o preço ou não prestada a caução."],["Arrematacao","Art. 903, §2º do CPC - qual o prazo para provocar o juiz sobre as situações do §1º após a arrematação?","Até 10 dias após o aperfeiçoamento da arrematação."],["Satisfacao Credito","Art. 904 do CPC - como se dá a satisfação do crédito exequendo?","Pela entrega do dinheiro ou pela adjudicação dos bens penhorados."],["Satisfacao Credito","Art. 908 do CPC - havendo pluralidade de credores sem título legal à preferência, como se distribui o dinheiro?","Observando-se a anterioridade de cada penhora."],["Execucao Fazenda Publica","Art. 910 do CPC - na execução por título extrajudicial contra a Fazenda Pública, qual o prazo para embargos?","30 dias."],["Sumulas","Súmula 279-STJ - é cabível execução por título extrajudicial contra a Fazenda Pública?","Sim."],["Sumulas","Súmula Vinculante 17 - incidem juros de mora durante o período do art. 100, §5º, da CF para pagamento de precatórios?","Não, durante esse período não incidem juros de mora sobre os precatórios nele pagos."],["Sumulas","Súmula 655-STF - créditos alimentícios dispensam a expedição de precatório?","Não; apenas os isenta da ordem cronológica dos precatórios de outra natureza, mas ainda exigem expedição de precatório."],["Sumulas","Súmula 144-STJ - os créditos de natureza alimentícia gozam de que preferência nos precatórios?","Desvinculam-se da ordem cronológica dos créditos de natureza diversa."],["Sumulas","Súmula 178-STJ - o INSS goza de isenção de custas em ações acidentárias/de benefícios na Justiça Estadual?","Não."],["Sumulas","Súmula 483-STJ - o INSS está obrigado a depósito prévio do preparo?","Não, por gozar das prerrogativas da Fazenda Pública."],["Execucao Alimentos","Art. 911 do CPC - na execução de alimentos por título extrajudicial, qual o prazo para o executado pagar, provar pagamento ou justificar?","3 dias."],["Embargos Execucao","Art. 914 do CPC - o executado pode se opor à execução por embargos independentemente de quê?","Independentemente de penhora, depósito ou caução."],["Embargos Execucao","Art. 915 do CPC - qual o prazo para oferecer embargos à execução?","15 dias, contado na forma do art. 231."],["Execucao Titulo Extrajudicial","Art. 916 do CPC - o que é o parcelamento na execução e qual o depósito mínimo exigido?","No prazo de embargos, reconhecendo o crédito, o executado deposita 30% do valor (+custas/honorários) e requer pagar o restante em até 6 parcelas mensais com juros de 1% ao mês."],["Execucao Titulo Extrajudicial","Art. 916, §6º do CPC - a opção pelo parcelamento do art. 916 importa em quê?","Renúncia ao direito de opor embargos."],["Execucao Titulo Extrajudicial","Art. 916, §7º do CPC - o parcelamento do art. 916 se aplica ao cumprimento de sentença?","Não."],["Embargos Execucao","Art. 917 do CPC - cite matérias alegáveis em embargos à execução.","Inexequibilidade/inexigibilidade; penhora/avaliação incorreta; excesso de execução ou cumulação indevida; retenção por benfeitorias; incompetência; qualquer matéria de defesa do processo de conhecimento."],["Embargos Execucao","Art. 918 do CPC - quando o juiz rejeita liminarmente os embargos à execução?","Intempestivos; casos de indeferimento da inicial/improcedência liminar; manifestamente protelatórios."],["Embargos Execucao","Art. 919 do CPC - os embargos à execução têm efeito suspensivo automático?","Não; o juiz pode atribuir efeito suspensivo a requerimento, se presentes os requisitos de tutela provisória e a execução já estiver garantida."],["Suspensao Execucao","Art. 921, III do CPC - quando não localizado o executado ou bens penhoráveis, por quanto tempo se suspende a execução?","1 ano, suspendendo-se também a prescrição nesse período."],["Suspensao Execucao","Art. 921, §2º do CPC - decorrido o prazo de 1 ano sem localização de bens, o que ocorre?","O juiz ordena o arquivamento dos autos (podendo ser desarquivados se encontrados bens depois)."],["Prescricao Intercorrente","Art. 921, §4º do CPC - qual o termo inicial da prescrição intercorrente?","A ciência da primeira tentativa infrutífera de localização do devedor ou de bens penhoráveis, suspendendo-se por 1 única vez pelo prazo máximo de 1 ano."],["Prescricao Intercorrente","Art. 921, §5º do CPC - o juiz pode reconhecer de ofício a prescrição intercorrente?","Sim, após ouvir as partes em 15 dias."],["Extincao Execucao","Art. 924 do CPC - cite hipóteses de extinção da execução.","Indeferimento da inicial; satisfação da obrigação; extinção da dívida por outro meio; renúncia ao crédito pelo exequente; prescrição intercorrente."],["Extincao Execucao","Art. 925 do CPC - a extinção da execução só produz efeito quando declarada por quê?","Por sentença."],["Recursos","Recurso cabível: pronunciamento que EXTINGUE a execução (acolhe impugnação/embargos integralmente) x que NÃO extingue (rejeita ou acolhe parcialmente).","Extingue: apelação (é sentença). Não extingue ou extingue parcialmente: agravo de instrumento (é decisão interlocutória)."],["Precedentes","Art. 926 do CPC - o que devem fazer os tribunais quanto à sua jurisprudência?","Uniformizá-la e mantê-la estável, íntegra e coerente."],["Precedentes","Art. 927 do CPC - quais decisões/entendimentos os juízes e tribunais devem observar (rol de precedentes vinculantes)?","Decisões do STF em controle concentrado; súmulas vinculantes; acórdãos em IAC/IRDR e recursos repetitivos; súmulas do STF (constitucional) e STJ (infraconstitucional); orientação do plenário/órgão especial a que vinculados."],["Precedentes","Art. 927, §3º do CPC - é possível modular os efeitos da alteração de jurisprudência dominante?","Sim, no interesse social e da segurança jurídica."],["Precedentes","Art. 928 do CPC - o que se considera 'julgamento de casos repetitivos'?","Decisão em IRDR ou em recursos especial/extraordinário repetitivos, tendo por objeto questão de direito material ou processual."],["Ordem Processos Tribunal","Art. 932, III e IV do CPC - o relator pode, monocraticamente, negar ou dar provimento a recurso?","Sim: não conhecer de recurso inadmissível/prejudicado; negar provimento contrário a súmula/repetitivo/IRDR/IAC; dar provimento (após contrarrazões) se a decisão for contrária a esses paradigmas."],["Ordem Processos Tribunal","Art. 932, parágrafo único do CPC - antes de considerar o recurso inadmissível, o que o relator deve fazer?","Conceder prazo de 5 dias ao recorrente para sanar vício ou complementar documentação exigível."],["Ordem Processos Tribunal","Art. 936 do CPC - qual a ordem preferencial de julgamento dos recursos em sessão?","1) com sustentação oral; 2) requerimentos de preferência; 3) julgamento já iniciado; 4) demais casos."],["Sustentacao Oral","Art. 937 do CPC - qual o tempo de sustentação oral para cada parte, em regra?","15 minutos, prazo improrrogável, para cada parte (recorrente, recorrido e MP se intervier)."],["Ordem Processos Tribunal","Art. 940 do CPC - qual o prazo máximo de vista para o julgador que pedir vista do processo?","10 dias, prorrogável por mais 10."],["Ordem Processos Tribunal","Art. 941, §2º do CPC - no julgamento de apelação/agravo de instrumento, a decisão é tomada pelo voto de quantos juízes?","3 juízes, no órgão colegiado."],["Julgamento Ampliado","Art. 942 do CPC - o que é a técnica de julgamento ampliado (ampliação do colegiado)?","Quando o resultado da apelação for não unânime, o julgamento prossegue com a convocação de outros julgadores, em número suficiente para permitir inversão do resultado."],["Julgamento Ampliado","Art. 942, §3º do CPC - a técnica de julgamento ampliado se aplica a que outros julgamentos além de apelação?","Ação rescisória (quando o resultado for rescindir a sentença) e agravo de instrumento (quando reformar decisão de julgamento parcial de mérito)."],["Julgamento Ampliado","Art. 942, §4º do CPC - a técnica do art. 942 NÃO se aplica a quais julgamentos?","IAC e IRDR; remessa necessária; julgamento não unânime do Plenário ou Corte Especial."],["Jurisprudencia","STJ - o art. 942 (julgamento ampliado) é considerado um novo recurso?","Não; é técnica de complementação de julgamento (automática e obrigatória), sem voluntariedade, logo não é recurso."],["Jurisprudencia","STJ, REsp 2.120.429/SP - aplica-se a técnica do art. 942 ao agravo de instrumento que reforma decisão de desconsideração da personalidade jurídica?","Sim, por maioria, seja para admitir ou rejeitar o pedido, por se tratar de decisão de mérito."],["IAC","Art. 947 do CPC - quando é admissível o incidente de assunção de competência (IAC)?","Quando o julgamento de recurso, remessa necessária ou processo de competência originária envolver relevante questão de direito, com grande repercussão social, SEM repetição em múltiplos processos."],["IAC","Art. 947, §3º do CPC - o acórdão em IAC vincula quem?","Todos os juízes e órgãos fracionários, exceto se houver revisão de tese."],["IAC","Diferencie IAC e IRDR quanto ao critério de instauração.","IAC: questão relevante e de grande repercussão social, SEM repetição em múltiplos processos (ou para prevenir divergência entre câmaras/turmas). IRDR: exige efetiva repetição de processos com a mesma questão de direito."],["Incidente Inconstitucionalidade","Art. 949 do CPC - se a arguição de inconstitucionalidade em controle difuso for acolhida pelo órgão fracionário, o que ocorre?","A questão é submetida ao plenário do tribunal ou ao órgão especial (cláusula de reserva de plenário)."],["Incidente Inconstitucionalidade","Art. 949, parágrafo único do CPC - quando o órgão fracionário não precisa submeter a arguição ao plenário?","Quando já houver pronunciamento do plenário/órgão especial do próprio tribunal ou do plenário do STF sobre a questão."],["Conflito Competencia","Art. 951 do CPC - quem pode suscitar conflito de competência?","Qualquer das partes, o Ministério Público ou o juiz."],["Conflito Competencia","Art. 952 do CPC - quem não pode suscitar conflito de competência?","A parte que, no processo, já arguiu incompetência relativa."],["Conflito Competencia","Art. 955, parágrafo único do CPC - o relator pode julgar monocraticamente o conflito de competência?","Sim, quando fundado em súmula do STF/STJ/tribunal ou tese de repetitivos/IAC."],["Sumulas","Súmula 3-STJ - quem dirime conflito entre juiz federal e juiz estadual investido de jurisdição federal?","O TRF da respectiva região."],["Homologacao Decisao Estrangeira","Art. 960 do CPC - a homologação de decisão estrangeira é requerida por meio de quê?","Ação de homologação de decisão estrangeira (decisão interlocutória estrangeira pode ser executada por carta rogatória)."],["Homologacao Decisao Estrangeira","Qual o órgão competente para homologar sentenças estrangeiras no Brasil?","O Superior Tribunal de Justiça (CF, art. 105, I, 'i')."],["Homologacao Decisao Estrangeira","Art. 961, §5º do CPC - a sentença estrangeira de divórcio consensual precisa de homologação pelo STJ?","Não; produz efeitos no Brasil independentemente de homologação."],["Homologacao Decisao Estrangeira","Art. 963 do CPC - quais os requisitos indispensáveis para homologação de decisão estrangeira?","Proferida por autoridade competente; citação regular (ainda que revelia); ser eficaz no país de origem; não ofender coisa julgada brasileira; tradução oficial; não ofender manifestamente a ordem pública."],["Jurisprudencia","STJ - a homologação de decisão estrangeira exige que ela tenha transitado em julgado no país de origem?","Não mais; basta que seja 'eficaz' (exequível) no país de origem, conforme o art. 963, III."],["Homologacao Decisao Estrangeira","Art. 964 do CPC - quando não será homologada decisão estrangeira?","Nas hipóteses de competência exclusiva da autoridade judiciária brasileira."],["Acao Rescisoria","Art. 966 do CPC - cite hipóteses de cabimento de ação rescisória.","Prevaricação/concussão/corrupção do juiz; juiz impedido ou juízo absolutamente incompetente; dolo/coação/simulação/colusão; ofensa à coisa julgada; violação manifesta de norma jurídica; prova cuja falsidade foi apurada; prova nova; erro de fato."],["Acao Rescisoria","Art. 966, §5º e §6º do CPC - cabe ação rescisória contra decisão baseada em súmula/repetitivo que não considerou distinção?","Sim (inciso V); mas o autor deve demonstrar, sob pena de inépcia, a situação fática distinta ou questão jurídica não examinada."],["Acao Rescisoria","Art. 967 do CPC - quem tem legitimidade para propor ação rescisória?","Quem foi parte (ou sucessor); terceiro juridicamente interessado; Ministério Público (nos casos legais); quem não foi ouvido quando sua intervenção era obrigatória."],["Acao Rescisoria","O que é a 'querela nullitatis insanabilis' e em que difere da ação rescisória?","Ação para declarar a inexistência/ineficácia de sentença com vício insanável (ex.: falta de citação válida), não sujeita a prazo decadencial; diferente da rescisória, que desconstitui sentença válida e eficaz, sujeita a prazo de 2 anos."],["Acao Rescisoria","Art. 968, II do CPC - qual o depósito prévio exigido na petição inicial da ação rescisória?","5% sobre o valor da causa, convertido em multa se a ação for, por unanimidade, declarada inadmissível ou improcedente (limitado a 1.000 salários-mínimos)."],["Acao Rescisoria","Art. 968, §1º do CPC - quem está dispensado do depósito prévio na ação rescisória?","União, Estados, DF, Municípios e suas autarquias/fundações, MP, Defensoria Pública e beneficiários da gratuidade da justiça."],["Acao Rescisoria","Art. 969 do CPC - a propositura da ação rescisória impede o cumprimento da decisão rescindenda?","Não, ressalvada a concessão de tutela provisória."],["Acao Rescisoria","Art. 975 do CPC - qual o prazo decadencial para ação rescisória?","2 anos, contados do trânsito em julgado da última decisão proferida no processo."],["Acao Rescisoria","Art. 975, §2º do CPC - se a ação rescisória se fundar em prova nova (art. 966, VII), qual o termo inicial e prazo máximo?","Termo inicial: data da descoberta da prova; prazo máximo de 5 anos do trânsito em julgado da última decisão do processo."],["Sumulas","Súmula 343-STF - cabe ação rescisória por violação de lei quando a interpretação era controvertida nos tribunais?","Não; não cabe ação rescisória nesse caso."],["Sumulas","Súmula 514-STF - é necessário esgotar todos os recursos para propor ação rescisória?","Não; admite-se ação rescisória mesmo sem esgotamento de todos os recursos."],["Sumulas","Súmula 401-STJ - quando se inicia o prazo decadencial da ação rescisória?","Quando não for cabível qualquer recurso do último pronunciamento judicial."],["IRDR","Art. 976 do CPC - quais os requisitos simultâneos para cabimento do IRDR?","Efetiva repetição de processos com controvérsia sobre a mesma questão de direito; e risco de ofensa à isonomia e à segurança jurídica."],["IRDR","Art. 976, §4º do CPC - o IRDR é cabível se tribunal superior já tiver afetado recurso repetitivo sobre a mesma questão?","Não, é incabível."],["IRDR","Art. 977 do CPC - quem pode requerer a instauração do IRDR?","Juiz ou relator (por ofício); partes (por petição); MP ou Defensoria Pública (por petição)."],["IRDR","Art. 978, parágrafo único do CPC - o órgão que julga o IRDR também julga o quê?","O recurso, remessa necessária ou processo de competência originária de onde se originou o incidente (sistemática da causa-piloto)."],["IRDR","Art. 980 do CPC - qual o prazo para julgamento do IRDR?","1 ano, com preferência sobre os demais feitos (exceto réu preso e habeas corpus)."],["IRDR","Art. 982, I do CPC - admitido o IRDR, o que o relator faz quanto aos processos pendentes?","Suspende os processos pendentes, individuais ou coletivos, que tramitam no Estado ou região."],["IRDR","Art. 982, §3º do CPC - é possível suspender processos em todo o território nacional em razão do IRDR?","Sim, a requerimento de legitimado, ao tribunal competente para o RE/REsp."],["IRDR","Art. 985, I do CPC - a tese fixada no IRDR se aplica também aos processos dos Juizados Especiais?","Sim, inclusive aos que tramitem nos juizados especiais do Estado ou região."],["IRDR","Art. 985, §1º do CPC - o que cabe se a tese do IRDR não for observada?","Reclamação."],["IRDR","Art. 987, §1º do CPC - o RE/REsp contra o julgamento do IRDR tem efeito suspensivo?","Sim, presumindo-se a repercussão geral da questão constitucional."],["IRDR","Diferencie IRDR e IAC quanto ao elemento central de cabimento.","IRDR: repetitividade (múltiplos processos idênticos). IAC: relevância intrínseca da questão, independentemente de repetição."],["Reclamacao","Art. 988 do CPC - cite as hipóteses de cabimento da reclamação.","Preservar competência do tribunal; garantir autoridade das decisões do tribunal; garantir observância de súmula vinculante e decisão do STF em controle concentrado; garantir observância de acórdão de IRDR/IAC."],["Reclamacao","Art. 988, §5º do CPC - a reclamação é inadmissível em quais hipóteses?","Proposta após o trânsito em julgado da decisão reclamada; ou para garantir observância de repercussão geral/repetitivos quando não esgotadas as instâncias ordinárias."],["Sumulas","Súmula 99-STJ - o MP pode recorrer no processo em que atuou como fiscal da lei mesmo sem recurso da parte?","Sim, tem legitimidade para recorrer."],["Recursos Disposicoes Gerais","Art. 994 do CPC - quais são os recursos cabíveis previstos no CPC?","Apelação, agravo de instrumento, agravo interno, embargos de declaração, recurso ordinário, recurso especial, recurso extraordinário, agravo em REsp/RE, embargos de divergência."],["Recursos Disposicoes Gerais","Recursos - requisitos intrínsecos: cite-os.","Cabimento, interesse (sucumbência) e legitimidade."],["Recursos Disposicoes Gerais","Recursos - requisitos extrínsecos: cite-os.","Tempestividade, preparo, regularidade formal e inexistência de fatos extintivos/impeditivos do direito de recorrer (renúncia, aquiescência, desistência)."],["Recursos Disposicoes Gerais","Quais os requisitos para aplicação do princípio da fungibilidade recursal, segundo o STJ?","Dúvida objetiva sobre o recurso cabível; inexistência de erro grosseiro; interposição do recurso errado dentro do prazo do recurso correto."],["Recursos Disposicoes Gerais","Art. 995 do CPC - regra geral sobre efeito dos recursos quanto à eficácia da decisão.","Os recursos não impedem a eficácia da decisão, salvo disposição legal ou decisão judicial em sentido diverso (regra: efeito devolutivo, sem suspensivo automático)."],["Recurso Adesivo","Art. 997, §2º do CPC - em quais recursos é admissível o recurso adesivo?","Apelação, recurso extraordinário e recurso especial."],["Recurso Adesivo","Art. 997, §2º, III do CPC - o recurso adesivo é conhecido se houver desistência do recurso principal?","Não, fica prejudicado (não será conhecido)."],["Recursos Disposicoes Gerais","Art. 998 do CPC - o recorrente pode desistir do recurso a qualquer tempo, mesmo sem anuência do recorrido?","Sim; mas a desistência não impede a análise de questão com repercussão geral já reconhecida ou de repetitivos."],["Recursos Disposicoes Gerais","Art. 1.003, §5º do CPC - qual o prazo geral para interpor e responder recursos (exceto embargos de declaração)?","15 dias."],["Recursos Disposicoes Gerais","Art. 1.003, §6º do CPC - como se comprova feriado local para fins de tempestividade recursal?","O recorrente deve comprovar no ato de interposição; se não o fizer, o tribunal determina a correção do vício (ou pode dispensar se já constar do processo eletrônico)."],["Recursos Disposicoes Gerais","Art. 1.005 do CPC - o recurso interposto por um litisconsorte aproveita aos demais?","Sim, salvo se os interesses forem distintos ou opostos (e, havendo solidariedade passiva, se as defesas forem comuns)."],["Preparo Recursal","Art. 1.007, §2º do CPC - insuficiência no valor do preparo gera deserção imediata?","Não; o recorrente é intimado para suprir a diferença em 5 dias, sob pena de deserção."],["Preparo Recursal","Art. 1.007, §4º do CPC - se o recorrente não comprovar o preparo no ato de interposição, o que ocorre?","É intimado para recolher em dobro, sob pena de deserção (sem possibilidade de complementação parcial, §5º)."],["Efeitos Recursos","Art. 1.008 do CPC - o que ocorre com a decisão impugnada quando o tribunal julga o recurso?","O julgamento do tribunal substitui a decisão impugnada no que foi objeto do recurso (efeito substitutivo)."],["Efeitos Recursos","Efeitos dos recursos - o que é o efeito DEVOLUTIVO?","Aptidão de todo recurso de devolver ao órgão ad quem o conhecimento da matéria impugnada."],["Efeitos Recursos","Efeitos dos recursos - o que é o efeito SUSPENSIVO e qual recurso o tem como regra?","Impede que a decisão se torne eficaz até o julgamento do recurso; a apelação é o único recurso dotado desse efeito como regra."],["Efeitos Recursos","Efeitos dos recursos - o que é o efeito TRANSLATIVO?","Aptidão de permitir ao órgão ad quem examinar de ofício matérias de ordem pública, ainda que não integrem o objeto do recurso (ex.: prescrição, condições da ação)."],["Efeitos Recursos","Efeitos dos recursos - o que é o efeito EXPANSIVO?","Aptidão de a eficácia do recurso ultrapassar os limites subjetivos ou objetivos estabelecidos pelo recorrente, estendendo-se a quem não recorreu."],["Efeitos Recursos","Efeitos dos recursos - o que é o efeito REGRESSIVO?","Aptidão de permitir ao órgão a quo reconsiderar a própria decisão (juízo de retratação)."],["Sumulas","Súmula 641-STF - conta-se em dobro o prazo para recorrer quando só um dos litisconsortes sucumbiu?","Não."],["Apelacao","Art. 1.009, §1º do CPC - as decisões interlocutórias não agraváveis ficam sujeitas à preclusão?","Não são cobertas pela preclusão; devem ser suscitadas em preliminar de apelação ou nas contrarrazões."],["Apelacao","Art. 1.010, §3º do CPC - após contrarrazões, o juiz de primeiro grau faz juízo de admissibilidade da apelação?","Não; os autos são remetidos ao tribunal independentemente de juízo de admissibilidade (que cabe ao relator)."],["Apelacao","Art. 1.012 do CPC - a apelação tem efeito suspensivo como regra?","Sim."],["Apelacao","Art. 1.012, §1º do CPC - cite hipóteses em que a sentença produz efeitos imediatos, sem efeito suspensivo da apelação.","Homologa divisão/demarcação; condena a alimentos; extingue/julga improcedentes embargos do executado; julga procedente instituição de arbitragem; confirma/concede/revoga tutela provisória; decreta interdição."],["Apelacao","Art. 1.013, §3º do CPC - quando o tribunal deve julgar desde logo o mérito ('teoria da causa madura'), mesmo reformando a sentença?","Ao reformar sentença do art. 485; decretar nulidade por incongruência; suprir omissão de pedido; decretar nulidade por falta de fundamentação (se o processo estiver em condições de imediato julgamento)."],["Apelacao","Art. 1.014 do CPC - podem ser suscitadas questões de fato não propostas em primeiro grau, na apelação?","Sim, se a parte provar que deixou de suscitá-las por motivo de força maior."],["Agravo Instrumento","Art. 1.015 do CPC - cite hipóteses de cabimento de agravo de instrumento.","Tutelas provisórias; mérito do processo; rejeição de convenção de arbitragem; incidente de desconsideração de personalidade jurídica; gratuidade da justiça; exibição de documento/coisa; exclusão de litisconsorte; limitação de litisconsórcio; intervenção de terceiros; efeito suspensivo em embargos à execução; redistribuição do ônus da prova."],["Agravo Instrumento","Art. 1.015, parágrafo único do CPC - cabe agravo de instrumento em quais fases/processos além do rol do caput?","Decisões interlocutórias na liquidação de sentença, cumprimento de sentença, processo de execução e processo de inventário."],["Agravo Instrumento","Art. 1.017, §1º do CPC - se os autos forem eletrônicos, é necessário juntar cópias das peças ao agravo de instrumento?","Não, dispensam-se essas cópias."],["Agravo Instrumento","Art. 1.019, I do CPC - qual o prazo do relator para decidir sobre efeito suspensivo/antecipação de tutela recursal no agravo de instrumento?","5 dias."],["Sumulas","Súmula 86-STJ - cabe recurso especial contra acórdão de agravo de instrumento?","Sim."],["Agravo Interno","Art. 1.021, §4º do CPC - qual a multa para agravo interno declarado manifestamente inadmissível/improcedente por unanimidade?","Entre 1% e 5% do valor atualizado da causa."],["Agravo Interno","Art. 1.021, §3º do CPC - o relator pode julgar o agravo interno apenas reproduzindo os fundamentos da decisão agravada?","Não, é vedado."],["Embargos Declaracao","Art. 1.022 do CPC - cite as finalidades dos embargos de declaração.","Esclarecer obscuridade; eliminar contradição; suprir omissão; corrigir erro material."],["Embargos Declaracao","Art. 1.022, parágrafo único do CPC - considera-se omissa a decisão em quais casos específicos?","Quando não se manifesta sobre tese de repetitivos/IAC aplicável ao caso; ou incorre nas condutas do art. 489, §1º (falta de fundamentação)."],["Embargos Declaracao","O que são embargos de declaração com efeito infringente?","Quando o provimento dos embargos (para sanar obscuridade/contradição/omissão/erro) acaba alterando o resultado da decisão."],["Embargos Declaracao","Art. 1.023 do CPC - qual o prazo para opor embargos de declaração, e há preparo?","5 dias; não se sujeitam a preparo."],["Embargos Declaracao","Art. 1.024, §3º do CPC - o tribunal pode receber embargos de declaração como agravo interno?","Sim, se entender ser este o recurso cabível, desde que intime o recorrente para complementar as razões conforme o art. 1.021, §1º."],["Embargos Declaracao","Art. 1.025 do CPC - o que é o 'prequestionamento ficto'?","Consideram-se incluídos no acórdão os elementos suscitados pelo embargante para prequestionamento, mesmo que os embargos sejam inadmitidos/rejeitados, se o tribunal superior considerar existente o vício."],["Embargos Declaracao","Art. 1.026 do CPC - os embargos de declaração têm efeito suspensivo e interrompem prazo?","Não têm efeito suspensivo, mas INTERROMPEM o prazo para interposição de recurso."],["Embargos Declaracao","Art. 1.026, §2º e §3º do CPC - quais as multas para embargos de declaração protelatórios e sua reiteração?","Até 2% sobre o valor da causa; na reiteração, até 10%, com depósito prévio exigido para novo recurso."],["Embargos Declaracao","Art. 1.026, §4º do CPC - quando não são mais admitidos novos embargos de declaração?","Se os 2 anteriores houverem sido considerados protelatórios."],["Sumulas","Súmula 98-STJ - embargos de declaração para fins de prequestionamento têm caráter protelatório?","Não, em regra (exceto se opostos contra acórdão já em conformidade com súmula/repetitivo do STF/STJ)."],["Sumulas","Súmula 579-STJ - é necessário ratificar o recurso especial interposto antes do julgamento dos embargos de declaração?","Não, se o resultado anterior permanecer inalterado."],["Recurso Ordinario","Art. 1.027 do CPC - quais casos são julgados em recurso ordinário pelo STF e pelo STJ?","STF: MS, habeas data e mandado de injunção decididos em única instância por tribunais superiores, quando denegatória a decisão. STJ: MS denegado em única instância por TRF/TJ; causas entre Estado estrangeiro/organismo internacional e Município ou pessoa residente no país."],["RE REsp","Art. 1.029, §1º do CPC - como se prova o dissídio jurisprudencial no RE/REsp?","Certidão, cópia ou citação do repositório de jurisprudência (oficial ou credenciado), mencionando as circunstâncias que identificam os casos confrontados."],["RE REsp","Art. 1.029, §3º do CPC - o STF/STJ pode desconsiderar vício formal do recurso tempestivo?","Sim, desde que não o repute grave."],["RE REsp","Juízo de admissibilidade positivo x negativo no RE/REsp (feito pelo presidente/vice do tribunal de origem): cabe recurso contra cada um?","Positivo: não cabe recurso (será reexaminado pelo STF/STJ). Negativo: cabe agravo (art. 1.042)."],["Jurisprudencia","STJ - a oposição de embargos de declaração contra decisão que inadmite recurso especial interrompe o prazo do agravo?","Não; o agravo é o único recurso cabível contra essa decisão, e os embargos, por incabíveis, não suspendem/interrompem o prazo."],["Sumulas","Súmula 7-STJ - cabe recurso especial para reexame de provas?","Não, a pretensão de simples reexame de prova não enseja recurso especial."],["Sumulas","Súmula 279-STF - cabe recurso extraordinário para reexame de provas?","Não."],["Sumulas","Súmula 5-STJ - a simples interpretação de cláusula contratual enseja recurso especial?","Não."],["Sumulas","Súmula 83-STJ - não se conhece de recurso especial por divergência quando?","Quando a orientação do tribunal se firmou no mesmo sentido da decisão recorrida."],["Sumulas","Súmula 203-STJ - cabe recurso especial contra decisão de turma recursal de Juizado Especial?","Não; não cabe recurso especial contra decisão de órgão de 2º grau dos Juizados Especiais."],["Sumulas","Súmula 518-STJ - cabe recurso especial fundado em violação de enunciado de súmula?","Não."],["RE REsp","Art. 1.030 do CPC - o presidente/vice-presidente do tribunal recorrido pode negar seguimento a RE/REsp?","Sim, quando o acórdão recorrido estiver em conformidade com repercussão geral ou recursos repetitivos do STF/STJ."],["RE REsp","Art. 1.030, §1º e §2º do CPC - quais recursos cabem contra as decisões do presidente/vice quanto ao RE/REsp?","Agravo ao tribunal superior (art. 1.042) contra inadmissibilidade (inciso V); agravo interno (art. 1.021) contra as demais decisões (incisos I e III)."],["RE REsp","Art. 1.031 do CPC - havendo interposição conjunta de RE e REsp, para onde vão os autos primeiro?","Para o STJ; concluído o julgamento do REsp, os autos vão ao STF para o RE (se não prejudicado)."],["Repercussao Geral","Art. 1.035 do CPC - o que é a repercussão geral no recurso extraordinário?","Requisito de admissibilidade: existência de questões relevantes do ponto de vista econômico, político, social ou jurídico que ultrapassem os interesses subjetivos do processo."],["Repercussao Geral","Art. 1.035, §3º do CPC - em quais hipóteses há presunção de repercussão geral?","Recurso que impugne acórdão contrário à súmula/jurisprudência dominante do STF, ou que reconheça inconstitucionalidade de tratado/lei federal."],["Repercussao Geral","Art. 1.035, §5º do CPC - reconhecida a repercussão geral, o que ocorre com processos semelhantes?","O relator no STF determina a suspensão de todos os processos pendentes no território nacional sobre a mesma questão."],["Repercussao Geral","Art. 1.035, §9º do CPC - qual o prazo de julgamento do recurso com repercussão geral reconhecida?","1 ano, com preferência sobre os demais feitos (exceto réu preso e habeas corpus)."],["Sumulas","Súmula 640-STF - cabe recurso extraordinário contra decisão de turma recursal de juizado especial cível?","Sim, é cabível."],["Recursos Repetitivos","Art. 1.036 do CPC - quando ocorre a 'afetação' de recursos especiais/extraordinários repetitivos?","Sempre que houver multiplicidade de recursos com fundamento em idêntica questão de direito."],["Recursos Repetitivos","Art. 1.036, §1º do CPC - quantos recursos representativos da controvérsia devem ser selecionados pelo presidente/vice do tribunal de origem?","2 ou mais recursos representativos, com suspensão de todos os processos pendentes no Estado/região."],["Recursos Repetitivos","Art. 1.037, II do CPC - a decisão de afetação de recurso repetitivo determina o quê?","A suspensão do processamento de todos os processos pendentes, individuais ou coletivos, que versem sobre a questão em todo o território nacional."],["Recursos Repetitivos","Art. 1.037, §9º do CPC - a parte pode requerer o prosseguimento de processo suspenso por afetação a repetitivo?","Sim, demonstrando distinção entre a questão do seu processo e a do recurso repetitivo afetado."],["Recursos Repetitivos","Art. 1.040, I do CPC - publicado o acórdão paradigma, o que faz o presidente/vice do tribunal de origem se o acórdão recorrido coincidir com a tese?","Nega seguimento aos recursos especiais/extraordinários sobrestados na origem."],["Recursos Repetitivos","Art. 1.040, §1º do CPC - a parte pode desistir da ação em curso no 1º grau se a questão for idêntica à do repetitivo julgado?","Sim, antes de proferida a sentença; se antes da contestação, fica isenta de custas e honorários; independe de consentimento do réu."],["Agravo RE REsp","Art. 1.042 do CPC - cabe agravo contra qual decisão, e quando NÃO cabe?","Contra decisão do presidente/vice que inadmitir RE/REsp; NÃO cabe quando a inadmissão se funda em repercussão geral ou recursos repetitivos (nesses casos cabe agravo interno)."],["Embargos Divergencia","Art. 1.043 do CPC - o que são embargos de divergência e qual sua finalidade?","Recurso contra acórdão de órgão fracionário que, em RE/REsp, diverge do julgamento de mérito de outro órgão do mesmo tribunal (uniformização interna da jurisprudência)."],["Embargos Divergencia","Art. 1.043, §3º do CPC - cabem embargos de divergência entre acórdãos da mesma turma?","Sim, desde que a composição da turma tenha mudado em mais da metade de seus membros."],["Embargos Divergencia","Art. 1.044, §1º do CPC - a interposição de embargos de divergência no STJ interrompe prazo para qual recurso?","Recurso extraordinário, por qualquer das partes."],["Sumulas","Súmula 168-STJ - cabem embargos de divergência quando a jurisprudência do tribunal já se firmou no mesmo sentido do acórdão embargado?","Não."],["Sumulas","Súmula 315-STJ - cabem embargos de divergência no âmbito do agravo que não admite recurso especial?","Não (ressalvada hipótese de mitigação quando a fundamentação examina o mérito do REsp)."],["Sumulas","Súmula 420-STJ - cabe discutir o valor de indenização por danos morais em embargos de divergência?","Não, é incabível."],["Disposicoes Finais","Art. 1.045 do CPC - quando entrou em vigor o CPC/2015 em relação à sua publicação?","Após decorrido 1 ano da data de sua publicação oficial (regra de vacatio legis)."],["Disposicoes Finais","Enunciados administrativos STJ - qual lei rege o recurso: a vigente na decisão recorrida ou na intimação?","A lei processual aplicável aos requisitos de admissibilidade do recurso é a vigente na data de publicação da decisão recorrida (tempus regit actum)."],["Disposicoes Finais","Art. 1.047 do CPC - as regras de direito probatório do CPC/2015 se aplicam a quais provas?","Apenas às provas requeridas ou determinadas de ofício a partir da vigência do novo Código."],["Disposicoes Finais","Art. 1.048 do CPC - quais processos têm prioridade de tramitação?","Parte com 60 anos ou mais ou doença grave; regulados pelo ECA; vítima de violência doméstica; discussão sobre normas gerais de licitação."],["Disposicoes Finais","Art. 1.048, §3º do CPC - a prioridade de tramitação concedida ao idoso cessa com sua morte?","Não, estende-se ao cônjuge supérstite ou companheiro em união estável."],["Juizados Especiais","Art. 1.062 do CPC - o incidente de desconsideração da personalidade jurídica se aplica aos Juizados Especiais?","Sim."],["Juizados Especiais","Lei 9.099/95, art. 2º - quais os critérios orientadores do processo nos Juizados Especiais?","Oralidade, simplicidade, informalidade, economia processual e celeridade, buscando sempre que possível a conciliação ou transação."],["Juizados Especiais","Lei 9.099/95, art. 3º, I - qual o limite de valor da causa para competência do Juizado Especial Cível estadual?","40 vezes o salário mínimo."],["Juizados Especiais","Lei 9.099/95, art. 3º, §2º - quais causas são excluídas da competência do Juizado Especial Cível?","Natureza alimentar, falimentar, fiscal, de interesse da Fazenda Pública, acidentes de trabalho, resíduos e estado/capacidade das pessoas."],["Juizados Especiais","Lei 9.099/95, art. 3º, §3º - a opção pelo Juizado Especial implica em quê, quanto ao crédito excedente ao limite?","Renúncia ao crédito excedente, exceto na hipótese de conciliação."],["Jurisprudencia","STJ - ao optar pelo Juizado Especial, a renúncia ao crédito excedente abrange também pedidos acessórios interdependentes?","Sim, abrange o crédito excedente incluindo pedidos interdependentes (principal e acessório) da mesma causa de pedir, não só o limite quantitativo."],["Juizados Especiais","Lei 9.099/95, art. 4º - qual o foro competente para as causas do Juizado Especial?","Domicílio do réu (ou local de atividade profissional, a critério do autor); lugar da obrigação; domicílio do autor ou local do fato/ato nas ações de reparação de dano."],["Juizados Especiais","Lei 9.099/95, art. 8º - quem NÃO pode ser parte no Juizado Especial Cível?","Incapaz, preso, pessoas jurídicas de direito público, empresas públicas da União, massa falida e insolvente civil."],["Juizados Especiais","Lei 9.099/95, art. 8º, §1º - quem PODE propor ação no Juizado Especial?","Pessoas físicas capazes (exceto cessionários de PJ); microempreendedores individuais, ME e EPP; OSCIP; sociedades de crédito ao microempreendedor."],["Juizados Especiais","Lei 9.099/95, art. 9º - quando a assistência por advogado é obrigatória no Juizado Especial?","Nas causas de valor superior a 20 salários-mínimos (nas de até 20, é facultativa)."],["Juizados Especiais","Lei 9.099/95, art. 9º, §4º - o réu pessoa jurídica pode ser representado por preposto?","Sim, mediante carta de preposição, sem necessidade de vínculo empregatício."],["Juizados Especiais","Lei 9.099/95, art. 10 - cabe intervenção de terceiros, assistência e litisconsórcio no Juizado Especial?","Não se admite intervenção de terceiros nem assistência; admite-se o litisconsórcio."],["Juizados Especiais","FONAJE, Enunciado 60 - cabe desconsideração da personalidade jurídica no Juizado Especial?","Sim, inclusive na fase de execução."],["Juizados Especiais","FONAJE - cabem embargos de terceiro no Juizado Especial?","Sim, mesmo pelas pessoas excluídas pelo art. 8º, §1º, da Lei 9.099/95 (Enunciado 155)."],["Juizados Especiais","Lei 9.099/95, art. 12-A - como se contam os prazos processuais no Juizado Especial Cível?","Somente em dias úteis."],["Juizados Especiais","Lei 9.099/95, art. 13, §1º - qual a regra sobre nulidades no processo do Juizado Especial?","Não se pronunciará qualquer nulidade sem que tenha havido prejuízo."],["Juizados Especiais","Lei 9.099/95, art. 14, §2º - é possível pedido genérico no Juizado Especial?","Sim, quando não for possível determinar desde logo a extensão da obrigação."],["Juizados Especiais","Lei 9.099/95, art. 18, §2º - é permitida citação por edital no Juizado Especial Cível?","Não, não se fará citação por edital (exceção reconhecida pelo FONAJE apenas na execução, permitindo arresto e citação editalícia)."],["Juizados Especiais","Lei 9.099/95, art. 20 - o que ocorre se o demandado não comparecer à sessão de conciliação ou audiência?","Reputam-se verdadeiros os fatos alegados no pedido inicial, salvo se o contrário resultar da convicção do juiz (revelia)."],["Juizados Especiais","Lei 9.099/95, art. 24 - não obtida a conciliação, o que as partes podem escolher de comum acordo?","O juízo arbitral (o árbitro é escolhido dentre os juízes leigos e pode decidir por equidade)."],["Juizados Especiais","Lei 9.099/95, art. 31 - cabe reconvenção no Juizado Especial?","Não; admite-se apenas pedido contraposto do réu na contestação, nos mesmos fatos da controvérsia."],["Juizados Especiais","Lei 9.099/95, art. 34 - qual o número máximo de testemunhas por parte e o prazo para requerer intimação?","3 testemunhas por parte; requerimento de intimação até 5 dias antes da audiência."],["Juizados Especiais","Lei 9.099/95, art. 38, parágrafo único - é possível sentença condenatória por quantia ilíquida no Juizado Especial?","Não se admite, ainda que genérico o pedido."],["Juizados Especiais","Lei 9.099/95, art. 39 - qual o efeito da sentença condenatória que exceder a alçada do Juizado Especial?","É ineficaz na parte excedente."],["Juizados Especiais","Lei 9.099/95, art. 41 - qual recurso cabe da sentença do Juizado Especial (exceto homologatória)?","Recurso inominado, julgado por turma composta de 3 juízes togados de primeiro grau (Turma Recursal), com representação obrigatória por advogado."],["Sumulas","Súmula 376-STJ - quem julga mandado de segurança contra ato de juizado especial?","A Turma Recursal."],["Juizados Especiais","Instância julgadora nos Juizados Especiais - quem julga em 1º grau e quem julga os recursos?","1º grau: juiz do juizado. Recursos: Turma Recursal."],["Juizados Especiais","Recursos cabíveis contra decisões da Turma Recursal - quais são?","Apenas embargos de declaração e recurso extraordinário (não cabe recurso especial - Súmula 203-STJ)."],["Juizados Especiais","Lei 9.099/95, art. 42, §1º - qual o prazo para o preparo do recurso inominado?","48 horas seguintes à interposição, independentemente de intimação, sob pena de deserção."],["Juizados Especiais","Lei 9.099/95, art. 43 - o recurso inominado tem efeito suspensivo?","Tem apenas efeito devolutivo, podendo o juiz dar-lhe efeito suspensivo para evitar dano irreparável."],["Jurisprudencia","STJ - é cabível condenação em custas/honorários quando o recurso inominado não é conhecido?","Sim, é cabível."],["Juizados Especiais","FONAJE, Enunciado 15 - cabe agravo de instrumento nos Juizados Especiais?","Em regra não é cabível, exceto nas hipóteses excepcionais (equivalentes aos antigos arts. 544 e 557 do CPC)."],["Juizados Especiais","FONAJE, Enunciado 118 - qual a consequência de recurso manifestamente inadmissível/infundado no Juizado Especial?","Multa de 1% e indenização ao recorrido de até 20% do valor da causa, condicionando novo recurso ao depósito do valor."],["Juizados Especiais","FONAJE, Enunciado 143 - qual a natureza da decisão que põe fim aos embargos à execução no Juizado Especial e o recurso cabível?","É sentença; cabe apenas recurso inominado."],["Juizados Especiais","FONAJE, Enunciado 166 - onde é feito o juízo prévio de admissibilidade do recurso nos Juizados Especiais Cíveis?","Em 1º grau."],["Juizados Especiais","Lei 9.099/95, art. 48, parágrafo único - os erros materiais podem ser corrigidos sem embargos de declaração?","Sim, podem ser corrigidos de ofício."],["Juizados Especiais","Lei 9.099/95, art. 49 - qual o prazo para embargos de declaração no Juizado Especial?","5 dias, contados da ciência da decisão."],["Juizados Especiais","Lei 9.099/95, art. 51, I a VI - cite hipóteses de extinção do processo no Juizado Especial.","Autor não comparecer a audiência; procedimento inadmissível; incompetência territorial; impedimentos do art. 8º supervenientes; falecimento do autor sem habilitação em 30 dias; falecimento do réu sem citação dos sucessores em 30 dias."],["Juizados Especiais","Lei 9.099/95, art. 51, §1º - a extinção do processo depende de intimação pessoal prévia das partes?","Não, independe em qualquer hipótese."],["Juizados Especiais","Lei 9.099/95, art. 52, I - as sentenças no Juizado Especial devem ser líquidas ou pode haver liquidação posterior?","Devem ser necessariamente líquidas."],["Juizados Especiais","Lei 9.099/95, art. 52, IV - não cumprida voluntariamente a sentença transitada em julgado, o que ocorre?","Procede-se desde logo à execução (havendo solicitação do interessado, que pode ser verbal), dispensada nova citação."],["Juizados Especiais","Lei 9.099/95, art. 52, IX - cite as matérias alegáveis em embargos à execução no Juizado Especial.","Falta/nulidade de citação com revelia; manifesto excesso de execução; erro de cálculo; causa impeditiva/modificativa/extintiva superveniente à sentença."],["Juizados Especiais","FONAJE, Enunciado 142 - qual o prazo para embargos à execução de título judicial no Juizado Especial e seu termo inicial?","15 dias, fluindo da intimação da penhora."],["Juizados Especiais","FONAJE, Enunciado 117 - é necessária a garantia do juízo (penhora) para opor embargos à execução no Juizado Especial?","Sim, é obrigatória a segurança do juízo pela penhora."],["Juizados Especiais","Lei 9.099/95, art. 54 - há custas em 1º grau no Juizado Especial?","Não, o acesso independe do pagamento de custas, taxas ou despesas em 1º grau."],["Juizados Especiais","Lei 9.099/95, art. 55 - há condenação em honorários na sentença de 1º grau do Juizado Especial?","Não, ressalvados os casos de litigância de má-fé; em 2º grau, o recorrente vencido paga custas e honorários (10% a 20%)."],["Juizados Especiais","Lei 9.099/95, art. 57 - o acordo extrajudicial homologado no Juizado Especial vale como quê?","Título executivo judicial."],["Juizados Especiais","Lei 9.099/95, art. 59 - cabe ação rescisória nas causas do Juizado Especial?","Não se admite ação rescisória nesse procedimento."],["Jurisprudencia","STJ, Jurisprudência em Teses nº89 - o processamento no Juizado Especial é obrigatório ou opção do autor?","É opção do autor, que pode preferir ajuizar na Justiça Comum."],["Jurisprudencia","STJ - em litisconsórcio ativo facultativo, como se afere o valor de alçada do Juizado Especial?","Considera-se o valor da causa individualmente por autor, não importando se a soma ultrapassa o valor de alçada."],["Juizados Especiais Federais","Lei 10.259/01, art. 3º - qual o limite de valor de competência do Juizado Especial Federal Cível?","60 salários-mínimos."],["Juizados Especiais Federais","Lei 10.259/01, art. 3º, §1º - cite causas excluídas da competência do JEF.","Casos do art. 109, II/III/XI da CF; mandado de segurança; desapropriação; ações populares; execuções fiscais; improbidade administrativa; direitos difusos/coletivos/individuais homogêneos; bens imóveis da União; anulação de ato administrativo federal (salvo previdenciário/fiscal); impugnação de demissão/sanção disciplinar militar."],["Juizados Especiais Federais","Lei 10.259/01, art. 3º, §3º - a competência do JEF, onde instalado, é absoluta?","Sim."],["Jurisprudencia","STF, Tema 1.277 - a competência absoluta do JEF se restringe a quê?","Ao valor da causa, mantendo-se a faculdade de escolha do foro pelo autor conforme art. 109, §2º, da CF."],["Juizados Especiais Federais","Lei 10.259/01, art. 5º - no JEF, cabe recurso de decisões interlocutórias?","Em regra não, exceto medidas cautelares do art. 4º; somente é admitido recurso de sentença definitiva."],["Juizados Especiais Federais","Lei 10.259/01, art. 6º - quem pode ser parte no JEF?","Autores: pessoas físicas e ME/EPP. Réus: União, autarquias, fundações e empresas públicas federais."],["Juizados Especiais Federais","Lei 10.259/01, art. 9º - há prazo diferenciado para a Fazenda Pública no JEF?","Não há prazo diferenciado, mas a citação para audiência de conciliação deve ter antecedência mínima de 30 dias."],["Juizados Especiais Federais","Lei 10.259/01, art. 13 - há reexame necessário nas causas do JEF?","Não, não haverá reexame necessário."],["Juizados Especiais Federais","Lei 10.259/01, art. 14 - o que é o pedido de uniformização de interpretação de lei federal?","Cabível quando houver divergência entre decisões de Turmas Recursais sobre questões de direito material; julgado por Turma de Uniformização ou pelo STJ, conforme o caso."],["Juizados Especiais Federais","Lei 10.259/01, art. 14, §4º - quando cabe provocar o STJ no pedido de uniformização?","Quando a orientação da Turma de Uniformização, em questão de direito material, contrariar súmula ou jurisprudência dominante do STJ."],["Juizados Especiais","Instrumento cabível contra acórdão de Turma Recursal que viole entendimento do STJ: Juizado Estadual x Federal x Fazenda Pública.","Estadual: reclamação ao TJ (Res. 03/16-STJ). Federal: pedido de uniformização (art. 14, Lei 10.259/01), por divergência ou contrariedade a súmula/jurisprudência dominante do STJ. Fazenda Pública: pedido de uniformização (art. 19, Lei 12.153/09), apenas por contrariedade a súmula do STJ."],["Juizados Especiais Federais","Lei 10.259/01, art. 17 - qual o prazo de pagamento de obrigação de pagar quantia certa contra a União no JEF, sem precatório?","60 dias, contados da entrega da requisição, na agência mais próxima da CEF/Banco do Brasil, independentemente de precatório, até o limite de 60 salários-mínimos."],["Juizados Especiais Federais","Lei 10.259/01, art. 17, §3º - é permitido fracionar o valor da execução entre RPV e precatório?","Não, é vedado o fracionamento, repartição ou quebra do valor da execução."],["Juizado Fazenda Publica","Lei 12.153/09, art. 2º - qual o limite de valor de competência do Juizado Especial da Fazenda Pública?","60 salários-mínimos."],["Juizado Fazenda Publica","Lei 12.153/09, art. 2º, §1º - cite causas excluídas da competência do Juizado da Fazenda Pública.","Mandado de segurança; desapropriação; divisão/demarcação; ações populares; improbidade administrativa; execuções fiscais; direitos difusos/coletivos; bens imóveis públicos; impugnação de demissão/sanção disciplinar militar."],["Juizado Fazenda Publica","Lei 12.153/09, art. 2º, §4º - a competência do Juizado da Fazenda Pública, onde instalado, é absoluta?","Sim."],["Juizado Fazenda Publica","Lei 12.153/09, art. 5º - quem pode ser parte no Juizado Especial da Fazenda Pública?","Autores: pessoas físicas e ME/EPP. Réus: Estados, DF, Territórios, Municípios, e suas autarquias/fundações/empresas públicas."],["Juizado Fazenda Publica","Lei 12.153/09, art. 11 - há reexame necessário no Juizado da Fazenda Pública?","Não."],["Juizado Fazenda Publica","Lei 12.153/09, art. 13, §3º - qual o valor limite (RPV) sem precatório para Estados/DF e para Municípios, na ausência de lei local?","40 salários-mínimos para Estados/DF; 30 salários-mínimos para Municípios."],["Juizado Fazenda Publica","Lei 12.153/09, art. 18 - o que é o pedido de uniformização de interpretação de lei no âmbito da Fazenda Pública?","Cabível quando houver divergência entre decisões de Turmas Recursais sobre questões de direito material; se contrariar súmula do STJ, é este quem julga."],["Jurisprudencia","STJ - a Turma Recursal do Juizado da Fazenda Pública pode fazer juízo prévio de admissibilidade do PUIL dirigido ao STJ?","Não; deve apenas receber o pedido, intimar a parte contrária e remeter os autos ao STJ."],["Jurisprudencia","STF, Tema 1.396 - a execução invertida também se aplica aos Juizados Especiais da Fazenda Pública?","Sim, é possível exigir da Fazenda Pública a apresentação de documentos e cálculos para o cumprimento de sentença, de forma semelhante ao JEF."],["Juizado Fazenda Publica","Lei 12.153/09, art. 15, §1º - qual a experiência mínima exigida para juiz leigo no Juizado da Fazenda Pública?","2 anos de experiência como advogado (diferente da Lei 9.099/95, que exige 5 anos para o Juizado Cível comum)."],["Juizado Fazenda Publica","Lei 12.153/09, art. 27 - qual a legislação aplicável subsidiariamente aos Juizados da Fazenda Pública?","CPC, Lei 9.099/95 e Lei 10.259/01."]];
+
+let questoesEstado = lerJSON(LS.questoesEstado, {});
+let questoesLog = lerJSON(LS.questoesLog, {});
+let qStatusAtivo = 'todos';
+let qSessao = { indices: [], pos: 0, revelado: false };
+
+/* ---- Baralho ativo (CPC por padrão; Direito Administrativo entra quando
+   pareado e sincronizado pela extensão) ---- */
+let BARALHO_ATIVO = DADOS_CPC;
+let BARALHO_ATIVO_ID = 'cpc';
+let questoesAdmCache = null; // { qa: [...], ce: [...] } vindo do Firebase, só quando pareado
+
+function salvarQuestoesEstado(){ salvarJSON(LS.questoesEstado, questoesEstado); }
+function salvarQuestoesLog(){ salvarJSON(LS.questoesLog, questoesLog); }
+
+function estadoCartao(i){
+  return Object.assign({ intervalo: 0, facilidade: 2.5, streak: 0, dueEm: null, vezes: 0, acertos: 0, ultimaResposta: null }, questoesEstado[i] || {});
+}
+
+// Revisão espaçada simplificada (inspirada no SM-2): acerto aumenta o
+// intervalo até a próxima revisão; erro zera e volta pra amanhã.
+function registrarResposta(indice, acertou){
+  const hoje = hojeChave();
+  const e = estadoCartao(indice);
+  e.vezes++;
+  e.ultimaResposta = acertou ? 'acerto' : 'erro';
+  if (acertou) {
+    e.acertos++;
+    e.streak++;
+    e.facilidade = Math.min(3.0, e.facilidade + 0.1);
+    e.intervalo = e.streak === 1 ? 1 : Math.round(e.intervalo * e.facilidade);
+  } else {
+    e.streak = 0;
+    e.facilidade = Math.max(1.3, e.facilidade - 0.2);
+    e.intervalo = 0;
+  }
+  const dataDue = new Date();
+  dataDue.setDate(dataDue.getDate() + Math.max(1, e.intervalo));
+  e.dueEm = chaveData(dataDue);
+  questoesEstado[indice] = e;
+  salvarQuestoesEstado();
+
+  questoesLog[hoje] = questoesLog[hoje] || { feitas: 0, acertos: 0 };
+  questoesLog[hoje].feitas++;
+  if (acertou) questoesLog[hoje].acertos++;
+  salvarQuestoesLog();
+}
+
+function cartoesDevidos(){
+  const hoje = hojeChave();
+  const indices = [];
+  for (let i = 0; i < BARALHO_ATIVO.length; i++) {
+    const e = questoesEstado[i];
+    if (!e || !e.dueEm || e.dueEm <= hoje) indices.push(i);
+  }
+  return indices;
+}
+function cartoesFiltrados(){
+  const assunto = document.getElementById('qFiltroAssunto').value;
+  const dificuldade = document.getElementById('qFiltroDificuldade').value;
+  const indices = [];
+  for (let i = 0; i < BARALHO_ATIVO.length; i++) {
+    if (assunto && BARALHO_ATIVO[i][0] !== assunto) continue;
+    // O baralho de exemplo ainda não tem dificuldade marcada por cartão —
+    // todo cartão conta como "normal" até isso ser adicionado nos dados.
+    if (dificuldade && dificuldade !== 'normal') continue;
+    const e = estadoCartao(i);
+    if (qStatusAtivo === 'resolvidos' && e.vezes === 0) continue;
+    if (qStatusAtivo === 'naoresolvidos' && e.vezes > 0) continue;
+    if (qStatusAtivo === 'certas' && e.ultimaResposta !== 'acerto') continue;
+    if (qStatusAtivo === 'erradas' && e.ultimaResposta !== 'erro') continue;
+    indices.push(i);
+  }
+  return indices;
+}
+function embaralhar(arr){
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/* ---- Cruzamento com o desempenho real do QConcursos ----
+   A extensão rasqueia /usuario/estatisticas/assuntos do próprio QC e já
+   calcula um score de urgência (acerto baixo + tempo sem estudar). Aqui
+   só precisamos achar, pra cada assunto urgente de lá, qual assunto do
+   nosso baralho de flashcards é o mesmo — os nomes não batem 100% porque
+   vêm de fontes diferentes (texto raspado do QC vs. tags do Anki), então
+   comparamos por texto normalizado (sem acento/maiúscula/underscore). */
+function normalizarTexto(s){
+  return (s || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[_-]/g, ' ')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+// Raiz aproximada da palavra (5 letras) — tolera plural/conjugação em
+// português (ex: "recursos"/"recurso", "audiencia"/"audiências") sem
+// precisar de um stemmer de verdade.
+function raizPalavra(w){ return w.slice(0, 5); }
+function encontrarAssuntoCorrespondente(nomeQC){
+  const alvo = normalizarTexto(nomeQC);
+  const raizesAlvo = new Set(alvo.split(' ').filter((w) => w.length > 3).map(raizPalavra));
+  const assuntosLocais = [...new Set(BARALHO_ATIVO.map((c) => c[0]))];
+  let melhor = null, melhorPontos = 0;
+  assuntosLocais.forEach((assunto) => {
+    const cand = normalizarTexto(assunto);
+    let pontos = 0;
+    if (cand === alvo) pontos = 100;
+    else if (alvo.includes(cand) || cand.includes(alvo)) pontos = 70;
+    else {
+      const palavrasCand = cand.split(' ').filter((w) => w.length > 3);
+      const comuns = palavrasCand.filter((w) => raizesAlvo.has(raizPalavra(w))).length;
+      pontos = comuns * 25;
+    }
+    if (pontos > melhorPontos) { melhorPontos = pontos; melhor = assunto; }
+  });
+  return melhorPontos >= 25 ? melhor : null;
+}
+
+function calcularAssuntosFracosLocal(){
+  const porAssunto = {};
+  for (let i = 0; i < BARALHO_ATIVO.length; i++) {
+    const e = questoesEstado[i];
+    if (!e || !e.vezes) continue;
+    const assunto = BARALHO_ATIVO[i][0];
+    porAssunto[assunto] = porAssunto[assunto] || { vezes: 0, acertos: 0 };
+    porAssunto[assunto].vezes += e.vezes;
+    porAssunto[assunto].acertos += e.acertos;
+  }
+  return Object.entries(porAssunto)
+    .filter(([, v]) => v.vezes >= 3)
+    .map(([assunto, v]) => ({ assunto, taxa: v.acertos / v.vezes, origem: 'local' }))
+    .sort((a, b) => a.taxa - b.taxa)
+    .slice(0, 5);
+}
+function calcularAssuntosFracos(){
+  // Fonte principal: desempenho real do QConcursos, sincronizado da
+  // extensão (só existe quando pareado e com o firebase-sync.js atualizado).
+  const prioridadeQC = estadoExtensao && Array.isArray(estadoExtensao.assuntosPrioridadeQC)
+    ? estadoExtensao.assuntosPrioridadeQC : [];
+  if (prioridadeQC.length) {
+    const lista = [];
+    const jaUsados = new Set();
+    for (const item of prioridadeQC) {
+      const assuntoLocal = encontrarAssuntoCorrespondente(item.nome);
+      if (!assuntoLocal || jaUsados.has(assuntoLocal)) continue;
+      jaUsados.add(assuntoLocal);
+      lista.push({ assunto: assuntoLocal, taxa: (item.pctAcerto || 0) / 100, origem: 'qconcursos', nomeQC: item.nome });
+      if (lista.length >= 5) break;
+    }
+    if (lista.length) return lista;
+  }
+  // Sem dados do QConcursos ainda (não pareado, ou nenhum assunto da
+  // extensão bateu com os assuntos deste baralho): cai pro desempenho
+  // local, medido pelas próprias respostas dadas aqui nos flashcards.
+  return calcularAssuntosFracosLocal();
+}
+
+/* ---- Licença: reaproveita o sistema manual da extensão (via Firebase,
+   quando pareado) + o vitalício conquistado por indicação. ---- */
+function licencaEhPro(){
+  if (estadoExtensao && estadoExtensao.questoesLiberado) return true;
+  if (estadoExtensao && estadoExtensao.questoesVitalicioSite) return true;
+  if (lerJSON(LS.questoesVitalicio, false)) return true;
+  return false;
+}
+function temQuestoesDisponiveisHoje(){
+  if (licencaEhPro()) return true;
+  const feitas = (questoesLog[hojeChave()] || {}).feitas || 0;
+  return feitas < 10;
+}
+
+/* ---- Overlay de prática ---- */
+const qPraticaOverlay = document.getElementById('qPraticaOverlay');
+const qPraticaCorpo = document.getElementById('qPraticaCorpo');
+const qPraticaRodape = document.getElementById('qPraticaRodape');
+
+function iniciarPratica(indices){
+  const modo = (BARALHO_ATIVO_ID === 'adm_ce') ? 'vf' : 'flashcard';
+  qSessao = { indices: embaralhar([...indices]), pos: 0, revelado: false, modo, escolha: null };
+  qPraticaOverlay.classList.add('aberto');
+  renderPraticaAtual();
+}
+function fecharPratica(){
+  qPraticaOverlay.classList.remove('aberto');
+  atualizarPainelQuestoes();
+}
+document.getElementById('qPraticaFechar').addEventListener('click', fecharPratica);
+
+function renderTelaFinalPratica(icone, titulo, texto, textoBotao){
+  qPraticaCorpo.innerHTML = '';
+  const fim = document.createElement('div');
+  fim.className = 'q-pratica-fim';
+  const ic = document.createElement('div');
+  ic.className = 'ic';
+  ic.innerHTML = icone;
+  const h3 = document.createElement('h3');
+  h3.textContent = titulo;
+  const p = document.createElement('p');
+  p.textContent = texto;
+  fim.appendChild(ic); fim.appendChild(h3); fim.appendChild(p);
+  qPraticaCorpo.appendChild(fim);
+
+  qPraticaRodape.innerHTML = '';
+  const btn = document.createElement('button');
+  btn.className = 'q-btn-revelar';
+  btn.style.width = '100%';
+  btn.textContent = textoBotao;
+  btn.addEventListener('click', fecharPratica);
+  qPraticaRodape.appendChild(btn);
+}
+const ICONE_CHECK_GRANDE = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const ICONE_BUSCA = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+const ICONE_CADEADO_GRANDE = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+
+function renderPraticaAtual(){
+  const total = qSessao.indices.length;
+
+  if (!total) {
+    document.getElementById('qPraticaContagem').textContent = '0/0';
+    document.getElementById('qPraticaProgressoFill').style.width = '0%';
+    renderTelaFinalPratica(ICONE_BUSCA, 'Nenhum cartão encontrado',
+      'Tente ajustar os filtros — esse baralho de exemplo ainda não tem dificuldade marcada por cartão.', 'Fechar');
+    return;
+  }
+  if (qSessao.pos >= total) {
+    document.getElementById('qPraticaContagem').textContent = `${total}/${total}`;
+    document.getElementById('qPraticaProgressoFill').style.width = '100%';
+    renderTelaFinalPratica(ICONE_CHECK_GRANDE, 'Sessão concluída',
+      `Você respondeu ${total} cartão${total === 1 ? '' : 'ões'}.`, 'Fechar');
+    return;
+  }
+  if (!temQuestoesDisponiveisHoje()) {
+    document.getElementById('qPraticaProgressoFill').style.width = '100%';
+    renderTelaFinalPratica(ICONE_CADEADO_GRANDE, 'Limite diário do Free atingido',
+      'Você já fez suas 10 questões de hoje. Pareie com a extensão e ative o Pro, ou indique um amigo pra ganhar ilimitado, pra sempre.', 'Entendi');
+    return;
+  }
+
+  const indice = qSessao.indices[qSessao.pos];
+  document.getElementById('qPraticaContagem').textContent = `${qSessao.pos + 1}/${total}`;
+  document.getElementById('qPraticaProgressoFill').style.width = (qSessao.pos / total * 100) + '%';
+
+  if (qSessao.modo === 'vf') { renderPraticaVF(indice); return; }
+  renderPraticaFlashcard(indice);
+}
+
+/* ---- Modo Flashcard (CPC e Direito Administrativo Q&A) ---- */
+function renderPraticaFlashcard(indice){
+  qPraticaCorpo.innerHTML = '';
+  const tagAssunto = document.createElement('div');
+  tagAssunto.className = 'q-pratica-assunto';
+  tagAssunto.textContent = BARALHO_ATIVO[indice][0];
+  qPraticaCorpo.appendChild(tagAssunto);
+
+  const card = document.createElement('div');
+  card.className = 'q-pratica-card';
+  const wrap = document.createElement('div');
+  wrap.style.width = '100%';
+  const frenteEl = document.createElement('div');
+  frenteEl.className = 'q-pratica-texto';
+  frenteEl.textContent = BARALHO_ATIVO[indice][1];
+  wrap.appendChild(frenteEl);
+  if (qSessao.revelado) {
+    const versoWrap = document.createElement('div');
+    versoWrap.className = 'q-pratica-verso';
+    const versoEl = document.createElement('div');
+    versoEl.className = 'q-pratica-texto';
+    versoEl.textContent = BARALHO_ATIVO[indice][2];
+    versoWrap.appendChild(versoEl);
+    wrap.appendChild(versoWrap);
+  }
+  card.appendChild(wrap);
+  qPraticaCorpo.appendChild(card);
+
+  qPraticaRodape.innerHTML = '';
+  if (!qSessao.revelado) {
+    const btn = document.createElement('button');
+    btn.className = 'q-btn-revelar';
+    btn.textContent = 'Ver resposta';
+    btn.addEventListener('click', () => { qSessao.revelado = true; renderPraticaAtual(); });
+    qPraticaRodape.appendChild(btn);
+  } else {
+    const btnErro = document.createElement('button');
+    btnErro.className = 'q-btn-errei';
+    btnErro.textContent = 'Errei';
+    btnErro.addEventListener('click', () => avancarPratica(indice, false));
+    const btnAcerto = document.createElement('button');
+    btnAcerto.className = 'q-btn-acertei';
+    btnAcerto.textContent = 'Acertei';
+    btnAcerto.addEventListener('click', () => avancarPratica(indice, true));
+    qPraticaRodape.appendChild(btnErro);
+    qPraticaRodape.appendChild(btnAcerto);
+  }
+}
+
+/* ---- Modo Certo/Errado (Direito Administrativo — assertivas) ----
+   Aqui a resposta certa vem nos próprios dados: BARALHO_ATIVO[indice][2]
+   começa com "Certo" ou "Errado" (formato: "Certo — justificativa" /
+   "Errado — justificativa"). O usuário escolhe ANTES de ver o texto,
+   como uma prova de Certo/Errado de verdade — não é flashcard. */
+function renderPraticaVF(indice){
+  const item = BARALHO_ATIVO[indice];
+  const respostaCompleta = item[2] || '';
+  const separador = respostaCompleta.indexOf(' — ');
+  const gabarito = (separador >= 0 ? respostaCompleta.slice(0, separador) : respostaCompleta).trim(); // "Certo" ou "Errado"
+  const justificativa = separador >= 0 ? respostaCompleta.slice(separador + 3).trim() : '';
+
+  qPraticaCorpo.innerHTML = '';
+  const tagAssunto = document.createElement('div');
+  tagAssunto.className = 'q-pratica-assunto';
+  tagAssunto.textContent = item[0];
+  qPraticaCorpo.appendChild(tagAssunto);
+
+  const card = document.createElement('div');
+  card.className = 'q-pratica-card';
+  const wrap = document.createElement('div');
+  wrap.style.width = '100%';
+  const frenteEl = document.createElement('div');
+  frenteEl.className = 'q-pratica-texto';
+  frenteEl.textContent = item[1];
+  wrap.appendChild(frenteEl);
+
+  if (qSessao.revelado) {
+    const acertou = qSessao.escolha === gabarito;
+    const versoWrap = document.createElement('div');
+    versoWrap.className = 'q-pratica-verso';
+
+    const veredito = document.createElement('div');
+    veredito.className = 'q-vf-veredito ' + (acertou ? 'certo' : 'errado');
+    veredito.textContent = acertou
+      ? `Você acertou — gabarito: ${gabarito}`
+      : `Você marcou "${qSessao.escolha}" — gabarito: ${gabarito}`;
+    versoWrap.appendChild(veredito);
+
+    if (justificativa) {
+      const versoEl = document.createElement('div');
+      versoEl.className = 'q-pratica-texto';
+      versoEl.textContent = justificativa;
+      versoWrap.appendChild(versoEl);
+    }
+    wrap.appendChild(versoWrap);
+  }
+  card.appendChild(wrap);
+  qPraticaCorpo.appendChild(card);
+
+  qPraticaRodape.innerHTML = '';
+  if (!qSessao.revelado) {
+    const btnErrado = document.createElement('button');
+    btnErrado.className = 'q-btn-errei';
+    btnErrado.textContent = 'Errado';
+    btnErrado.addEventListener('click', () => {
+      qSessao.escolha = 'Errado';
+      qSessao.revelado = true;
+      renderPraticaAtual();
+    });
+    const btnCerto = document.createElement('button');
+    btnCerto.className = 'q-btn-acertei';
+    btnCerto.textContent = 'Certo';
+    btnCerto.addEventListener('click', () => {
+      qSessao.escolha = 'Certo';
+      qSessao.revelado = true;
+      renderPraticaAtual();
+    });
+    qPraticaRodape.appendChild(btnErrado);
+    qPraticaRodape.appendChild(btnCerto);
+  } else {
+    const btnProxima = document.createElement('button');
+    btnProxima.className = 'q-btn-revelar';
+    btnProxima.textContent = 'Próxima';
+    btnProxima.addEventListener('click', () => avancarPratica(indice, qSessao.escolha === gabarito));
+    qPraticaRodape.appendChild(btnProxima);
+  }
+}
+
+function avancarPratica(indice, acertou){
+  registrarResposta(indice, acertou);
+  qSessao.pos++;
+  qSessao.revelado = false;
+  qSessao.escolha = null;
+  renderPraticaAtual();
+}
+
+/* ---- Botões principais da aba ---- */
+document.getElementById('qBtnPraticar').addEventListener('click', () => iniciarPratica(cartoesFiltrados()));
+document.getElementById('qBtnRevisao').addEventListener('click', () => iniciarPratica(cartoesDevidos()));
+document.getElementById('qBtnCronograma').addEventListener('click', () => irParaAba('agenda'));
+
+/* ---- Abas de tipo de exame (só Concurso tem dados por enquanto) ---- */
+document.querySelectorAll('.q-tab').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.q-tab').forEach((b) => b.classList.toggle('ativo', b === btn));
+    const ehConcurso = btn.dataset.exame === 'concurso';
+    document.getElementById('qConteudoConcurso').style.display = ehConcurso ? 'block' : 'none';
+    document.getElementById('qEmBreve').style.display = ehConcurso ? 'none' : 'block';
+  });
+});
+
+/* ---- Filtros ---- */
+function popularFiltroAssunto(){
+  const select = document.getElementById('qFiltroAssunto');
+  select.innerHTML = '<option value="">Todos</option>';
+  const assuntos = [...new Set(BARALHO_ATIVO.map((c) => c[0]))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  assuntos.forEach((a) => {
+    const opt = document.createElement('option');
+    opt.value = a; opt.textContent = a;
+    select.appendChild(opt);
+  });
+}
+
+/* ---- Disciplina ativa — Direito Administrativo só existe depois de pareado
+   com a extensão E dela ter sincronizado o banco (dispositivos/<id>/questoesAdm).
+   Sem isso, as opções ficam desabilitadas e o baralho continua sendo o CPC. ---- */
+// Guarda a última disponibilidade conhecida pra não recriar o <select> (e
+// perder a seleção do usuário / resetar o baralho pro CPC) toda vez que o
+// Firebase manda uma atualização de estado (heartbeat de ~1min, mudança de
+// sessão/pomodoro etc.) — sem isso, atualizarDisciplinaDisponivel() rodava
+// a cada snapshot do refExtensao.on('value', ...) e derrubava a escolha de
+// Direito Administrativo poucos segundos depois de selecionada.
+let cbAdmDisponivelAnterior = undefined;
+
+function atualizarDisciplinaDisponivel(){
+  const select = document.getElementById('qFiltroDisciplina');
+  const admDisponivel = !!(deviceId && estadoExtensao && estadoExtensao.questoesAdm);
+
+  // Nada mudou desde a última vez (o caso mais comum, disparado pelo
+  // heartbeat) — não mexe no <select> nem reaplica a disciplina, pra não
+  // perder a seleção do usuário nem reiniciar a sessão de prática em
+  // andamento.
+  if (admDisponivel === cbAdmDisponivelAnterior) return;
+  cbAdmDisponivelAnterior = admDisponivel;
+
+  const valorAnterior = select.value;
+
+  select.innerHTML = '<option value="">CPC e Juizados Especiais</option>';
+
+  const optQA = document.createElement('option');
+  optQA.value = 'adm_qa';
+  optQA.textContent = admDisponivel ? 'Direito Administrativo — Perguntas e Respostas' : 'Direito Administrativo — pareie a extensão pra desbloquear';
+  optQA.disabled = !admDisponivel;
+  select.appendChild(optQA);
+
+  const optCE = document.createElement('option');
+  optCE.value = 'adm_ce';
+  optCE.textContent = admDisponivel ? 'Direito Administrativo — Certo ou Errado' : 'Direito Administrativo — pareie a extensão pra desbloquear';
+  optCE.disabled = !admDisponivel;
+  select.appendChild(optCE);
+
+  // Restaura a seleção anterior, exceto se ela era uma opção de Direito
+  // Administrativo que deixou de estar disponível (ex: despareou) — nesse
+  // caso volta pro CPC.
+  if (valorAnterior === 'adm_qa' || valorAnterior === 'adm_ce') {
+    select.value = admDisponivel ? valorAnterior : '';
+  } else {
+    select.value = valorAnterior;
+  }
+  aplicarDisciplinaSelecionada();
+}
+
+function aplicarDisciplinaSelecionada(){
+  const select = document.getElementById('qFiltroDisciplina');
+  const admDisponivel = !!(deviceId && estadoExtensao && estadoExtensao.questoesAdm);
+  const escolha = select.value;
+
+  if (escolha === 'adm_qa' && admDisponivel) {
+    BARALHO_ATIVO = estadoExtensao.questoesAdm.qa;
+    BARALHO_ATIVO_ID = 'adm_qa';
+  } else if (escolha === 'adm_ce' && admDisponivel) {
+    BARALHO_ATIVO = estadoExtensao.questoesAdm.ce;
+    BARALHO_ATIVO_ID = 'adm_ce';
+  } else {
+    BARALHO_ATIVO = DADOS_CPC;
+    BARALHO_ATIVO_ID = 'cpc';
+  }
+
+  popularFiltroAssunto();
+  atualizarContagemFiltrada();
+}
+document.getElementById('qFiltroDisciplina').addEventListener('change', aplicarDisciplinaSelecionada);
+function atualizarContagemFiltrada(){
+  const n = cartoesFiltrados().length;
+  document.getElementById('qBtnPraticarSub').textContent = `${n} cartão${n === 1 ? '' : 'ões'} com esse filtro`;
+}
+document.getElementById('qFiltroAssunto').addEventListener('change', atualizarContagemFiltrada);
+document.getElementById('qFiltroDificuldade').addEventListener('change', atualizarContagemFiltrada);
+document.querySelectorAll('#qChipsStatus .q-chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('#qChipsStatus .q-chip').forEach((c) => c.classList.toggle('ativo', c === chip));
+    qStatusAtivo = chip.dataset.status;
+    atualizarContagemFiltrada();
+  });
+});
+
+/* ---- Sugestões (assuntos fracos) ---- */
+function mensagemDiagnosticoFracos(){
+  const vazio = document.createElement('div');
+  vazio.className = 'vazio-msg';
+  vazio.style.cssText = 'padding:16px 2px; text-align:left; line-height:1.6;';
+
+  if (!deviceId) {
+    vazio.textContent = 'Responda pelo menos 3 questões de um assunto aqui nos flashcards (ou pareie com a extensão) pra ver os mais fracos.';
+    return vazio;
+  }
+  const qc = estadoExtensao && Array.isArray(estadoExtensao.assuntosPrioridadeQC) ? estadoExtensao.assuntosPrioridadeQC : null;
+  if (!estadoExtensao) {
+    vazio.textContent = 'Pareado, mas ainda não chegou nenhum dado da extensão. Confira se ela está aberta no PC e espere até 1 minuto.';
+  } else if (!qc || !qc.length) {
+    vazio.innerHTML = 'Ainda não chegou nenhum assunto do QConcursos. Confira:<br>' +
+      '1) trocou o <b>firebase-sync.js</b> pelo mais recente na extensão?<br>' +
+      '2) recarregou a extensão em <b>chrome://extensions</b> depois de trocar?<br>' +
+      '3) já visitou <b>qconcursos.com/usuario/estatisticas/assuntos</b> com a extensão ativa, pelo menos uma vez?';
+  } else {
+    vazio.innerHTML = `Recebemos ${qc.length} assunto${qc.length === 1 ? '' : 's'} do QConcursos, mas nenhum bateu com os ` +
+      'assuntos deste baralho (CPC e Juizados Especiais). Provavelmente os assuntos em que você mais erra são de outra ' +
+      'matéria — isso é esperado até você ter um baralho pra ela também.';
+  }
+  return vazio;
+}
+function renderFracos(){
+  const wrap = document.getElementById('qFracosLista');
+  const lista = calcularAssuntosFracos();
+  wrap.innerHTML = '';
+  if (!lista.length) {
+    wrap.appendChild(mensagemDiagnosticoFracos());
+    return;
+  }
+  lista.forEach(({ assunto, taxa, origem, nomeQC }) => {
+    const item = document.createElement('div');
+    item.className = 'q-fraco-item';
+
+    const nomeWrap = document.createElement('span');
+    nomeWrap.className = 'q-fraco-nome';
+    const nomePrincipal = document.createElement('span');
+    nomePrincipal.textContent = assunto;
+    nomeWrap.appendChild(nomePrincipal);
+    if (origem === 'qconcursos') {
+      const sub = document.createElement('span');
+      sub.style.cssText = 'display:block;font-size:10.5px;color:var(--text-faint);margin-top:2px;';
+      sub.textContent = `QConcursos: "${nomeQC}"`;
+      nomeWrap.appendChild(sub);
+    }
+    item.appendChild(nomeWrap);
+
+    const tag = document.createElement('span');
+    tag.className = 'q-fraco-taxa';
+    tag.textContent = Math.round(taxa * 100) + '% acerto';
+    item.appendChild(tag);
+    item.addEventListener('click', () => {
+      const indices = [];
+      for (let i = 0; i < BARALHO_ATIVO.length; i++) if (BARALHO_ATIVO[i][0] === assunto) indices.push(i);
+      iniciarPratica(indices);
+    });
+    wrap.appendChild(item);
+  });
+}
+
+/* ---- Estatísticas (frequência, hoje, desempenho, semana) ----
+   Prioridade: desempenho REAL do QConcursos (sincronizado da extensão,
+   vindo da própria API "Meu Painel" do QC). Só cai pro uso local dos
+   flashcards deste site quando não há nada sincronizado ainda. As duas
+   fontes nunca se misturam no mesmo gráfico — ou é tudo QC, ou é tudo
+   local, pra não distorcer o que está sendo mostrado. */
+function fonteDadosQuestoes(){
+  const hist = estadoExtensao && estadoExtensao.questoesHistoricoQC;
+  return (hist && Object.keys(hist).length) ? 'qc' : 'local';
+}
+function diaQuestoes(chave, fonte){
+  if (fonte === 'qc') {
+    const d = (estadoExtensao.questoesHistoricoQC || {})[chave];
+    return d ? { feitas: d.total || 0, acertos: d.acertos || 0 } : { feitas: 0, acertos: 0 };
+  }
+  return questoesLog[chave] || { feitas: 0, acertos: 0 };
+}
+function statsHojeQuestoes(fonte){
+  // "Hoje" tem uma fonte AINDA mais fresca que o histórico diário — o
+  // snapshot ao vivo do "Meu Painel" do QC, atualizado a cada sincronização.
+  if (fonte === 'qc' && estadoExtensao.questoesHojeQC) {
+    const h = estadoExtensao.questoesHojeQC;
+    return { feitas: h.total || 0, acertos: h.acertos || 0 };
+  }
+  return diaQuestoes(hojeChave(), fonte);
+}
+function calcularStreakQuestoes(fonte){
+  let streak = 0;
+  const d = new Date();
+  if (diaQuestoes(chaveData(d), fonte).feitas > 0) streak++;
+  d.setDate(d.getDate() - 1);
+  while (diaQuestoes(chaveData(d), fonte).feitas > 0) { streak++; d.setDate(d.getDate() - 1); }
+  return streak;
+}
+function renderSemanaQuestoes(fonte){
+  const hojeD = new Date();
+  const DOW = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  const dias = [];
+  let maxFeitas = 1;
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(hojeD); d.setDate(d.getDate() - i);
+    const log = diaQuestoes(chaveData(d), fonte);
+    dias.push({ d, log });
+    maxFeitas = Math.max(maxFeitas, log.feitas);
+  }
+  const wrap = document.getElementById('qSemanaChart');
+  wrap.innerHTML = '';
+  dias.forEach(({ d, log }) => {
+    const ehHoje = chaveData(d) === hojeChave();
+    const col = document.createElement('div');
+    col.className = 'semana-col' + (ehHoje ? ' hoje' : '');
+    const alturaPct = Math.max(3, (log.feitas / maxFeitas) * 100);
+    const pct = log.feitas ? Math.round(log.acertos / log.feitas * 100) + '%' : '–';
+    col.innerHTML = `
+      <span style="font-size:10px;color:var(--text-dim);font-weight:700;">${pct}</span>
+      <div class="semana-barra"><div class="semana-barra-fill" style="height:${alturaPct}%;"></div></div>
+      <span class="semana-label">${DOW[d.getDay()]}</span>
+    `;
+    wrap.appendChild(col);
+  });
+  const nota = document.getElementById('qFonteNota');
+  if (nota) {
+    nota.textContent = fonte === 'qc'
+      ? 'Dados reais do seu QConcursos, sincronizados da extensão.'
+      : 'Ainda sem sincronização do QConcursos — mostrando o uso dos flashcards aqui no site.';
+  }
+}
+function atualizarLicencaUI(){
+  const pro = licencaEhPro();
+  const tag = document.getElementById('qLicencaTag');
+  tag.textContent = pro ? 'Pro' : 'Free';
+  tag.className = 'q-licenca-tag ' + (pro ? 'pro' : 'free');
+  const feitas = (questoesLog[hojeChave()] || {}).feitas || 0;
+  document.getElementById('qLicencaContagem').textContent = pro ? 'ilimitado' : `${Math.min(feitas, 10)} / 10 hoje`;
+  document.getElementById('qLicencaBarra').style.width = (pro ? 100 : Math.min(100, feitas / 10 * 100)) + '%';
+  document.getElementById('qLicencaSub').textContent = pro
+    ? 'Você tem acesso ilimitado às questões.'
+    : 'Plano Free: 10 flashcards por dia neste site. Pareie com a extensão pra ativar o Pro, ou indique um amigo — 1 indicação válida libera vitalício pros dois.';
+  document.getElementById('qMeuCodigo').value = deviceId || 'pareie o celular pra gerar';
+}
+function atualizarPainelQuestoes(){
+  if (document.getElementById('qConteudo').style.display === 'none') return;
+  const fonte = fonteDadosQuestoes();
+  const hojeStats = statsHojeQuestoes(fonte);
+  document.getElementById('qStatStreak').textContent = calcularStreakQuestoes(fonte);
+  document.getElementById('qStatHoje').textContent = hojeStats.feitas;
+  document.getElementById('qStatDesempenho').textContent = hojeStats.feitas ? Math.round(hojeStats.acertos / hojeStats.feitas * 100) + '%' : '—';
+  renderSemanaQuestoes(fonte);
+  document.getElementById('qBadgeRevisao').textContent = cartoesDevidos().length;
+  renderFracos();
+  atualizarLicencaUI();
+  atualizarContagemFiltrada();
+}
+
+/* ---- Indicação (compartilhar com amigo → vitalício pros dois) ----
+   Não é à prova de fraude — usa as mesmas regras abertas do Firebase
+   que o resto do site já usa. Cada aparelho só resgata 1 código. */
+document.getElementById('qCopiarCodigo').addEventListener('click', () => {
+  if (!deviceId) return;
+  navigator.clipboard?.writeText(deviceId).then(() => {
+    const btn = document.getElementById('qCopiarCodigo');
+    const original = btn.textContent;
+    btn.textContent = 'Copiado!';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  });
+});
+document.getElementById('qResgatarCodigo').addEventListener('click', async () => {
+  const msg = document.getElementById('qIndicacaoMsg');
+  msg.className = 'q-indicacao-msg';
+  msg.textContent = '';
+  if (!firebaseDisponivel || !deviceId) {
+    msg.className = 'q-indicacao-msg erro';
+    msg.textContent = 'Pareie com a extensão primeiro pra poder resgatar um código.';
+    return;
+  }
+  const codigoAmigo = document.getElementById('qCodigoAmigo').value.trim();
+  if (!codigoAmigo) return;
+  if (codigoAmigo === deviceId) {
+    msg.className = 'q-indicacao-msg erro';
+    msg.textContent = 'Esse é o seu próprio código — peça o de um amigo.';
+    return;
+  }
+  msg.textContent = 'Verificando...';
+  try {
+    const jaResgatouSnap = await db.ref('resgatesQuestoes/' + deviceId).once('value');
+    if (jaResgatouSnap.exists()) {
+      msg.className = 'q-indicacao-msg erro';
+      msg.textContent = 'Este aparelho já resgatou um código antes.';
+      return;
+    }
+    const amigoSnap = await db.ref('dispositivos/' + codigoAmigo).once('value');
+    if (!amigoSnap.exists()) {
+      msg.className = 'q-indicacao-msg erro';
+      msg.textContent = 'Código não encontrado. Confira se copiou certinho.';
+      return;
+    }
+    await db.ref('resgatesQuestoes/' + deviceId).set({ indicadoPor: codigoAmigo, ts: Date.now() });
+    await db.ref('dispositivos/' + deviceId + '/questoesVitalicioSite').set(true);
+    await db.ref('dispositivos/' + codigoAmigo + '/questoesVitalicioSite').set(true);
+    localStorage.setItem(LS.questoesVitalicio, 'true');
+    msg.className = 'q-indicacao-msg ok';
+    msg.textContent = 'Código válido! Vocês dois ganharam acesso ilimitado, pra sempre.';
+    document.getElementById('qCodigoAmigo').value = '';
+    atualizarPainelQuestoes();
+  } catch (e) {
+    msg.className = 'q-indicacao-msg erro';
+    msg.textContent = 'Falha de conexão. Tente de novo.';
+  }
+});
+
+/* ---- Conteúdo de Questões (abre direto, sem senha) ---- */
+function mostrarConteudoQuestoes(){
+  document.getElementById('qConteudo').style.display = 'block';
+  atualizarPainelQuestoes();
+}
+
+atualizarDisciplinaDisponivel();
+mostrarConteudoQuestoes();
+
+/* ============================================================
+   MODO PDF — biblioteca (GitHub) + histórico de leitura (Firebase)
+   ============================================================ */
+const GH_CONFIG_KEY = 'pdfviewer:github-sync'; // MESMA chave usada pelo leitor de PDF (custom/github-sync.js)
+const GH_MANIFEST_PATH = '_biblioteca/manifest.json';
+const GH_PASTA_PDFS = '_biblioteca/pdfs';
+const LS_VIEWER_PATH = 'pdfviewer:site-path'; // onde o leitor de PDF está publicado, relativo a este site
+
+function ghLerConfig(){
+  try { return JSON.parse(localStorage.getItem(GH_CONFIG_KEY)) || null; } catch { return null; }
+}
+function ghSalvarConfig(cfg){ localStorage.setItem(GH_CONFIG_KEY, JSON.stringify(cfg)); }
+function ghConfigurado(){ const c = ghLerConfig(); return !!(c && c.token && c.owner && c.repo); }
+function lerCaminhoLeitor(){ return localStorage.getItem(LS_VIEWER_PATH) || 'leitor-pdf/web/viewer.html'; }
+
+function ghEncodePath(path){ return path.split('/').filter(Boolean).map(encodeURIComponent).join('/'); }
+function ghBytesParaBase64(bytes){
+  let binario = '';
+  const bloco = 0x8000;
+  for (let i = 0; i < bytes.length; i += bloco) binario += String.fromCharCode.apply(null, bytes.subarray(i, i + bloco));
+  return btoa(binario);
+}
+function ghBase64ParaTexto(base64){ return new TextDecoder('utf-8').decode(Uint8Array.from(atob(base64.replace(/\n/g, '')), c => c.charCodeAt(0))); }
+
+async function ghGet(path){
+  const cfg = ghLerConfig();
+  const url = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${ghEncodePath(path)}${cfg.branch ? `?ref=${encodeURIComponent(cfg.branch)}` : ''}`;
+  const res = await fetch(url, { headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${cfg.token}`, 'X-GitHub-Api-Version': '2022-11-28' } });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GitHub respondeu ${res.status}`);
+  return await res.json();
+}
+async function ghPut(path, base64Content, sha, mensagem){
+  const cfg = ghLerConfig();
+  const url = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${ghEncodePath(path)}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${cfg.token}`, 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: mensagem, content: base64Content, ...(cfg.branch ? { branch: cfg.branch } : {}), ...(sha ? { sha } : {}) }),
+  });
+  if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error(body.message || `GitHub respondeu ${res.status}`); }
+  return await res.json();
+}
+async function ghDelete(path, sha, mensagem){
+  const cfg = ghLerConfig();
+  const url = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${ghEncodePath(path)}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${cfg.token}`, 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: mensagem, sha, ...(cfg.branch ? { branch: cfg.branch } : {}) }),
+  });
+  return res.ok;
+}
+
+function slugPdf(nome){
+  return (nome || 'documento')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/\.pdf$/i, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    .slice(0, 60) || 'documento';
+}
+
+let bibliotecaManifestSha = null;
+async function carregarBiblioteca(){
+  const resultado = await ghGet(GH_MANIFEST_PATH);
+  if (!resultado) { bibliotecaManifestSha = null; return []; }
+  bibliotecaManifestSha = resultado.sha;
+  const manifest = JSON.parse(ghBase64ParaTexto(resultado.content) || '{}');
+  return Array.isArray(manifest.pdfs) ? manifest.pdfs : [];
+}
+async function salvarBiblioteca(lista){
+  const payload = { versao: 1, atualizadoEm: Date.now(), pdfs: lista };
+  const texto = JSON.stringify(payload, null, 2);
+  const base64 = btoa(unescape(encodeURIComponent(texto)));
+  const res = await ghPut(GH_MANIFEST_PATH, base64, bibliotecaManifestSha, 'Atualiza biblioteca de PDFs');
+  bibliotecaManifestSha = res.content && res.content.sha;
+}
+async function adicionarPdfNaBiblioteca(file){
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const id = `${slugPdf(file.name)}-${Math.random().toString(36).slice(2, 8)}`;
+  const path = `${GH_PASTA_PDFS}/${id}.pdf`;
+  await ghPut(path, ghBytesParaBase64(bytes), null, `Adiciona ${file.name} à biblioteca`);
+  const lista = await carregarBiblioteca();
+  const entrada = { id, nome: file.name, path, paginas: null, tamanhoBytes: bytes.length, criadoEm: Date.now(), atualizadoEm: Date.now() };
+  lista.push(entrada);
+  await salvarBiblioteca(lista);
+  return entrada;
+}
+async function removerPdfDaBiblioteca(id){
+  const lista = await carregarBiblioteca();
+  const idx = lista.findIndex((p) => p.id === id);
+  if (idx === -1) return;
+  const entrada = lista[idx];
+  try {
+    const atual = await ghGet(entrada.path);
+    if (atual) await ghDelete(entrada.path, atual.sha, `Remove ${entrada.nome} da biblioteca`);
+  } catch (e) { console.warn('[Biblioteca] não consegui apagar o arquivo do GitHub:', e); }
+  lista.splice(idx, 1);
+  await salvarBiblioteca(lista);
+}
+
+function abrirPdfNoLeitor(entrada){
+  const base = lerCaminhoLeitor();
+  const url = `${base}?ghpath=${encodeURIComponent(entrada.path)}&pdfid=${encodeURIComponent(entrada.id)}&pdfnome=${encodeURIComponent(entrada.nome)}`;
+  window.location.href = url;
+}
+
+function formatarMin(ms){
+  const min = Math.round((ms || 0) / 60000);
+  return min < 60 ? `${min}min` : `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
+}
+
+async function renderBibliotecaLista(){
+  const wrap = document.getElementById('pdfBibliotecaLista');
+  const vazio = document.getElementById('pdfBibliotecaVazio');
+  if (!ghConfigurado()) { vazio.style.display = 'block'; vazio.textContent = 'Configure o GitHub acima pra ver sua biblioteca.'; wrap.innerHTML = ''; return; }
+  let lista;
+  try { lista = await carregarBiblioteca(); }
+  catch (e) { vazio.style.display = 'block'; vazio.textContent = 'Não consegui falar com o GitHub agora — confira o token e a internet.'; wrap.innerHTML = ''; return; }
+
+  if (!lista.length) { vazio.style.display = 'block'; vazio.textContent = 'Nenhum PDF ainda. Toque em "Adicionar PDF" acima.'; wrap.innerHTML = ''; return; }
+  vazio.style.display = 'none';
+
+  const porPdf = (leituraPdfCache && leituraPdfCache.porPdf) || {};
+  wrap.innerHTML = '';
+  lista.slice().sort((a, b) => (b.atualizadoEm || 0) - (a.atualizadoEm || 0)).forEach((entrada) => {
+    const leitura = porPdf[entrada.id];
+    const totalPaginas = entrada.paginas || (leitura && leitura.totalPaginas) || null;
+    const paginasLidas = leitura ? Object.keys(leitura.paginas || {}).length : 0;
+    const pct = totalPaginas ? Math.min(100, Math.round((paginasLidas / totalPaginas) * 100)) : 0;
+    const item = document.createElement('div');
+    item.className = 'pdf-lib-item';
+    item.innerHTML = `
+      <div class="pdf-lib-topo">
+        <div style="min-width:0;">
+          <div class="pdf-lib-nome">${escHtml(entrada.nome)}</div>
+          <div class="pdf-lib-sub">${totalPaginas ? `${paginasLidas}/${totalPaginas} páginas` : 'ainda não aberto'}${leitura ? ' · ' + formatarMin(leitura.tempoTotalMs) + ' lidos' : ''}</div>
+        </div>
+        <div class="pdf-lib-acoes">
+          <button class="pdf-lib-abrir" data-id="${escHtml(entrada.id)}">Abrir</button>
+          <button class="pdf-lib-remover" data-id="${escHtml(entrada.id)}">Remover</button>
+        </div>
+      </div>
+      <div class="pdf-lib-barra-track"><div class="pdf-lib-barra-fill" style="width:${pct}%;"></div></div>
+    `;
+    wrap.appendChild(item);
+  });
+  wrap.querySelectorAll('.pdf-lib-abrir').forEach((btn) => btn.addEventListener('click', () => {
+    carregarBiblioteca().then((lst) => { const e = lst.find((p) => p.id === btn.dataset.id); if (e) abrirPdfNoLeitor(e); });
+  }));
+  wrap.querySelectorAll('.pdf-lib-remover').forEach((btn) => btn.addEventListener('click', async () => {
+    if (!confirm('Remover este PDF da biblioteca? Isso apaga o arquivo do GitHub também.')) return;
+    btn.textContent = '...'; btn.disabled = true;
+    try { await removerPdfDaBiblioteca(btn.dataset.id); renderBibliotecaLista(); }
+    catch (e) { alert('Não consegui remover: ' + e.message); btn.textContent = 'Remover'; btn.disabled = false; }
+  }));
+}
+
+/* ---- Configuração do GitHub (formulário inline) ---- */
+function atualizarResumoCfgGithub(){
+  const cfg = ghLerConfig();
+  const resumo = document.getElementById('pdfCfgResumo');
+  const texto = document.getElementById('pdfCfgResumoTexto');
+  const btnTxt = document.getElementById('pdfBtnConfigurarTxt');
+  if (cfg && cfg.owner && cfg.repo) {
+    resumo.style.display = 'block';
+    texto.textContent = `Conectado a ${cfg.owner}/${cfg.repo}`;
+    btnTxt.textContent = 'Editar configuração';
+  } else {
+    resumo.style.display = 'none';
+    btnTxt.textContent = 'Configurar GitHub';
+  }
+}
+document.getElementById('pdfBtnConfigurar').addEventListener('click', () => {
+  const form = document.getElementById('pdfCfgForm');
+  const abrindo = form.style.display === 'none';
+  form.style.display = abrindo ? 'block' : 'none';
+  if (abrindo) {
+    const cfg = ghLerConfig() || {};
+    document.getElementById('pdfCfgToken').value = cfg.token || '';
+    document.getElementById('pdfCfgOwner').value = cfg.owner || '';
+    document.getElementById('pdfCfgRepo').value = cfg.repo || '';
+    document.getElementById('pdfCfgBranch').value = cfg.branch || 'main';
+    document.getElementById('pdfCfgViewerPath').value = lerCaminhoLeitor();
+  }
+});
+document.getElementById('pdfCfgCancelar').addEventListener('click', () => {
+  document.getElementById('pdfCfgForm').style.display = 'none';
+});
+document.getElementById('pdfCfgSalvar').addEventListener('click', () => {
+  const cfg = {
+    token: document.getElementById('pdfCfgToken').value.trim(),
+    owner: document.getElementById('pdfCfgOwner').value.trim(),
+    repo: document.getElementById('pdfCfgRepo').value.trim(),
+    branch: document.getElementById('pdfCfgBranch').value.trim() || 'main',
+  };
+  const erro = document.getElementById('pdfCfgErro');
+  if (!cfg.token || !cfg.owner || !cfg.repo) { erro.textContent = 'Preencha token, usuário e repositório.'; return; }
+  erro.textContent = '';
+  ghSalvarConfig(cfg);
+  const caminhoLeitor = document.getElementById('pdfCfgViewerPath').value.trim();
+  if (caminhoLeitor) localStorage.setItem(LS_VIEWER_PATH, caminhoLeitor);
+  document.getElementById('pdfCfgForm').style.display = 'none';
+  atualizarResumoCfgGithub();
+  renderBibliotecaLista();
+});
+
+/* ---- Adicionar PDF ---- */
+document.getElementById('pdfBtnAdicionar').addEventListener('click', () => {
+  if (!ghConfigurado()) { alert('Configure a sincronização com o GitHub primeiro (card acima).'); return; }
+  document.getElementById('pdfInputArquivo').click();
+});
+document.getElementById('pdfInputArquivo').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const btn = document.getElementById('pdfBtnAdicionar');
+  const original = btn.innerHTML;
+  btn.innerHTML = '<span class="tx"><b>Enviando…</b></span>';
+  btn.disabled = true;
+  try {
+    await adicionarPdfNaBiblioteca(file);
+    await renderBibliotecaLista();
+  } catch (err) {
+    alert('Não consegui adicionar o PDF: ' + err.message);
+  } finally {
+    btn.innerHTML = original;
+    btn.disabled = false;
+  }
+});
+
+/* ---- Troca de sub-modo Questões/PDF ---- */
+document.querySelectorAll('#qModoTabs .modo-tab').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#qModoTabs .modo-tab').forEach((b) => b.classList.toggle('ativo', b === btn));
+    const ehPdf = btn.dataset.modo === 'pdf';
+    document.getElementById('qModoQuestoesWrap').style.display = ehPdf ? 'none' : 'block';
+    document.getElementById('qModoPdf').style.display = ehPdf ? 'block' : 'none';
+    if (ehPdf) {
+      atualizarResumoCfgGithub();
+      renderBibliotecaLista();
+      atualizarStatsLeituraPdf();
+    }
+  });
+});
+
+/* ---- Histórico de leitura (Firebase — mesmo deviceId do pareamento) ---- */
+// (variáveis já declaradas lá em cima, junto com deviceId/refExtensao)
+
+function escutarLeituraPdf(){
+  if (!firebaseDisponivel || !deviceId) {
+    document.getElementById('pdfSemPareamento').style.display = 'block';
+    return;
+  }
+  document.getElementById('pdfSemPareamento').style.display = 'none';
+  refLeituraPdf?.off();
+  refLeituraPdf = db.ref('dispositivos/' + deviceId + '/leituraPdf');
+  refLeituraPdf.on('value', (snap) => {
+    leituraPdfCache = snap.val() || { porPdf: {}, historicoDiario: {} };
+    atualizarStatsLeituraPdf();
+    renderBibliotecaLista();
+  });
+}
+
+function atualizarStatsLeituraPdf(){
+  const hist = (leituraPdfCache && leituraPdfCache.historicoDiario) || {};
+  const porPdf = (leituraPdfCache && leituraPdfCache.porPdf) || {};
+  const hojeDados = hist[hojeChave()];
+  const paginasHoje = hojeDados ? Object.values(hojeDados.pdfs || {}).reduce((soma, p) => soma + (p.paginasLidas || []).length, 0) : 0;
+  document.getElementById('pdfStatHoje').textContent = paginasHoje;
+  document.getElementById('pdfStatTempoHoje').textContent = formatarMin(hojeDados ? hojeDados.msLido : 0);
+
+  let tempoTotal = 0, paginasTotal = 0;
+  Object.values(porPdf).forEach((p) => { tempoTotal += p.tempoTotalMs || 0; paginasTotal += Object.keys(p.paginas || {}).length; });
+  document.getElementById('pdfStatMedia').textContent = paginasTotal ? `${Math.round(tempoTotal / paginasTotal / 1000)}s` : '—';
+
+  renderHistoricoLeituraChart();
+}
+
+function paginasNoDia(hist, chave){
+  const d = hist[chave];
+  return d ? Object.values(d.pdfs || {}).reduce((soma, p) => soma + (p.paginasLidas || []).length, 0) : 0;
+}
+
+function renderHistoricoLeituraChart(){
+  const hist = (leituraPdfCache && leituraPdfCache.historicoDiario) || {};
+  const wrap = document.getElementById('pdfHistoricoChart');
+  const nota = document.getElementById('pdfFonteNota');
+  wrap.innerHTML = '';
+  const hojeD = new Date();
+  const DOW = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+  let colunas = [];
+  if (periodoLeituraAtivo === 'dia') {
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(hojeD); d.setDate(d.getDate() - i);
+      colunas.push({ valor: paginasNoDia(hist, chaveData(d)), label: DOW[d.getDay()], hoje: i === 0 });
+    }
+    nota.textContent = 'Páginas lidas por dia, últimos 7 dias.';
+  } else if (periodoLeituraAtivo === 'semana') {
+    for (let s = 7; s >= 0; s--) {
+      let soma = 0;
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(hojeD); d.setDate(d.getDate() - (s * 7 + i));
+        soma += paginasNoDia(hist, chaveData(d));
+      }
+      colunas.push({ valor: soma, label: s === 0 ? 'esta' : `-${s}sem`, hoje: s === 0 });
+    }
+    nota.textContent = 'Páginas lidas por semana, últimas 8 semanas.';
+  } else {
+    for (let m = 5; m >= 0; m--) {
+      const ref = new Date(hojeD.getFullYear(), hojeD.getMonth() - m, 1);
+      let soma = 0;
+      const diasNoMes = new Date(ref.getFullYear(), ref.getMonth() + 1, 0).getDate();
+      for (let dia = 1; dia <= diasNoMes; dia++) {
+        soma += paginasNoDia(hist, chaveData(new Date(ref.getFullYear(), ref.getMonth(), dia)));
+      }
+      colunas.push({ valor: soma, label: MESES[ref.getMonth()], hoje: m === 0 });
+    }
+    nota.textContent = 'Páginas lidas por mês, últimos 6 meses.';
+  }
+
+  const max = Math.max(1, ...colunas.map((c) => c.valor));
+  colunas.forEach((c) => {
+    const col = document.createElement('div');
+    col.className = 'semana-col' + (c.hoje ? ' hoje' : '');
+    const alturaPct = Math.max(3, (c.valor / max) * 100);
+    col.innerHTML = `
+      <span style="font-size:10px;color:var(--text-dim);font-weight:700;">${c.valor}</span>
+      <div class="semana-barra"><div class="semana-barra-fill" style="height:${alturaPct}%;"></div></div>
+      <span class="semana-label">${c.label}</span>
+    `;
+    wrap.appendChild(col);
+  });
+}
+
+document.querySelectorAll('#pdfPeriodoTabs .modo-tab').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#pdfPeriodoTabs .modo-tab').forEach((b) => b.classList.toggle('ativo', b === btn));
+    periodoLeituraAtivo = btn.dataset.periodo;
+    renderHistoricoLeituraChart();
+  });
+});
+atualizarResumoCfgGithub();
+if (!deviceId) escutarLeituraPdf(); // se já estiver pareado, ativarPareamento() já cuidou disso
+
+
+
+/* ============================================================
+   INÍCIO
+   ============================================================ */
+atualizarTudo();
+renderPainel();
+renderAgenda();
+
