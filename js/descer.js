@@ -43,6 +43,24 @@
       if (b.dataset.dir === 'cima') area.scrollTo({ top: 0, behavior: c });
       else area.scrollBy({ top: Math.max(120, area.clientHeight * 0.8), behavior: c });
     });
+    /* SEGURAR fecha a folha: o botão enche de vermelho e, completo, vira um X e fecha */
+    const folha = area.closest('.sheet-overlay, .perfil-overlay');
+    const fechar = () => { const x = folha && folha.querySelector('.ap-sheet-close, .iac-fechar, [id$="Fechar"]'); if (x) x.click(); };
+    let tSeg = null, engolir = false;
+    const X = SVG('M18 6 6 18M6 6l12 12');
+    const cancelar = () => { clearTimeout(tSeg); tSeg = null; if (!b.classList.contains('cb-descer-pronto')) b.classList.remove('cb-descer-seg'); };
+    b.addEventListener('pointerdown', e => {
+      if (e.button > 0 || !folha) return;
+      engolir = false; b.classList.remove('cb-descer-pronto'); void b.offsetWidth; b.classList.add('cb-descer-seg');
+      tSeg = setTimeout(() => {
+        tSeg = null; engolir = true; b.classList.add('cb-descer-pronto'); b.innerHTML = X;
+        if (navigator.vibrate) { try { navigator.vibrate(18); } catch (er) { /* ok */ } }
+        setTimeout(() => { fechar(); setTimeout(() => { b.classList.remove('cb-descer-seg', 'cb-descer-pronto'); b.dataset.dir = ''; atualizar(); }, 450); }, reduzir() ? 0 : 220);
+      }, 650);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, cancelar));
+    b.addEventListener('contextmenu', e => e.preventDefault());
+    b.addEventListener('click', e => { if (engolir) { e.stopImmediatePropagation(); e.preventDefault(); engolir = false; } }, true);
     area.addEventListener('scroll', atualizar, { passive: true });
     window.addEventListener('resize', atualizar);
     let ag = false;
