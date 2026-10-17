@@ -672,3 +672,7 @@ html:not([data-theme="light"]) .dt-campo > svg{ color:var(--violet-light); }
   transform:translateY(-70%) rotate(45deg); pointer-events:none; }
 .dt-campo select option{ background:var(--bg-elevated); color:var(--text); }
 .dt-salvar{ width:100%; margin-top:10px; height:52px; font-size:15.5px; }
+
+/* cartões soltos acima da grade da tela Hoje (primeiros passos e o que vem a seguir) ficavam colados */
+.h-passos, .h-proximos{ margin-bottom:14px; }
+@media (min-width:980px){ .h-passos, .h-proximos{ margin-bottom:16px; } }
