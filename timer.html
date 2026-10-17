@@ -8,13 +8,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#08090c">
 <title>Concurseiro Blindado — Cronômetro</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>try{var _t=localStorage.getItem("cb_tema");var _h=new Date().getHours();document.documentElement.dataset.theme=_t==="auto"?((_h>=6&&_h<18)?"light":"dark"):(_t==="light"||_t==="navy"||_t==="glass")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
-<link rel="stylesheet" href="css/app.css?v=20261017w">
-<link rel="stylesheet" href="css/design.css?v=20261017w">
+<link rel="stylesheet" href="css/app.css?v=20261017x">
+<link rel="stylesheet" href="css/design.css?v=20261017x">
 </head>
 <body>
 
@@ -724,6 +723,71 @@
         </div>
       </div>
 
+      <div class="cfg-grupo">
+        <div class="settings-accordion" data-acc="seguranca">
+          <button type="button" class="settings-accordion-head" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+            <span>Segurança &amp; Privacidade</span>
+            <svg class="settings-accordion-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="settings-accordion-body"><div class="settings-accordion-body-inner sobre">
+            <div class="perm-notice">
+              <span class="perm-notice-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+              <span class="perm-notice-text">O que o site vê, guarda e envia</span>
+            </div>
+            <p><strong>Nós nunca pedimos seu e-mail, seu telefone, seu CPF nem login da sua conta Google.</strong> Não existe cadastro nem conta de usuário. O site não sabe quem você é.</p>
+
+            <h4>Fica só no seu aparelho</h4>
+            <ul>
+              <li>Seu histórico de estudo, a meta, o perfil (OAB ou concurso), a data da prova, os grifos, o desempenho em questões, as conversas do assistente e os PDFs da Base de leis.</li>
+              <li>Tudo isso é guardado no próprio navegador. Se você limpar os dados do site, perde tudo: por isso existe o <b>backup</b> em Configurações → Meus dados.</li>
+            </ul>
+
+            <h4>O que sai do aparelho (só quando você usa)</h4>
+            <ul>
+              <li><b>Assistente de estudo:</b> a sua pergunta, um resumo dos seus dados de estudo e os trechos da Base de leis ligados ao assunto vão para serviços de IA gratuitos de terceiros (Pollinations, LLM7 e OVHcloud). Não escreva dados pessoais ali.</li>
+              <li><b>Comunidade (você precisa ligar):</b> o chat é anônimo e público, com apelido sorteado. Qualquer pessoa lê e pode apagar qualquer mensagem. A média do dia só recebe os seus totais (horas e questões), sem nome e sem identificação, se você ligar essa opção.</li>
+              <li><b>Pareamento com a extensão (opcional):</b> o progresso de estudo, a agenda e o desempenho ficam num banco de dados na nuvem (Firebase, do Google), identificado só por um código aleatório, nunca por nome ou e-mail.</li>
+              <li><b>Bibliotecas externas:</b> ao abrir o site, o navegador baixa o Firebase (Google). A hospedagem é o GitHub Pages, que registra acessos como qualquer site.</li>
+              <li><b>Anúncios:</b> hoje o site não tem anúncios nem rastreadores de publicidade. Se isso mudar, esta página será atualizada antes.</li>
+            </ul>
+
+            <h4>Segurança</h4>
+            <ul>
+              <li>O site usa conexão segura (HTTPS). Não há senhas para vazar, porque não há contas.</li>
+              <li>O instalador da extensão é um arquivo de texto que você pode ler, não pede administrador e o código de conferência (SHA-256) do arquivo aparece na página de instalação.</li>
+              <li>Os PDFs que você importa são lidos dentro do seu navegador e não são enviados a ninguém, a não ser os trechos que o assistente usa para responder uma pergunta sua.</li>
+            </ul>
+
+            <h4>Seus direitos</h4>
+            <p>Como não guardamos dados pessoais seus, não há cadastro para apagar. Para limpar o que está no aparelho, use o backup e depois limpe os dados do site no navegador. Mensagens do chat podem ser apagadas por você mesmo, ali na conversa.</p>
+            <p class="sobre-contato" id="sobreContato" hidden></p>
+          </div></div>
+        </div>
+
+        <div class="settings-accordion" data-acc="termos">
+          <button type="button" class="settings-accordion-head" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/></svg>
+            <span>Termos de uso</span>
+            <svg class="settings-accordion-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="settings-accordion-body"><div class="settings-accordion-body-inner sobre">
+            <p class="sobre-data">Última atualização: 17 de outubro de 2026</p>
+            <ol class="sobre-termos">
+              <li><b>O que é.</b> O Concurseiro Blindado é uma ferramenta independente de apoio ao estudo para a OAB e concursos. Não tem ligação com a OAB, com a FGV nem com qualquer banca organizadora.</li>
+              <li><b>Sem garantia de aprovação.</b> O site organiza o seu estudo, mas o resultado depende de você. Não prometemos aprovação, nota nem desempenho.</li>
+              <li><b>Leis e textos.</b> Os textos de lei vêm de fontes oficiais e podem estar desatualizados. Confira sempre a versão vigente antes de uma prova.</li>
+              <li><b>Inteligência artificial.</b> As respostas do assistente podem conter erros. Elas servem para estudo e não são consultoria jurídica nem substituem um advogado. Não invente nem copie um artigo ou uma súmula sem conferir na fonte.</li>
+              <li><b>Seus dados.</b> Seus dados ficam no seu aparelho. Fazer o backup é responsabilidade sua: se você limpar o navegador sem backup, não conseguimos recuperar nada.</li>
+              <li><b>Comunidade.</b> É anônima e pública, e você só entra se quiser. Não publique conteúdo ilegal, ofensivo, spam ou dados pessoais de ninguém. Qualquer pessoa pode apagar qualquer mensagem, e podemos limpar o chat quando for preciso.</li>
+              <li><b>Uso adequado.</b> Use o site de forma normal. Não tente burlar limites, sobrecarregar os serviços ou usar o site para prejudicar outras pessoas.</li>
+              <li><b>Disponibilidade.</b> O site é oferecido "como está". Ele pode mudar, parar ou perder recursos a qualquer momento, e partes dele dependem de serviços de terceiros (como as IAs gratuitas, o Firebase e o GitHub).</li>
+              <li><b>Mudanças.</b> Podemos atualizar estes termos. A data de atualização fica no topo; continuar usando o site significa concordar com a versão em vigor.</li>
+            </ol>
+          </div></div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -882,19 +946,20 @@
   </div>
 </div>
 
-<script src="js/app.js?v=20261017w"></script>
-<script src="js/perfil.js?v=20261017w"></script>
-<script src="js/graficos.js?v=20261017w"></script>
-<script src="js/desempenho.js?v=20261017w"></script>
-<script src="js/hoje.js?v=20261017w"></script>
-<script src="js/geral.js?v=20261017w"></script>
-<script src="js/iniciante.js?v=20261017w"></script>
-<script src="js/meuperfil.js?v=20261017w"></script>
-<script src="js/ia.js?v=20261017w"></script>
-<script src="js/comunidade-chat.js?v=20261017w"></script>
-<script src="js/comunidade.js?v=20261017w"></script>
-<script src="js/descer.js?v=20261017w"></script>
-<script src="js/backup.js?v=20261017w"></script>
+<script src="js/app.js?v=20261017x"></script>
+<script src="js/perfil.js?v=20261017x"></script>
+<script src="js/graficos.js?v=20261017x"></script>
+<script src="js/desempenho.js?v=20261017x"></script>
+<script src="js/hoje.js?v=20261017x"></script>
+<script src="js/geral.js?v=20261017x"></script>
+<script src="js/iniciante.js?v=20261017x"></script>
+<script src="js/meuperfil.js?v=20261017x"></script>
+<script src="js/config-busca.js?v=20261017x"></script>
+<script src="js/ia.js?v=20261017x"></script>
+<script src="js/comunidade-chat.js?v=20261017x"></script>
+<script src="js/comunidade.js?v=20261017x"></script>
+<script src="js/descer.js?v=20261017x"></script>
+<script src="js/backup.js?v=20261017x"></script>
 
 </body>
 </html>

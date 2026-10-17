@@ -1080,3 +1080,46 @@ html:not([data-theme="light"]) .chat-link{ color:var(--violet-light); }
 .ia-hist-nova{ border:0; border-radius:14px; padding:13px; margin-bottom:10px; background:var(--accent-soft); color:var(--ap-acc-txt); font:inherit; font-size:14.5px; font-weight:700; cursor:pointer; }
 .ia-hist-nova:disabled{ opacity:.5; }
 .ia-leis-status{ margin:10px 2px 0; font-size:12.5px; color:var(--text-dim); min-height:1em; }
+
+/* =====================================================================
+   BARRA DE BUSCA DAS CONFIGURAÇÕES (copiada de apple.css da extensão) e textos de Segurança/Termos
+   ===================================================================== */
+.ap-settings{ position:relative; }
+.ap-settings .ap-sheet-body{ padding-bottom:96px; }
+.cfg-oculto{ display:none !important; }
+.cfg-busca-ilha{ position:absolute; left:50%; bottom:calc(16px + env(safe-area-inset-bottom)); transform:translateX(-50%); width:min(320px, calc(100% - 44px)); height:46px; box-sizing:border-box; display:flex; align-items:center; gap:8px; padding:0 8px 0 15px; border-radius:999px; color:var(--text-dim);
+  background:color-mix(in srgb, var(--bg-elevated) 62%, transparent); -webkit-backdrop-filter:blur(22px) saturate(1.6); backdrop-filter:blur(22px) saturate(1.6);
+  box-shadow:0 0 0 1px var(--ap-hairline), 0 12px 30px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.12); z-index:8; transition:box-shadow .2s ease; }
+.cfg-busca-ilha:focus-within{ box-shadow:0 0 0 2px var(--accent), 0 12px 30px rgba(0,0,0,.32); }
+.cfg-busca-lupa{ flex:none; width:17px; height:17px; }
+.cfg-busca-ilha input{ flex:1; min-width:0; height:100%; padding:0; border:0; background:transparent; color:var(--text); font:inherit; font-size:15px; outline:none; -webkit-appearance:none; appearance:none; }
+.cfg-busca-ilha input::placeholder{ color:var(--text-dim); opacity:1; }
+.cfg-busca-ilha input::-webkit-search-cancel-button, .cfg-busca-ilha input::-webkit-search-decoration{ -webkit-appearance:none; display:none; }
+.cfg-busca-limpar{ flex:none; width:26px; height:26px; padding:0; display:grid; place-items:center; border:0; border-radius:50%; background:var(--ap-fill-2); color:var(--text-dim); cursor:pointer; }
+.cfg-busca-limpar[hidden]{ display:none; }
+.cfg-busca-limpar svg{ width:11px; height:11px; }
+.cfg-busca-vazio{ margin:24px 8px; text-align:center; font-size:14px; color:var(--text-dim); }
+.cfg-busca-vazio[hidden]{ display:none; }
+.ap-settings [data-acc="seguranca"]{ --cfg-cor:#2fb457; }
+.ap-settings [data-acc="termos"]{ --cfg-cor:#8e8e93; }
+.sobre .perm-notice{ display:flex; align-items:center; gap:10px; padding:11px 13px; margin-bottom:12px; border-radius:14px; background:color-mix(in srgb, var(--ap-ok) 12%, transparent); }
+.sobre .perm-notice-icon{ width:26px; height:26px; flex:none; display:grid; place-items:center; color:var(--ap-ok); }
+.sobre .perm-notice-icon svg{ width:20px; height:20px; }
+.sobre .perm-notice-text{ font-size:14px; font-weight:700; color:var(--text); }
+.sobre p, .sobre li{ font-size:13.5px; line-height:1.55; color:var(--text-dim); }
+.sobre p{ margin:0 0 12px; }
+.sobre strong, .sobre b{ color:var(--text); }
+.sobre h4{ margin:16px 0 8px; font-size:11.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--text-faint); }
+.sobre ul, .sobre ol{ margin:0 0 10px; padding-left:20px; }
+.sobre li{ margin:6px 0; }
+.sobre-data{ font-size:12.5px !important; color:var(--text-faint) !important; }
+.sobre-termos li{ margin:10px 0; }
+.sobre-contato{ padding:10px 12px; border-radius:12px; background:var(--ap-fill); }
+
+/* selo da sequência: mesma altura dos botões redondos do topo, sem exagero */
+.top-row{ align-items:center; }
+.streak-badge{ height:44px; padding:0 16px; gap:8px; font-size:14.5px; box-shadow:0 2px 10px var(--gold-glow); }
+.streak-badge .icon{ width:18px; height:18px; }
+.top-row .icon-btn{ width:44px; height:44px; border-radius:50%; }
+.top-row .icon-btn .icon{ width:19px; height:19px; }
+.perfil-streak{ height:40px; }
