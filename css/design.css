@@ -679,3 +679,5 @@ html:not([data-theme="light"]) .dt-campo > svg{ color:var(--violet-light); }
 .bk-lembrete-titulo{ margin:0 0 6px; font-size:17px; font-weight:700; letter-spacing:-.01em; color:var(--text); }
 .bk-lembrete-txt{ margin:0; font-size:13.5px; line-height:1.6; color:var(--text-dim); }
 .bk-lembrete-txt b{ color:var(--text); }
+.cfg-copiar{ width:100%; margin-top:10px; padding:12px 16px; border-radius:14px; border:0; background:var(--ap-fill); color:var(--text); font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+.cfg-copiar:hover{ background:var(--ap-fill-2); }

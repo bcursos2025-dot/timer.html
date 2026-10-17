@@ -13,8 +13,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>try{var _t=localStorage.getItem("cb_tema");var _h=new Date().getHours();document.documentElement.dataset.theme=_t==="auto"?((_h>=6&&_h<18)?"light":"dark"):(_t==="light"||_t==="navy"||_t==="glass")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
-<link rel="stylesheet" href="css/app.css?v=20261017j">
-<link rel="stylesheet" href="css/design.css?v=20261017j">
+<link rel="stylesheet" href="css/app.css?v=20261017k">
+<link rel="stylesheet" href="css/design.css?v=20261017k">
 </head>
 <body>
 
@@ -503,6 +503,24 @@
     <div class="ap-sheet-body">
 
       <div class="cfg-grupo">
+        <div class="settings-accordion open" data-acc="compartilhar" data-aberta="1">
+          <button type="button" class="settings-accordion-head" aria-expanded="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-3.9M8.6 13.5l6.8 3.9"/></svg>
+            <span>Compartilhar</span>
+            <svg class="settings-accordion-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="settings-accordion-body"><div class="settings-accordion-body-inner">
+            <p class="pareamento-ajuda">Gostou do Concurseiro Blindado? Manda pra um amigo que também está estudando. Quanto mais gente estudando junto, melhor o site fica pra todo mundo.</p>
+            <a id="btnWhatsCompartilhar" class="cfg-whats" href="#" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 6.32A8.86 8.86 0 0 0 12.05 4a8.94 8.94 0 0 0-7.75 13.4L3 21l3.7-1.28a8.9 8.9 0 0 0 4.35 1.13h.01A8.94 8.94 0 0 0 20 12.05a8.87 8.87 0 0 0-2.4-5.73ZM12.05 19.4a7.4 7.4 0 0 1-3.78-1.03l-.27-.16-2.24.78.75-2.2-.18-.28a7.42 7.42 0 1 1 13.8-3.83 7.44 7.44 0 0 1-7.28 6.72Zm4.08-5.56c-.22-.11-1.32-.65-1.53-.73-.2-.08-.35-.11-.5.11-.15.22-.57.73-.7.88-.13.15-.26.16-.48.05a6.1 6.1 0 0 1-1.8-1.11 6.75 6.75 0 0 1-1.24-1.55c-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.15-.22.22-.37.07-.15.04-.28-.02-.39-.06-.11-.5-1.2-.68-1.65-.18-.43-.36-.37-.5-.38h-.43c-.15 0-.39.06-.6.28-.2.22-.79.77-.79 1.87 0 1.1.81 2.17.92 2.32.11.15 1.6 2.44 3.87 3.42.54.23.96.37 1.29.48.54.17 1.03.15 1.42.09.43-.06 1.32-.54 1.51-1.06.19-.52.19-.96.13-1.06-.06-.09-.2-.15-.42-.26Z"/></svg>
+              Compartilhar no WhatsApp
+            </a>
+            <button type="button" class="cfg-copiar" id="btnCopiarLink">Copiar link do site</button>
+          </div></div>
+        </div>
+      </div>
+
+      <div class="cfg-grupo">
         <div class="settings-accordion open" data-acc="aparencia">
           <button type="button" class="settings-accordion-head" aria-expanded="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a6 6 0 0 0 0 18 3 3 0 0 0 0-6h-1a2 2 0 0 1 0-4h4a2 2 0 0 0 2-2 6 6 0 0 0-5-6Z"/></svg>
@@ -619,21 +637,6 @@
       </div>
 
       <div class="cfg-grupo">
-        <div class="settings-accordion" data-acc="compartilhar">
-          <button type="button" class="settings-accordion-head" aria-expanded="false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-3.9M8.6 13.5l6.8 3.9"/></svg>
-            <span>Compartilhar</span>
-            <svg class="settings-accordion-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-          </button>
-          <div class="settings-accordion-body"><div class="settings-accordion-body-inner">
-            <p class="pareamento-ajuda">Gostou do Concurseiro Blindado? Manda pra um amigo que também está estudando.</p>
-            <a id="btnWhatsCompartilhar" class="cfg-whats" href="#" target="_blank" rel="noopener">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 6.32A8.86 8.86 0 0 0 12.05 4a8.94 8.94 0 0 0-7.75 13.4L3 21l3.7-1.28a8.9 8.9 0 0 0 4.35 1.13h.01A8.94 8.94 0 0 0 20 12.05a8.87 8.87 0 0 0-2.4-5.73ZM12.05 19.4a7.4 7.4 0 0 1-3.78-1.03l-.27-.16-2.24.78.75-2.2-.18-.28a7.42 7.42 0 1 1 13.8-3.83 7.44 7.44 0 0 1-7.28 6.72Zm4.08-5.56c-.22-.11-1.32-.65-1.53-.73-.2-.08-.35-.11-.5.11-.15.22-.57.73-.7.88-.13.15-.26.16-.48.05a6.1 6.1 0 0 1-1.8-1.11 6.75 6.75 0 0 1-1.24-1.55c-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.15-.22.22-.37.07-.15.04-.28-.02-.39-.06-.11-.5-1.2-.68-1.65-.18-.43-.36-.37-.5-.38h-.43c-.15 0-.39.06-.6.28-.2.22-.79.77-.79 1.87 0 1.1.81 2.17.92 2.32.11.15 1.6 2.44 3.87 3.42.54.23.96.37 1.29.48.54.17 1.03.15 1.42.09.43-.06 1.32-.54 1.51-1.06.19-.52.19-.96.13-1.06-.06-.09-.2-.15-.42-.26Z"/></svg>
-              Compartilhar no WhatsApp
-            </a>
-          </div></div>
-        </div>
-
         <div class="settings-accordion" data-acc="dados">
           <button type="button" class="settings-accordion-head" aria-expanded="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -724,12 +727,12 @@
   </div>
 </div>
 
-<script src="js/app.js?v=20261017j"></script>
-<script src="js/perfil.js?v=20261017j"></script>
-<script src="js/desempenho.js?v=20261017j"></script>
-<script src="js/hoje.js?v=20261017j"></script>
-<script src="js/iniciante.js?v=20261017j"></script>
-<script src="js/backup.js?v=20261017j"></script>
+<script src="js/app.js?v=20261017k"></script>
+<script src="js/perfil.js?v=20261017k"></script>
+<script src="js/desempenho.js?v=20261017k"></script>
+<script src="js/hoje.js?v=20261017k"></script>
+<script src="js/iniciante.js?v=20261017k"></script>
+<script src="js/backup.js?v=20261017k"></script>
 
 </body>
 </html>

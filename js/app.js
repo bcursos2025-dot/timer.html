@@ -2219,4 +2219,11 @@ renderAgenda();
   if (!w) return;
   const texto = 'Estou estudando para a OAB com o Concurseiro Blindado: cronômetro, revisão, questões e leis com grifos. Experimenta: https://bcursos2025-dot.github.io/timer.html/timer.html';
   w.href = 'https://wa.me/?text=' + encodeURIComponent(texto);
+  const cp = document.getElementById('btnCopiarLink');
+  if (cp) cp.addEventListener('click', () => {
+    const url = 'https://bcursos2025-dot.github.io/timer.html/timer.html';
+    const ok = () => { cp.textContent = 'Link copiado!'; setTimeout(() => { cp.textContent = 'Copiar link do site'; }, 2200); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, () => { cp.textContent = url; });
+    else cp.textContent = url;
+  });
 })();
