@@ -1277,3 +1277,8 @@ body.ini-sem-agenda .ap-settings [data-acc="ordem"], body.ini-sem-extensao .ap-s
 .pat-txt{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
 .pat-txt b{ font-size:14.5px; } .pat-txt small{ font-size:12.5px; color:var(--text-dim); }
 .pat-bt{ flex-shrink:0; padding:7px 13px; border-radius:999px; background:var(--accent-soft); color:var(--accent-text); font-size:12.5px; font-weight:700; }
+
+/* "Pausado" em vermelho (igual ao estado de pausa da extensão), para não parecer "estudando" */
+.tag.paused{ background:var(--danger-soft); color:#f8798a; border-color:rgba(242,86,109,.4); }
+html[data-theme="light"] .tag.paused{ color:#b12e46; }
+.tag.paused::before{ background:#f2566d; box-shadow:0 0 8px rgba(242,86,109,.55); }

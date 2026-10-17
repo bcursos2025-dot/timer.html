@@ -651,7 +651,7 @@ function enviarComandoExtensao(acao){
   if (elFooter) { elFooter.textContent = 'enviando comando pro PC...'; elFooter.classList.remove('offline'); }
   db.ref('dispositivos/' + deviceId + '/comandoRemoto').set({ acao, ts: Date.now() })
     .then(() => {
-      if (elFooter) elFooter.textContent = 'comando enviado ao PC — aplica em poucos segundos se alguma aba estiver aberta lá';
+      if (elFooter) elFooter.textContent = 'pedido enviado ao PC — ele confere de minuto em minuto; a tela já mostra o seu pedido';
     })
     .catch((erro) => {
       if (elFooter) {
@@ -784,8 +784,19 @@ btnPrimary.addEventListener('click', () => {
   // (que é o espelhado da extensão, quando pareado e em modo Cronômetro)
   // — senão "Pausar" na tela poderia acabar iniciando em vez de pausar.
   const espelhando = !!(deviceId && estadoExtensao && !sessao.pomodoroMode);
-  const rodandoVisivel = espelhando ? estadoExtensao.sessionState === 'running' : sessao.sessionState === 'running';
+  const pendAntes = espelhando ? window.__cmdPend : null;
+  const rodandoVisivel = pendAntes ? pendAntes.estado === 'running' : (espelhando ? estadoExtensao.sessionState === 'running' : sessao.sessionState === 'running');
+  if (espelhando) {
+    const agora = Date.now();
+    const ms = pendAntes ? pendAntes.ms + (pendAntes.estado === 'running' ? agora - pendAntes.t : 0)
+      : (estadoExtensao.msHoje || 0) + (estadoExtensao.sessionState === 'running' && estadoExtensao.inicioSessao ? agora - estadoExtensao.inicioSessao : 0);
+    window.__cmdPend = { estado: rodandoVisivel ? 'paused_manual' : 'running', ms, t: agora, ate: agora + 120000 };
+  }
+  // o estado local do site pode estar "parado" enquanto o PC estuda: nesse caso acao_pausar() não faz nada e o comando
+  // nunca saía para o PC (era o botão que parecia morto). Aqui o comando sai sempre, uma vez só.
+  const localJaEnviaria = rodandoVisivel ? sessao.sessionState === 'running' : sessao.sessionState !== 'running';
   if (rodandoVisivel) acao_pausar(); else acao_iniciarOuContinuar();
+  if (espelhando) { atualizarTudo(); if (!localJaEnviaria) enviarComandoExtensao(rodandoVisivel ? 'pausar' : 'continuar'); }
   if (navigator.vibrate) navigator.vibrate(10);
 });
 btnStop.addEventListener('click', () => { acao_parar(); if (navigator.vibrate) navigator.vibrate(10); });
@@ -829,10 +840,18 @@ function atualizarTudo(){
   // no modo Pomodoro o motor continua 100% local, senão o anel ficaria
   // "pulsando rodando" enquanto a contagem regressiva local está parada.
   const espelharExtensao = !!(deviceId && estadoExtensao && !sessao.pomodoroMode);
-  const sessionStateVisivel = espelharExtensao ? estadoExtensao.sessionState : sessao.sessionState;
+  let sessionStateVisivel = espelharExtensao ? estadoExtensao.sessionState : sessao.sessionState;
   const metaMsVisivel = espelharExtensao ? (estadoExtensao.dailyGoalMs || 4 * 60 * 60 * 1000) : config.dailyGoalMs;
-  const msHojeVisivel = espelharExtensao ? (estadoExtensao.msHoje || 0) : (historico[hojeChave()] || 0);
-  const inicioSessaoVisivel = espelharExtensao ? estadoExtensao.inicioSessao : sessao.inicioSessao;
+  let msHojeVisivel = espelharExtensao ? (estadoExtensao.msHoje || 0) : (historico[hojeChave()] || 0);
+  let inicioSessaoVisivel = espelharExtensao ? estadoExtensao.inicioSessao : sessao.inicioSessao;
+  // O PC só confere os comandos do celular de minuto em minuto. Enquanto ele não responde, a tela já mostra
+  // o que a pessoa pediu (pausado/estudando) e volta a espelhar o PC assim que ele confirmar.
+  const pend = window.__cmdPend;
+  if (pend) {
+    const confirmou = espelharExtensao && (estadoExtensao.sessionState === pend.estado || (pend.estado === 'paused_manual' && String(estadoExtensao.sessionState).startsWith('paused')));
+    if (!espelharExtensao || confirmou || Date.now() > pend.ate) window.__cmdPend = null;
+    else { sessionStateVisivel = pend.estado; msHojeVisivel = pend.ms; inicioSessaoVisivel = pend.estado === 'running' ? pend.t : null; }
+  }
 
   const emExecucao = sessionStateVisivel === 'running';
   const emPausa = typeof sessionStateVisivel === 'string' && sessionStateVisivel.startsWith('paused');
