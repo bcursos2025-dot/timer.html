@@ -1292,3 +1292,7 @@ html[data-theme="light"] .tag.paused{ color:#b12e46; }
 .cb-descer-pronto{ animation:cbDescerPop .28s cubic-bezier(.3,1.6,.5,1); }
 @keyframes cbDescerPop{ 0%{ transform:scale(1.12); } 55%{ transform:scale(1.4); } 100%{ transform:scale(1.15); } }
 @media (prefers-reduced-motion: reduce){ .cb-descer-seg::before{ transition:none; } .cb-descer-pronto{ animation:none; } }
+
+/* Botão principal vira "Pausar" vermelho enquanto o cronômetro roda (como na extensão) */
+#btnPrimary.pausar{ background:linear-gradient(180deg, #f5566b, #d5405a); box-shadow:0 3px 12px rgba(213,64,90,.32), inset 0 1px 0 rgba(255,255,255,.18); color:#fff; }
+#btnPrimary.pausar:hover{ filter:brightness(1.05); }

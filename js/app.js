@@ -864,6 +864,7 @@ function atualizarTudo(){
   elStreakTexto.textContent = `${streak} dia${streak === 1 ? '' : 's'}`;
 
   btnPrimary.textContent = emExecucao ? 'Pausar' : (sessionStateVisivel === 'stopped' ? 'Iniciar' : 'Continuar');
+  btnPrimary.classList.toggle('pausar', emExecucao);   // vermelho enquanto estuda (igual ao Pausar da extensão)
   // "Parar" só faz sentido diferente de "Pausar" quando existe uma fase do
   // Pomodoro pra resetar — no Cronômetro simples os dois seriam idênticos
   // na prática, então some com o botão pra não confundir ninguém.
