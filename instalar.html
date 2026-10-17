@@ -79,6 +79,9 @@ code, .hash{ font-family:ui-monospace,Consolas,monospace; font-size:12.5px; word
 .links-av{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
 .links-av a{ font-size:14px; font-weight:600; padding:8px 14px; border-radius:999px; border:1px solid var(--hair); background:var(--fill); color:var(--text); text-decoration:none; }
 .links-av a:hover{ filter:brightness(1.1); }
+.aviso-celular{ margin-top:22px; border-color:color-mix(in srgb, var(--accent) 40%, transparent); }
+.aviso-celular h2{ margin:0 0 8px; font-size:20px; }
+.aviso-celular p{ margin:0; font-size:15px; color:var(--text-dim); }
 .voltar{ display:inline-block; font-size:14px; text-decoration:none; font-weight:600; margin-top:28px; }
 
 @keyframes pulso{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.14); } }
@@ -102,6 +105,12 @@ code, .hash{ font-family:ui-monospace,Consolas,monospace; font-size:12.5px; word
 </header>
 
 <main class="inst">
+  <div class="box aviso-celular" id="avisoCelular" hidden>
+    <h2>Você está no celular</h2>
+    <p>Esta extensão funciona só no <b>navegador do computador</b> (Windows). No celular você já usa o site normalmente. Mande este link para o seu PC e instale por lá:</p>
+    <p style="margin-top:12px"><button type="button" class="btn principal" data-enviar-pc>Enviar o link para o PC</button></p>
+  </div>
+
   <section class="i-hero" style="padding-top:64px">
     <h1>Instale em <em>3 passos.</em></h1>
     <p class="sub">Para Windows · Opera, Chrome, Edge ou Brave. Sem loja e sem conta. Leva 2 minutos.</p>
@@ -224,5 +233,6 @@ code, .hash{ font-family:ui-monospace,Consolas,monospace; font-size:12.5px; word
   });
 })();
 </script>
+<script src="js/dispositivo.js"></script>
 </body>
 </html>

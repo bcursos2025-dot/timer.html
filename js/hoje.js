@@ -173,6 +173,18 @@
     const html = deviceId
       ? '<h3>Extensão do PC</h3>' +
         '<p class="hoje-txt">Conectada. O cronômetro do computador e o seu histórico aparecem aqui no site.</p>'
+      : (window.cbEhCelular && window.cbEhCelular())
+      ? '<h3>Use também no computador</h3>' +
+        '<ul class="hoje-lista">' +
+          '<li>Cronômetro que roda sozinho enquanto você estuda</li>' +
+          '<li>Bloqueio dos sites que tiram o seu foco</li>' +
+          '<li>Marcação de trechos nas leis do Planalto</li>' +
+        '</ul>' +
+        '<p class="hoje-txt">A extensão funciona no navegador do computador. Mande o link para o seu PC, instale lá e depois conecte este celular para ver tudo aqui.</p>' +
+        '<div class="h-acoes" style="margin-top:6px">' +
+          '<button type="button" class="h-btn primario" data-enviar-pc>Enviar o link para o PC</button>' +
+          '<button class="h-btn" id="hojeBtnConectar">Já instalei no PC: conectar</button>' +
+        '</div>'
       : '<h3>Estude com a extensão no PC</h3>' +
         '<ul class="hoje-lista">' +
           '<li>Cronômetro que roda sozinho enquanto você estuda</li>' +

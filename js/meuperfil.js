@@ -95,7 +95,7 @@
     if (!blocos.length) {
       return '<div class="cb-dia-vazio">Nenhum bloco montado para hoje.<br><span>' + (pareado
         ? 'Monte o seu dia na extensão, na aba Cronograma.'
-        : 'Monte o seu cronograma pela extensão no PC e ele aparece aqui. <a href="instalar.html">Ver como instalar</a>') + '</span></div>';
+        : 'Monte o seu cronograma pela extensão no PC e ele aparece aqui. ' + ((window.cbEhCelular && window.cbEhCelular()) ? '<a href="#" data-enviar-pc>Enviar o link para o PC</a>' : '<a href="instalar.html">Ver como instalar</a>') + '') + '</span></div>';
     }
     blocos.sort((a, b) => minutosDe(a.inicio) - minutosDe(b.inicio));
     const min = minutosAgora();

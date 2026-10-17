@@ -296,7 +296,7 @@
     const b = bolha('bot', pareado()
       ? '<p><strong>' + nome + '</strong> ' + desc + '. Isso roda <strong>dentro da extensão</strong>, e você já está sincronizado: abra o assistente por lá.</p>'
       : '<p><strong>' + nome + '</strong> ' + desc + '. Só funciona com a <strong>extensão instalada e sincronizada</strong> com o site.</p>' +
-        '<div class="ia-acoes"><a class="ia-acao ia-acao-prim" href="instalar.html">Instalar a extensão</a><button type="button" class="ia-acao" id="iaConectar">Já instalei: conectar</button></div>', 'ia-info');
+        '<div class="ia-acoes">' + ((window.cbEhCelular && window.cbEhCelular()) ? '<button type="button" class="ia-acao ia-acao-prim" data-enviar-pc>Enviar o link para o PC</button><button type="button" class="ia-acao" id="iaConectar">Já instalei no PC: conectar</button>' : '<a class="ia-acao ia-acao-prim" href="instalar.html">Instalar a extensão</a><button type="button" class="ia-acao" id="iaConectar">Já instalei: conectar</button>') + '</div>', 'ia-info');
     const c = b.querySelector('#iaConectar');
     if (c) c.addEventListener('click', () => { fechar(); if (typeof abrirSheet === 'function') abrirSheet(); });
   }
