@@ -13,8 +13,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>try{var _t=localStorage.getItem("cb_tema");var _h=new Date().getHours();document.documentElement.dataset.theme=_t==="auto"?((_h>=6&&_h<18)?"light":"dark"):(_t==="light"||_t==="navy"||_t==="glass")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
-<link rel="stylesheet" href="css/app.css?v=20261017o">
-<link rel="stylesheet" href="css/design.css?v=20261017o">
+<link rel="stylesheet" href="css/app.css?v=20261017p">
+<link rel="stylesheet" href="css/design.css?v=20261017p">
 </head>
 <body>
 
@@ -386,6 +386,19 @@
 
     <!-- ================= PAINEL ================= -->
     <div class="pagina" data-pagina="painel">
+      <div class="subcard geral-card" id="geralCard">
+        <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg>Visão geral</h3>
+        <div class="geral-periodos" id="geralPeriodos">
+          <button type="button" data-p="day">Diário</button>
+          <button type="button" class="ativo" data-p="week">Semanal</button>
+          <button type="button" data-p="month">Mensal</button>
+          <button type="button" data-p="semester">Semestral</button>
+        </div>
+        <div class="cb-ml-legenda" id="geralLegenda"></div>
+        <div id="geralRender"></div>
+        <div id="geralVazio"></div>
+        <p class="geral-nota">Cada linha é medida contra o seu próprio melhor período; passe o mouse (ou toque) para ver os valores reais. Com a extensão pareada, as horas e as questões do QConcursos entram aqui sozinhas.</p>
+      </div>
       <div class="subcard dp" id="desempenho"></div>
 
       <div class="subcard">
@@ -727,13 +740,15 @@
   </div>
 </div>
 
-<script src="js/app.js?v=20261017o"></script>
-<script src="js/perfil.js?v=20261017o"></script>
-<script src="js/desempenho.js?v=20261017o"></script>
-<script src="js/hoje.js?v=20261017o"></script>
-<script src="js/iniciante.js?v=20261017o"></script>
-<script src="js/descer.js?v=20261017o"></script>
-<script src="js/backup.js?v=20261017o"></script>
+<script src="js/app.js?v=20261017p"></script>
+<script src="js/perfil.js?v=20261017p"></script>
+<script src="js/graficos.js?v=20261017p"></script>
+<script src="js/desempenho.js?v=20261017p"></script>
+<script src="js/hoje.js?v=20261017p"></script>
+<script src="js/geral.js?v=20261017p"></script>
+<script src="js/iniciante.js?v=20261017p"></script>
+<script src="js/descer.js?v=20261017p"></script>
+<script src="js/backup.js?v=20261017p"></script>
 
 </body>
 </html>
