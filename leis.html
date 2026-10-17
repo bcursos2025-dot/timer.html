@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#08090c">
+<title>Leis com grifos — Concurseiro Blindado</title>
+<meta name="description" content="Leis do Planalto atualizadas, com busca e marca-texto em tempo real. Seus grifos ficam salvos no seu aparelho.">
+<script>try{var _t=localStorage.getItem("cb_tema");document.documentElement.dataset.theme=(_t==="light"||_t==="navy")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
+<link rel="stylesheet" href="css/landing.css">
+<link rel="stylesheet" href="css/leis.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="marca" href="index.html" aria-label="Concurseiro Blindado">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 4.5 5.5v6c0 4.7 3.1 8.3 7.5 10 4.4-1.7 7.5-5.3 7.5-10v-6z"/><polyline points="8.8 12.2 11.2 14.6 15.4 9.8"/></svg></span>
+      Concurseiro Blindado
+    </a>
+    <nav class="nav-links" aria-label="Páginas">
+      <a href="timer.html">App</a>
+      <a href="leis.html" aria-current="page">Leis</a>
+      <a href="instalar.html">Extensão</a>
+    </nav>
+    <a class="btn principal pequeno" href="timer.html">Abrir o app</a>
+  </div>
+</header>
+
+<main class="leis">
+  <div class="l-wrap">
+    <h1>Leis com grifos</h1>
+    <p class="l-sub">Texto do Planalto, com busca e marca-texto em tempo real. Selecione um trecho para grifar.</p>
+
+    <div class="l-controles">
+      <label class="l-campo l-lei"><span>Lei</span>
+        <select id="selLei" aria-label="Escolher a lei"></select>
+      </label>
+      <label class="l-campo l-busca"><span>Buscar</span>
+        <input id="inpBusca" type="search" placeholder="palavra ou expressão" autocomplete="off" aria-label="Buscar no texto">
+      </label>
+      <label class="l-campo l-ir"><span>Ir ao art.</span>
+        <input id="inpIr" type="text" inputmode="text" placeholder="ex.: 7" autocomplete="off" aria-label="Ir ao artigo">
+      </label>
+      <button class="btn pequeno" id="btnGrifos" type="button">Meus grifos <b id="numGrifos">0</b></button>
+    </div>
+    <div class="l-escopo"><label><input type="checkbox" id="chkTodas"> buscar em todas as leis</label></div>
+
+    <div class="l-info" id="infoLei" hidden></div>
+
+    <div class="l-legenda" id="legenda" aria-label="Legenda das cores"></div>
+
+    <section id="resultados" class="l-resultados" hidden aria-live="polite"></section>
+    <article id="texto" class="l-texto" aria-label="Texto da lei"></article>
+    <div class="l-mais" id="maisWrap" hidden><button class="btn" id="btnMais" type="button">Mostrar mais</button></div>
+  </div>
+</main>
+
+<!-- barra flutuante de grifar -->
+<div class="g-barra" id="gBarra" hidden role="toolbar" aria-label="Grifar">
+  <div class="g-cores" id="gCores"></div>
+  <button type="button" class="g-bt" id="gNota" title="Anotar">Nota</button>
+  <button type="button" class="g-bt g-rem" id="gRemover" title="Remover grifo" hidden>Remover</button>
+  <button type="button" class="g-bt" id="gFechar" title="Fechar" aria-label="Fechar">×</button>
+  <div class="g-notaWrap" id="gNotaWrap" hidden>
+    <textarea id="gNotaTxt" rows="2" maxlength="1000" placeholder="Sua anotação sobre este trecho"></textarea>
+    <button type="button" class="btn pequeno principal" id="gNotaSalvar">Salvar nota</button>
+  </div>
+</div>
+
+<!-- gaveta: meus grifos -->
+<aside class="g-gaveta" id="gGaveta" hidden aria-label="Meus grifos">
+  <div class="g-gav-topo">
+    <h2>Meus grifos</h2>
+    <button type="button" class="g-bt" id="gGavFechar" aria-label="Fechar">×</button>
+  </div>
+  <div class="g-gav-filtros" id="gFiltros"></div>
+  <div class="g-gav-lista" id="gLista"></div>
+  <div class="g-gav-rodape">
+    <button type="button" class="btn pequeno" id="gExportar">Exportar</button>
+    <label class="btn pequeno" for="gImportar">Importar</label>
+    <input type="file" id="gImportar" accept="application/json" hidden>
+  </div>
+</aside>
+
+<div class="l-toast" id="toast" hidden role="status"></div>
+
+<script src="js/leis.js"></script>
+</body>
+</html>

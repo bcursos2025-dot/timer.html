@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#08090c">
+<title>Instalar a extensão</title>
+<script>try{var _t=localStorage.getItem("cb_tema");document.documentElement.dataset.theme=(_t==="light"||_t==="navy")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
+<link rel="stylesheet" href="css/landing.css">
+<style>
+main.inst{ max-width:720px; margin:0 auto; padding:32px 20px 72px; }
+.inst h1{ font-size:clamp(28px, 5vw, 40px); letter-spacing:-.03em; line-height:1.08; margin:6px 0 10px; font-weight:700; }
+.inst .sub{ color:var(--text-dim); font-size:16px; margin:0 0 26px; }
+.inst .voltar{ display:inline-block; font-size:14px; text-decoration:none; margin-bottom:8px; font-weight:600; }
+.box{ background:var(--bg-elevated); border:1px solid var(--hair); border-radius:22px; padding:22px; margin-bottom:14px; }
+.box h2{ font-size:17px; margin:0 0 12px; letter-spacing:-.01em; }
+.box p, .box li{ font-size:14.5px; color:var(--text-dim); }
+.box ol, .box ul{ margin:8px 0 0; padding-left:20px; }
+.box li{ margin:6px 0; }
+.box b{ color:var(--text); }
+.baixar{ display:flex; flex-direction:column; gap:10px; }
+.baixar .btn{ display:flex; justify-content:space-between; text-align:left; gap:12px; padding:14px 18px; border-radius:16px; font-size:15px; }
+.baixar .btn small{ font-weight:500; opacity:.8; font-size:12px; }
+code, .hash{ font-family:ui-monospace,Consolas,monospace; font-size:12px; word-break:break-all; background:var(--fill); border:1px solid var(--hair);
+  border-radius:8px; padding:2px 6px; color:var(--text); }
+.hash{ display:block; padding:9px 11px; margin-top:6px; }
+.selo2{ display:inline-block; font-size:10.5px; letter-spacing:.04em; padding:2px 9px; border-radius:30px; background:var(--gold-soft); color:var(--gold); }
+.aviso-box{ border-color:color-mix(in srgb, var(--gold) 40%, transparent); }
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="wrap">
+    <a class="marca" href="index.html" aria-label="Concurseiro Blindado">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 4.5 5.5v6c0 4.7 3.1 8.3 7.5 10 4.4-1.7 7.5-5.3 7.5-10v-6z"/><polyline points="8.8 12.2 11.2 14.6 15.4 9.8"/></svg></span>
+      Concurseiro Blindado
+    </a>
+    <a class="btn principal pequeno" href="timer.html">Abrir o app</a>
+  </div>
+</header>
+<main class="inst">
+  <a class="voltar" href="index.html">← Voltar ao início</a>
+  <h1>Instalar a extensão no PC</h1>
+  <p class="sub">Windows · Opera, Chrome, Edge e Brave. Leva uns 2 minutos e não precisa de loja nem de conta.</p>
+
+  <div class="box">
+    <h2>1. Baixe os arquivos</h2>
+    <div class="baixar">
+      <a class="btn principal" href="extensao/Instalar Concurseiro Blindado.bat" download>
+        <span>Instalador<br><small>faz quase tudo sozinho (recomendado)</small></span><span>.bat</span>
+      </a>
+      <a class="btn" href="extensao/instalar-extensao.ps1" download>
+        <span>Script do instalador<br><small>o .bat precisa deste arquivo na mesma pasta</small></span><span>.ps1</span>
+      </a>
+      <a class="btn" href="extensao/concurseiro-blindado.zip" download>
+        <span>Extensão <span class="selo2" id="versaoSelo">…</span><br><small id="tamanhoZip">arquivo ZIP</small></span><span>.zip</span>
+      </a>
+      <a class="btn" href="extensao/versao.json" download>
+        <span>versao.json<br><small>usado pelo instalador para conferir o ZIP</small></span><span>.json</span>
+      </a>
+    </div>
+    <p style="margin-top:12px">Salve os <b>quatro arquivos na mesma pasta</b> (por exemplo, em Downloads) e dê dois cliques em <b>Instalar Concurseiro Blindado.bat</b>.</p>
+  </div>
+
+  <div class="box">
+    <h2>2. O que o instalador faz sozinho</h2>
+    <ul>
+      <li>Confere o arquivo (SHA-256) para garantir que não veio corrompido.</li>
+      <li>Coloca a extensão em <code>%LOCALAPPDATA%\ConcurseiroBlindado\extensao</code>.</li>
+      <li>Copia esse caminho para a área de transferência.</li>
+      <li>Acha o seu navegador e abre a página de extensões nele.</li>
+    </ul>
+  </div>
+
+  <div class="box">
+    <h2>3. O que você faz (3 cliques, o navegador exige)</h2>
+    <ol>
+      <li>Na página de extensões que abriu, ligue o <b>Modo do desenvolvedor</b>.</li>
+      <li>Clique em <b>Carregar sem pacote</b> (no Opera: <b>Carregar descompactada</b>).</li>
+      <li>Clique na barra de endereço da janela, cole com <b>Ctrl+V</b>, tecle Enter e confirme em <b>Selecionar pasta</b>.</li>
+    </ol>
+    <p style="margin-top:10px">Para <b>atualizar</b> depois: rode o instalador de novo e clique no botão de recarregar (seta circular) no cartão da extensão.</p>
+  </div>
+
+  <div class="box aviso-box">
+    <h2>O Windows ou o antivírus pode mostrar um aviso</h2>
+    <p>É normal: o instalador é um arquivo novo, baixado da internet e sem assinatura digital paga, e o Windows desconfia de qualquer arquivo assim. Se aparecer
+      <b>“O Windows protegeu seu computador”</b>, clique em <b>Mais informações</b> e depois em <b>Executar assim mesmo</b>.</p>
+    <p>Você não precisa confiar às cegas:</p>
+    <ul>
+      <li>O instalador é um arquivo de texto que você pode abrir no Bloco de Notas e ler. Ele <b>não pede administrador</b>, não mexe no registro do Windows e não altera configurações do navegador.</li>
+      <li>O código da extensão fica visível dentro do ZIP e do navegador.</li>
+      <li>Você pode enviar o ZIP em <a href="https://www.virustotal.com" target="_blank" rel="noopener">virustotal.com</a> e comparar com o resultado de outros antivírus. Ele não será analisado antes de você enviar.</li>
+      <li>Confira o SHA-256 do ZIP: <span class="hash" id="hashZip">carregando…</span></li>
+    </ul>
+  </div>
+
+  <div class="box">
+    <h2>Prefere fazer tudo manualmente?</h2>
+    <ol>
+      <li>Baixe o <b>.zip</b> da extensão.</li>
+      <li>Extraia em uma pasta <b>sem “_” no nome</b> (por exemplo <code>C:\ConcurseiroBlindado</code>).</li>
+      <li>Abra <code>opera://extensions</code> (ou <code>chrome://extensions</code>), ligue o modo do desenvolvedor e carregue essa pasta.</li>
+    </ol>
+  </div>
+
+  <div class="box">
+    <h2>Remover</h2>
+    <p>No navegador, clique em <b>Remover</b> no cartão da extensão. Para apagar também a pasta, rode o instalador com <code>-Remover</code> ou apague <code>%LOCALAPPDATA%\ConcurseiroBlindado</code>.</p>
+  </div>
+</main>
+
+<script>
+(function(){
+  function mb(n){ return (n / 1048576).toFixed(1).replace('.', ',') + ' MB'; }
+  fetch('extensao/versao.json', { cache: 'no-store' }).then(r => r.json()).then(v => {
+    document.getElementById('versaoSelo').textContent = 'v' + v.version;
+    document.getElementById('tamanhoZip').textContent = 'ZIP · ' + mb(v.bytes);
+    document.getElementById('hashZip').textContent = v.sha256;
+  }).catch(() => {
+    document.getElementById('versaoSelo').textContent = '';
+    document.getElementById('hashZip').textContent = 'não foi possível carregar agora — abra extensao/versao.json';
+  });
+})();
+</script>
+</body>
+</html>
