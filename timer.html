@@ -12,8 +12,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>try{var _t=localStorage.getItem("cb_tema");var _h=new Date().getHours();document.documentElement.dataset.theme=_t==="auto"?((_h>=6&&_h<18)?"light":"dark"):(_t==="light"||_t==="navy"||_t==="glass")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
-<link rel="stylesheet" href="css/app.css?v=20261017z">
-<link rel="stylesheet" href="css/design.css?v=20261017z">
+<link rel="stylesheet" href="css/app.css?v=20261018a">
+<link rel="stylesheet" href="css/design.css?v=20261018a">
+<link rel="stylesheet" href="css/bem-estar.css?v=20261018a">
 </head>
 <body>
 
@@ -417,6 +418,179 @@
         <div id="geralVazio"></div>
         <p class="geral-nota">Cada linha é medida contra o seu próprio melhor período; passe o mouse (ou toque) para ver os valores reais. Com a extensão pareada, as horas e as questões do QConcursos entram aqui sozinhas.</p>
       </div>
+      <div class="subcard ferr-card" id="ferramentasCard">
+        <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>Mais ferramentas</h3>
+        <div class="geral-periodos" id="ferrAbas" role="tablist">
+          <button type="button" class="ativo" data-f="calma" role="tab">Acalmar</button>
+          <button type="button" data-f="foco" role="tab">Foco</button>
+          <button type="button" data-f="estudos" role="tab">Estudos</button>
+        </div>
+        <div class="ferr-painel" data-f="calma">
+<div class="calm-header">
+            <div class="questoes-title">
+                Acalmar a ansiedade
+            </div>
+        </div>
+        <p class="calm-intro">Para o estresse do dia a dia, pressão familiar ou aquela ansiedade antes de estudar. Técnicas simples, baseadas em respiração controlada, que ajudam o corpo a sair do modo de alerta.</p>
+
+        <div class="calm-pattern-controls" id="calm-pattern-controls">
+            <button class="active" data-pattern="box">Box (4-4-4-4)</button>
+            <button data-pattern="relax">4-7-8 Relaxante</button>
+            <button data-pattern="calma">Calma rápida</button>
+        </div>
+
+        <div class="breathing-card">
+            <div class="breathing-circle-wrap">
+                <div class="breathing-ring"></div>
+                <div id="breathing-circle" class="breathing-circle">
+                    <span class="cb-breath-olhos" aria-hidden="true">
+                        <span class="cb-breath-olho"></span>
+                        <span class="cb-breath-olho"></span>
+                    </span>
+                </div>
+            </div>
+            <div class="breathing-status">
+                <span id="breathing-phase">Pronto?</span>
+                <span id="breathing-count"></span>
+            </div>
+            <div class="breathing-meta">
+                <span id="breathing-cycles">0 ciclos completos</span>
+            </div>
+            <button id="btn-breathing-toggle" class="breathing-btn">Iniciar respiração</button>
+        </div>
+
+        <div class="calm-grounding-card">
+            <button class="calm-collapse-toggle" id="btn-grounding-toggle">
+                <span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+                    Exercício de aterramento 5-4-3-2-1
+                </span>
+                <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="calm-grounding-body" id="calm-grounding-body">
+                <p class="calm-grounding-desc">Uma técnica de mindfulness para trazer a mente de volta ao presente quando a ansiedade dispara. Vá em ordem, sem pressa.</p>
+                <div id="grounding-step-render"></div>
+            </div>
+        </div>
+
+        <div class="calm-tips">
+            <h4 class="section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.5.4.8.9.8 1.5V17h6.4v-.8c0-.6.3-1.1.8-1.5A7 7 0 0 0 12 2Z"/></svg>
+                Lembretes rápidos
+            </h4>
+            <ul class="calm-tips-list">
+                <li>A ansiedade é uma reação normal do corpo — ela passa. Respirar devagar avisa seu sistema nervoso que não há perigo real.</li>
+                <li>Você não precisa resolver a pressão familiar ou o dia inteiro agora. Só os próximos 2 minutos.</li>
+                <li>Se sentir tontura durante a respiração guiada, volte ao ritmo normal — isso é comum no início.</li>
+            </ul>
+        </div>
+        </div>
+        <div class="ferr-painel" data-f="foco" hidden>
+<div class="focus-reset-card">
+            <div class="focus-reset-head">
+                <span class="focus-reset-title">Reset de foco — 2 minutos</span>
+                <span id="focus-reset-time" class="focus-reset-timer">02:00</span>
+            </div>
+            <p id="focus-reset-instruction" class="focus-reset-instruction">Um exercício curto pra sair do modo "scroll" antes de voltar a estudar: olhar longe, respirar devagar e escolher uma única tarefa.</p>
+            <div class="focus-reset-bar"><div id="focus-reset-fill" class="focus-reset-fill"></div></div>
+            <button id="btn-focus-reset" class="breathing-btn">Iniciar reset de foco</button>
+        </div>
+
+        <h4 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h4m0-10v10m0-10 6-6m-6 6 6 6m0-6v10"/></svg>
+            Estratégias com base em pesquisa
+        </h4>
+        <div class="focus-tips-grid">
+            <div class="focus-tip-card focus-tip-card--time">
+                <span class="focus-tip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></span>
+                <div>
+                    <strong>Limite de tempo intencional</strong>
+                    <p>Defina um tempo fixo pra redes sociais (ex: 20 min) em vez de "só mais um vídeo". Timers de app ou alarmes externos funcionam melhor que a força de vontade sozinha.</p>
+                </div>
+            </div>
+            <div class="focus-tip-card focus-tip-card--task">
+                <span class="focus-tip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.2 12.4 2.6 2.6 5-5.6"/></svg></span>
+                <div>
+                    <strong>Uma tarefa por vez</strong>
+                    <p>Alternar entre estudo e vídeos curtos várias vezes por hora fragmenta a atenção. Use blocos de foco único (como o Pomodoro do cronômetro) sem o celular por perto.</p>
+                </div>
+            </div>
+            <div class="focus-tip-card focus-tip-card--reading">
+                <span class="focus-tip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.8C10.2 5.2 7.8 4.6 4 4.6V18c3.8 0 6.2.6 8 2.2 1.8-1.6 4.200-2.2 8-2.2V4.6c-3.8 0-6.2.6-8 2.2Z"/><path d="M12 6.8V20.2"/></svg></span>
+                <div>
+                    <strong>Exposição gradual a conteúdo longo</strong>
+                    <p>Treine a atenção sustentada de propósito: leitura, vídeos ou aulas mais longas, aumentando a duração aos poucos, como quem treina resistência física.</p>
+                </div>
+            </div>
+            <div class="focus-tip-card focus-tip-card--boredom">
+                <span class="focus-tip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 17.7A9 9 0 1 0 6.3 6.3a9 9 0 0 0 11.4 11.4Z"/><path d="M8 15s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg></span>
+                <div>
+                    <strong>Tolerar o tédio</strong>
+                    <p>Ficar alguns minutos sem estímulo (fila, ônibus, intervalo) sem pegar o celular ajuda o cérebro a recuperar a capacidade de ficar parado com um pensamento só.</p>
+                </div>
+            </div>
+        </div>
+        </div>
+        <div class="ferr-painel" data-f="estudos" hidden>
+<h4 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            Estudos — autoavaliação honesta
+        </h4>
+        <p class="tab-hint">
+            A gente quer passar, mas nem sempre dá o próprio máximo — e vai fingindo
+            pra si mesmo que está estudando, enquanto os dias passam e a aprovação
+            não chega. Aqui não tem quantidade de hora nem meta: é só uma pergunta
+            sincera por dia.
+        </p>
+
+        <div class="estudos-card" id="estudos-card-hoje">
+            <div class="estudos-card-topo">
+                <span class="estudos-card-titulo" id="estudos-card-titulo">Eu me dei ao máximo ontem nos estudos?</span>
+                <span class="estudos-card-data" id="estudos-data-avaliada">—</span>
+            </div>
+
+            <div class="estudos-segmented" id="estudos-escala">
+                <div class="estudos-seg-thumb" id="estudos-seg-thumb"></div>
+                <button class="estudos-seg-opt" data-nota="0">0</button>
+                <button class="estudos-seg-opt" data-nota="1">1</button>
+                <button class="estudos-seg-opt" data-nota="2">2</button>
+                <button class="estudos-seg-opt" data-nota="3">3</button>
+            </div>
+            <p class="estudos-seg-legenda" id="estudos-seg-legenda">Toque numa nota — 0 é muito ruim, 3 é muito bom.</p>
+
+            <textarea id="estudos-comentario" class="estudos-comentario" rows="2" placeholder="O que te atrapalhou ou ajudou ontem? (opcional)"></textarea>
+            <div class="estudos-card-rodape">
+                <span id="estudos-status-msg" class="estudos-status-msg"></span>
+                <button id="estudos-btn-salvar" class="estudos-btn-salvar">
+                    <svg class="estudos-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    <span class="estudos-btn-salvar-txt">Salvar</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="estudos-ultimos-wrap">
+            <span class="estudos-subtitulo">Últimos dias</span>
+            <div id="estudos-ultimos-dias" class="estudos-ultimos-dias"></div>
+        </div>
+
+        <div class="estudos-relatorio-wrap">
+            <div class="estudos-relatorio-topo">
+                <span class="estudos-subtitulo">Relatório do mês</span>
+                <div class="estudos-mes-nav">
+                    <button id="estudos-mes-prev" class="estudos-mes-btn" title="Mês anterior">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>
+                    </button>
+                    <span id="estudos-mes-label" class="estudos-mes-label">—</span>
+                    <button id="estudos-mes-next" class="estudos-mes-btn" title="Próximo mês">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div id="estudos-relatorio-corpo"></div>
+        </div>
+        </div>
+      </div>
+
       <div class="subcard dp" id="desempenho"></div>
 
       <div class="subcard">
@@ -946,21 +1120,23 @@
   </div>
 </div>
 
-<script src="js/app.js?v=20261017z"></script>
-<script src="js/perfil.js?v=20261017z"></script>
-<script src="js/graficos.js?v=20261017z"></script>
-<script src="js/desempenho.js?v=20261017z"></script>
-<script src="js/hoje.js?v=20261017z"></script>
-<script src="js/geral.js?v=20261017z"></script>
-<script src="js/iniciante.js?v=20261017z"></script>
-<script src="js/meuperfil.js?v=20261017z"></script>
-<script src="js/config-busca.js?v=20261017z"></script>
-<script src="js/folha-gestos.js?v=20261017z"></script>
-<script src="js/ia.js?v=20261017z"></script>
-<script src="js/comunidade-chat.js?v=20261017z"></script>
-<script src="js/comunidade.js?v=20261017z"></script>
-<script src="js/descer.js?v=20261017z"></script>
-<script src="js/backup.js?v=20261017z"></script>
+<script src="js/app.js?v=20261018a"></script>
+<script src="js/perfil.js?v=20261018a"></script>
+<script src="js/graficos.js?v=20261018a"></script>
+<script src="js/desempenho.js?v=20261018a"></script>
+<script src="js/hoje.js?v=20261018a"></script>
+<script src="js/geral.js?v=20261018a"></script>
+<script src="js/iniciante.js?v=20261018a"></script>
+<script src="js/meuperfil.js?v=20261018a"></script>
+<script src="js/bem-estar.js?v=20261018a"></script>
+<script src="js/estudos.js?v=20261018a"></script>
+<script src="js/config-busca.js?v=20261018a"></script>
+<script src="js/folha-gestos.js?v=20261018a"></script>
+<script src="js/ia.js?v=20261018a"></script>
+<script src="js/comunidade-chat.js?v=20261018a"></script>
+<script src="js/comunidade.js?v=20261018a"></script>
+<script src="js/descer.js?v=20261018a"></script>
+<script src="js/backup.js?v=20261018a"></script>
 
 </body>
 </html>

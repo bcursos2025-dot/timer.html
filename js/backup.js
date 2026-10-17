@@ -8,7 +8,7 @@
 (function(){
   'use strict';
   const CHAVES = ['cb2_historico', 'cb2_config', 'cb2_questoes_estado', 'cb2_questoes_log', 'cb2_perfil', 'cb2_prova_oab',
-    'cb2_grifos', 'cb2_desempenho', 'cb2_lei_atual', 'cb_tema', 'cb2_iniciante'];
+    'cb2_grifos', 'cb2_desempenho', 'cb2_lei_atual', 'cb_tema', 'cb2_iniciante', 'cb2_estudos_registro', 'cb2_ordem_abas'];
   const $ = id => document.getElementById(id);
   const LS_ULTIMO = 'cb2_backup_ultimo', LS_ADIAR = 'cb2_backup_adiar', LS_PRIMEIRO = 'cb2_primeiro_uso';
   const DIA = 86400000, PRAZO_DIAS = 30, ADIAR_DIAS = 7;
