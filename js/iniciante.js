@@ -3,7 +3,7 @@
    pessoa estuda. Quem e novo ve so o essencial (Hoje, Cronometro e Leis);
    o resto aparece com 10 min, 30 min, 1 h e 3 h de estudo no total.
    Carrega depois de app.js e hoje.js (usa historico e sessao).
-   Em Ajustes da para desligar ("Mostrar tudo").
+   Em Configurações da para desligar ("Mostrar tudo").
    ============================================================ */
 (function(){
   const LS_INI = 'cb2_iniciante';          // '1' ligado, '0' desligado

@@ -13,8 +13,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>try{var _t=localStorage.getItem("cb_tema");var _h=new Date().getHours();document.documentElement.dataset.theme=_t==="auto"?((_h>=6&&_h<18)?"light":"dark"):(_t==="light"||_t==="navy"||_t==="glass")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
-<link rel="stylesheet" href="css/app.css?v=20261017h">
-<link rel="stylesheet" href="css/design.css?v=20261017h">
+<link rel="stylesheet" href="css/app.css?v=20261017i">
+<link rel="stylesheet" href="css/design.css?v=20261017i">
 </head>
 <body>
 
@@ -25,7 +25,7 @@
     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 17a2.5 2.5 0 0 0 2.5-2.5c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7.5 7.5 0 1 1-15 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5"/></svg>
     <span id="streakTexto">0 dias</span>
   </button>
-  <button class="icon-btn" id="btnAjustes" title="Ajustes">
+  <button class="icon-btn" id="btnAjustes" title="Configurações">
     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
   </button>
 </div>
@@ -47,7 +47,7 @@
   <div class="lat-rodape">
     <a class="lat-item" href="leis.html"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Leis com grifos</a>
     <a class="lat-item" href="instalar.html"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Instalar extensão</a>
-    <button class="lat-item" id="btnAjustesLateral"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Ajustes</button>
+    <button class="lat-item" id="btnAjustesLateral"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</button>
   </div>
 </aside>
 <button class="lat-abrir" id="btnLatAbrir" type="button" aria-label="Mostrar a barra lateral" title="Mostrar a barra lateral">
@@ -493,7 +493,7 @@
 <div class="sheet-overlay" id="sheetOverlay">
   <div class="sheet ap-sheet ap-settings" role="dialog" aria-modal="true" aria-labelledby="cfg-titulo">
     <div class="ap-sheet-head">
-      <span class="ap-sheet-title" id="cfg-titulo">Ajustes</span>
+      <span class="ap-sheet-title" id="cfg-titulo">Configurações</span>
       <button class="ap-sheet-close" id="sheetFechar" aria-label="Fechar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
@@ -711,7 +711,7 @@
 <div class="perfil-overlay" id="perfilOverlay" role="dialog" aria-modal="true" aria-labelledby="perfilTitulo" hidden>
   <div class="perfil-caixa">
     <h2 id="perfilTitulo">Para o que você estuda?</h2>
-    <p>Isso muda as cores, os textos e as questões do site. Você pode trocar quando quiser em Ajustes.</p>
+    <p>Isso muda as cores, os textos e as questões do site. Você pode trocar quando quiser em Configurações.</p>
     <button class="perfil-escolha" data-perfil="oab">
       <b>OAB</b>
       <span>Exame de Ordem · 1ª e 2ª fase · correção de peça</span>
@@ -723,12 +723,12 @@
   </div>
 </div>
 
-<script src="js/app.js?v=20261017h"></script>
-<script src="js/perfil.js?v=20261017h"></script>
-<script src="js/desempenho.js?v=20261017h"></script>
-<script src="js/hoje.js?v=20261017h"></script>
-<script src="js/iniciante.js?v=20261017h"></script>
-<script src="js/backup.js?v=20261017h"></script>
+<script src="js/app.js?v=20261017i"></script>
+<script src="js/perfil.js?v=20261017i"></script>
+<script src="js/desempenho.js?v=20261017i"></script>
+<script src="js/hoje.js?v=20261017i"></script>
+<script src="js/iniciante.js?v=20261017i"></script>
+<script src="js/backup.js?v=20261017i"></script>
 
 </body>
 </html>

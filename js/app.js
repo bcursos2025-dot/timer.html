@@ -94,7 +94,7 @@ document.querySelectorAll('.tema-btn').forEach(b => {
 });
 aplicarTema(localStorage.getItem(LS.tema) || 'dark');
 
-/* Gavetas dos Ajustes (acordeão): abre uma, fecha a anterior do mesmo grupo. */
+/* Gavetas das Configurações (acordeão): abre uma, fecha a anterior do mesmo grupo. */
 document.querySelectorAll('.ap-settings .settings-accordion-head').forEach(cab => {
   cab.addEventListener('click', () => {
     const gaveta = cab.closest('.settings-accordion');
@@ -2213,7 +2213,7 @@ renderAgenda();
   if (a) a.addEventListener('click', () => definir(false));
 })();
 
-/* Compartilhar no WhatsApp (Ajustes) */
+/* Compartilhar no WhatsApp (Configurações) */
 (function(){
   const w = document.getElementById('btnWhatsCompartilhar');
   if (!w) return;

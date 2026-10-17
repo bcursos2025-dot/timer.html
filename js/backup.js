@@ -1,5 +1,5 @@
 /* ============================================================
-   BACKUP DOS DADOS DO SITE (Ajustes → Meus dados).
+   BACKUP DOS DADOS DO SITE (Configurações → Meus dados).
    Exporta/importa só o que é DADO DE ESTUDO. Fica de fora, de propósito:
    - licença/vitalício (não pode ser concedida por arquivo),
    - pareamento com a extensão e sessão do cronômetro em andamento,
