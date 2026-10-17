@@ -12,10 +12,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>try{var _t=localStorage.getItem("cb_tema");var _h=new Date().getHours();document.documentElement.dataset.theme=_t==="auto"?((_h>=6&&_h<18)?"light":"dark"):(_t==="light"||_t==="navy"||_t==="glass")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
-<link rel="stylesheet" href="css/app.css?v=20261018d">
-<link rel="stylesheet" href="css/design.css?v=20261018d">
-<link rel="stylesheet" href="css/bem-estar.css?v=20261018d">
-<link rel="stylesheet" href="css/animacoes.css?v=20261018d">
+<link rel="stylesheet" href="css/app.css?v=20261018e">
+<link rel="stylesheet" href="css/design.css?v=20261018e">
+<link rel="stylesheet" href="css/bem-estar.css?v=20261018e">
+<link rel="stylesheet" href="css/animacoes.css?v=20261018e">
 </head>
 <body>
 
@@ -812,6 +812,8 @@
               Enquanto o Pomodoro está rodando, o site pede pro aparelho não apagar a tela sozinho — assim o alarme toca certinho no fim de cada fase.
               Funciona se a tela ficar ligada; se você travar a tela pelo botão lateral, nenhum site consegue tocar som.
             </p>
+            <p class="pareamento-ajuda aviso-ios" id="iosPomodoroAviso" hidden><b>No iPhone:</b> o navegador da Apple não deixa o site vibrar. Para não perder o fim da fase, deixe a tela ligada e o som alto. A tela vai piscar, o título da aba muda e, no iOS 17.4 ou mais novo, o aparelho pode dar um toque tátil. Vale também tocar em Compartilhar → Adicionar à Tela de Início.</p>
+            <button type="button" class="cfg-copiar" id="testarAlertaFase">Testar o alerta de fim de fase</button>
           </div></div>
         </div>
 
@@ -1121,25 +1123,26 @@
   </div>
 </div>
 
-<script src="js/app.js?v=20261018d"></script>
-<script src="js/dispositivo.js?v=20261018d"></script>
-<script src="js/perfil.js?v=20261018d"></script>
-<script src="js/graficos.js?v=20261018d"></script>
-<script src="js/desempenho.js?v=20261018d"></script>
-<script src="js/hoje.js?v=20261018d"></script>
-<script src="js/geral.js?v=20261018d"></script>
-<script src="js/iniciante.js?v=20261018d"></script>
-<script src="js/meuperfil.js?v=20261018d"></script>
-<script src="js/bem-estar.js?v=20261018d"></script>
-<script src="js/estudos.js?v=20261018d"></script>
-<script src="js/config-busca.js?v=20261018d"></script>
-<script src="js/folha-gestos.js?v=20261018d"></script>
-<script src="js/animacoes.js?v=20261018d"></script>
-<script src="js/ia.js?v=20261018d"></script>
-<script src="js/comunidade-chat.js?v=20261018d"></script>
-<script src="js/comunidade.js?v=20261018d"></script>
-<script src="js/descer.js?v=20261018d"></script>
-<script src="js/backup.js?v=20261018d"></script>
+<script src="js/app.js?v=20261018e"></script>
+<script src="js/dispositivo.js?v=20261018e"></script>
+<script src="js/alerta-fase.js?v=20261018e"></script>
+<script src="js/perfil.js?v=20261018e"></script>
+<script src="js/graficos.js?v=20261018e"></script>
+<script src="js/desempenho.js?v=20261018e"></script>
+<script src="js/hoje.js?v=20261018e"></script>
+<script src="js/geral.js?v=20261018e"></script>
+<script src="js/iniciante.js?v=20261018e"></script>
+<script src="js/meuperfil.js?v=20261018e"></script>
+<script src="js/bem-estar.js?v=20261018e"></script>
+<script src="js/estudos.js?v=20261018e"></script>
+<script src="js/config-busca.js?v=20261018e"></script>
+<script src="js/folha-gestos.js?v=20261018e"></script>
+<script src="js/animacoes.js?v=20261018e"></script>
+<script src="js/ia.js?v=20261018e"></script>
+<script src="js/comunidade-chat.js?v=20261018e"></script>
+<script src="js/comunidade.js?v=20261018e"></script>
+<script src="js/descer.js?v=20261018e"></script>
+<script src="js/backup.js?v=20261018e"></script>
 
 </body>
 </html>

@@ -96,3 +96,16 @@ body{ transition:background-color .4s ease; }
   .sheet-overlay.aberto .cfg-grupo, .sheet-overlay.aberto .ofe-hero, .sheet-overlay.aberto .ofe-card, .sheet-overlay.aberto .cb-semana-dia,
   .ofe-chama.on svg, .ofe-dia, .h-passos-lista li.ok .h-passos-marca, .settings-accordion.open .settings-accordion-head svg:first-child{ animation:none !important; }
 }
+
+/* ---------- alerta de fim de fase do Pomodoro (js/alerta-fase.js) ---------- */
+.cb-pisca-fase{ position:fixed; inset:0; z-index:80; pointer-events:none; opacity:0;
+  background:radial-gradient(120% 90% at 50% 50%, color-mix(in srgb, var(--accent) 55%, transparent), color-mix(in srgb, var(--accent) 20%, transparent) 60%, transparent 100%); }
+.cb-pisca-fase.rodando{ animation:cbPiscaFase 2.4s ease-in-out; }
+@keyframes cbPiscaFase{ 0%{ opacity:0; } 18%{ opacity:.9; } 40%{ opacity:.1; } 62%{ opacity:.8; } 100%{ opacity:0; } }
+.cb-faixa-fase{ position:fixed; left:50%; top:calc(14px + env(safe-area-inset-top)); transform:translate(-50%, -140%); z-index:90; max-width:min(92vw, 440px);
+  padding:15px 22px; border-radius:20px; background:var(--accent-fill); color:var(--ap-on-accent, #fff); font-size:16px; font-weight:800; letter-spacing:-.01em; text-align:center;
+  box-shadow:0 14px 40px var(--accent-glow), 0 2px 8px rgba(0,0,0,.3); transition:transform .5s cubic-bezier(.2,1.3,.4,1); cursor:pointer; }
+.cb-faixa-fase.vis{ transform:translate(-50%, 0); }
+.aviso-ios{ padding:11px 13px; border-radius:14px; background:var(--ap-warn-soft); color:var(--text-dim); }
+.aviso-ios b{ color:var(--text); }
+@media (prefers-reduced-motion: reduce){ .cb-pisca-fase.rodando{ animation:none; } .cb-faixa-fase{ transition:none; } }

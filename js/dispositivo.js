@@ -40,9 +40,13 @@
 
   /* Página de instalação e landing: no celular, avisa e adapta o texto dos botões */
   function adaptar(){
+    const ios0 = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const av0 = document.getElementById('iosPomodoroAviso'); if (av0) av0.hidden = !ios0;
     if (!ehCelular()) return;
     document.documentElement.classList.add('cb-celular');
     document.querySelectorAll('[data-instalar]').forEach((a) => { a.textContent = 'Ver a extensão para o PC'; });
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const avisoIos = document.getElementById('iosPomodoroAviso'); if (avisoIos) avisoIos.hidden = !ios;
     const alvo = document.getElementById('avisoCelular');
     if (alvo) alvo.hidden = false;
   }

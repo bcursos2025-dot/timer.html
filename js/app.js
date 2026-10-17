@@ -852,6 +852,7 @@ function atualizarTudo(){
           salvarSessao();
           tocarAlertaFase();
           notificarFimDeFase(sessao.pomodoroPhase);
+          if (window.cbAlertaFase) window.cbAlertaFase(sessao.pomodoroPhase);
           atualizarTudo();
           return;
         }
