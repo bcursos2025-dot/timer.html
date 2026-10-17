@@ -13,8 +13,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>try{var _t=localStorage.getItem("cb_tema");var _h=new Date().getHours();document.documentElement.dataset.theme=_t==="auto"?((_h>=6&&_h<18)?"light":"dark"):(_t==="light"||_t==="navy"||_t==="glass")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
-<link rel="stylesheet" href="css/app.css?v=20261017u">
-<link rel="stylesheet" href="css/design.css?v=20261017u">
+<link rel="stylesheet" href="css/app.css?v=20261017v">
+<link rel="stylesheet" href="css/design.css?v=20261017v">
 </head>
 <body>
 
@@ -49,6 +49,7 @@
   <div class="lat-rodape">
     <a class="lat-item" href="leis.html"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Leis com grifos</a>
     <a class="lat-item" href="instalar.html"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Instalar extensão</a>
+    <button class="lat-item" id="btnComunidadeLateral"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Comunidade</button>
     <button class="lat-item" id="btnIALateral"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Assistente de estudo</button>
     <button class="lat-item" id="btnPerfilLateral"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.2 3.58-7 8-7s8 2.8 8 7"/></svg>Meu perfil</button>
     <button class="lat-item" id="btnAjustesLateral"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</button>
@@ -121,6 +122,13 @@
             <p>Tire dúvidas, peça um plano de revisão ou ajuda para organizar o seu dia. Ele conhece a sua meta e o seu desempenho.</p>
           </div>
           <button type="button" class="h-btn primario" id="hojeBtnIA">Conversar</button>
+        </section>
+        <section class="h-card h-leis h-com">
+          <div>
+            <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Comunidade</h3>
+            <p>Converse de forma anônima com quem também está estudando e compare o seu dia com a média. Só entra quem quiser.</p>
+          </div>
+          <button type="button" class="h-btn primario" id="hojeBtnCom">Abrir</button>
         </section>
       </div>
     </div>
@@ -792,6 +800,18 @@
     </div>
   </div>
 </div>
+<!-- ================= COMUNIDADE (chat anônimo + comparação, opt-in) ================= -->
+<div class="sheet-overlay" id="comSheet">
+  <div class="sheet ap-sheet com-sheet" role="dialog" aria-modal="true" aria-labelledby="com-titulo">
+    <div class="ap-sheet-head">
+      <span class="ap-sheet-title" id="com-titulo">Comunidade</span>
+      <button class="ap-sheet-close" id="comFechar" type="button" aria-label="Fechar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="com-body" id="comCorpo"></div>
+  </div>
+</div>
 <!-- ================= SHEET DE SEQUÊNCIA (ofensiva, mesmo desenho da extensão) ================= -->
 <div class="sheet-overlay" id="streakOverlay">
   <div class="sheet ap-sheet" role="dialog" aria-modal="true" aria-labelledby="ofe-titulo">
@@ -834,17 +854,19 @@
   </div>
 </div>
 
-<script src="js/app.js?v=20261017u"></script>
-<script src="js/perfil.js?v=20261017u"></script>
-<script src="js/graficos.js?v=20261017u"></script>
-<script src="js/desempenho.js?v=20261017u"></script>
-<script src="js/hoje.js?v=20261017u"></script>
-<script src="js/geral.js?v=20261017u"></script>
-<script src="js/iniciante.js?v=20261017u"></script>
-<script src="js/meuperfil.js?v=20261017u"></script>
-<script src="js/ia.js?v=20261017u"></script>
-<script src="js/descer.js?v=20261017u"></script>
-<script src="js/backup.js?v=20261017u"></script>
+<script src="js/app.js?v=20261017v"></script>
+<script src="js/perfil.js?v=20261017v"></script>
+<script src="js/graficos.js?v=20261017v"></script>
+<script src="js/desempenho.js?v=20261017v"></script>
+<script src="js/hoje.js?v=20261017v"></script>
+<script src="js/geral.js?v=20261017v"></script>
+<script src="js/iniciante.js?v=20261017v"></script>
+<script src="js/meuperfil.js?v=20261017v"></script>
+<script src="js/ia.js?v=20261017v"></script>
+<script src="js/comunidade-chat.js?v=20261017v"></script>
+<script src="js/comunidade.js?v=20261017v"></script>
+<script src="js/descer.js?v=20261017v"></script>
+<script src="js/backup.js?v=20261017v"></script>
 
 </body>
 </html>
