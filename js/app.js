@@ -480,15 +480,29 @@ const firebaseConfig = {
 // restrita etc.), o app inteiro precisa continuar funcionando normalmente.
 let db = null;
 let firebaseDisponivel = false;
-try {
-  if (typeof firebase !== 'undefined') {
+// O Firebase carrega em segundo plano: a página e o cronômetro não esperam por ele.
+function iniciarFirebase(){
+  if (firebaseDisponivel || typeof firebase === 'undefined') return;
+  try {
     firebase.initializeApp(firebaseConfig);
     db = firebase.database();
     firebaseDisponivel = true;
+  } catch (e) {
+    console.warn('[Concurseiro Blindado] Firebase indisponível — o cronômetro segue funcionando normalmente, só o pareamento fica fora do ar.', e);
+    return;
   }
-} catch (e) {
-  console.warn('[Concurseiro Blindado] Firebase indisponível — o cronômetro segue funcionando normalmente, só o pareamento fica fora do ar.', e);
+  if (deviceId) ativarPareamento(deviceId);
 }
+(function carregarFirebase(){
+  const urls = ['https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js', 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js'];
+  const prox = (i) => {
+    if (i >= urls.length) { iniciarFirebase(); return; }
+    const sc = document.createElement('script'); sc.src = urls[i]; sc.async = false;
+    sc.onload = () => prox(i + 1); sc.onerror = () => { /* sem Firebase: só o pareamento fica fora */ };
+    document.head.appendChild(sc);
+  };
+  prox(0);
+})();
 
 const tg = window.Telegram?.WebApp;
 tg?.ready();
