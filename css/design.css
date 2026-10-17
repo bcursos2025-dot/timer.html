@@ -674,5 +674,8 @@ html:not([data-theme="light"]) .dt-campo > svg{ color:var(--violet-light); }
 .dt-salvar{ width:100%; margin-top:10px; height:52px; font-size:15.5px; }
 
 /* cartões soltos acima da grade da tela Hoje (primeiros passos e o que vem a seguir) ficavam colados */
-.h-passos, .h-proximos{ margin-bottom:14px; }
-@media (min-width:980px){ .h-passos, .h-proximos{ margin-bottom:16px; } }
+.h-passos, .h-proximos, .h-backup{ margin-bottom:14px; }
+@media (min-width:980px){ .h-passos, .h-proximos, .h-backup{ margin-bottom:16px; } }
+.bk-lembrete-titulo{ margin:0 0 6px; font-size:17px; font-weight:700; letter-spacing:-.01em; color:var(--text); }
+.bk-lembrete-txt{ margin:0; font-size:13.5px; line-height:1.6; color:var(--text-dim); }
+.bk-lembrete-txt b{ color:var(--text); }
