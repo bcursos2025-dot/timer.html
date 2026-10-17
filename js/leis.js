@@ -16,6 +16,18 @@
     { id: 'laranja', nome: 'Dúvida' }
   ];
   const COR_IDS = CORES.map(c => c.id);
+  /* paleta da extensão (planalto/highlighter.js): 19 cores, 6 favoritas na barra */
+  const PALETA = [
+    ['amarelo','Amarelo','#ffe066'], ['laranja','Laranja','#ffc078'], ['vermelho-honda','Vermelho','#e4002b'], ['dusty-red','Vermelho queimado','#c25b61'],
+    ['vinho','Vinho','#a8345a'], ['rosa','Rosa','#ffa8c9'], ['magenta','Magenta','#e645b8'], ['roxo','Roxo','#b388eb'], ['dusty-indigo','Índigo','#6a78b0'],
+    ['azul','Azul','#74c0fc'], ['azul-bebe','Azul bebê','#a8dcfb'], ['verde-agua','Verde água','#7ee8d3'], ['verde-azulado','Verde azulado','#2bb3a3'],
+    ['verde','Verde','#8ce99a'], ['verde-kawasaki','Verde limão','#8cd100'], ['verde-musgo-claro','Verde musgo','#aab87b'], ['marrom-claro','Marrom claro','#c8a27a'],
+    ['marfim','Marfim','#eadfb4'], ['cinza-claro','Cinza','#bfc5cc']
+  ];
+  const FAVORITAS = ['amarelo','verde','azul','rosa','laranja','roxo'];
+  const PAL_IDS = PALETA.map(p => p[0]).concat(['neutro']);
+  const hexDe = id => { const p = PALETA.find(x => x[0] === id); return p ? p[2] : '#bfc5cc'; };
+  let modoSub = false;
   const LS_G = 'cb2_grifos', LS_LEI = 'cb2_lei_atual';
   const LOTE = 200;
   const RE_TIT = /^(T[IÍ]TULO|CAP[IÍ]TULO|SE[CÇ][AÃ]O|SUBSE[CÇ][AÃ]O|LIVRO|PARTE|ANEXO)/i;
@@ -134,7 +146,8 @@
       if (g.i < pos) continue;
       if (g.i > pos) lt.append(txt.slice(pos, g.i));
       const m = document.createElement('mark');
-      m.className = 'g c-' + g.c + (g.n ? ' tem-nota' : '');
+      m.className = 'g c-' + g.c + (COR_IDS.includes(g.c) ? '' : ' gx') + (g.tp === 's' ? ' sub' : '') + (g.b ? ' neg' : '') + (g.n ? ' tem-nota' : '');
+      m.style.setProperty('--gc', hexDe(g.c));
       m.dataset.g = g.id;
       m.textContent = txt.slice(g.i, g.f);
       if (g.n) m.title = g.n;
@@ -360,13 +373,17 @@
     $('gNotaTxt').value = notaInicial || '';
     $('gBarra').hidden = false;
     posicionarBarra(rect);
+    $('gPaleta').hidden = true;
+    const gEx = comRemover ? achar(novaAcao.gid) : null;
+    $('gSub').classList.toggle('ativo', gEx ? gEx.tp === 's' : modoSub);
+    $('gNeg').classList.toggle('ativo', !!(gEx && gEx.b));
     document.querySelectorAll('.g-cor').forEach(c => c.classList.toggle('ativa', comRemover && achar(novaAcao.gid) && achar(novaAcao.gid).c === c.dataset.cor));
   }
   function fecharBarra(){ $('gBarra').hidden = true; acao = null; $('gNotaWrap').hidden = true; }
 
   function achar(gid){ return grifosDaLei().find(g => g.id === gid) || null; }
 
-  function aplicarGrifo(idx, ini, fim, cor, nota){
+  function aplicarGrifo(idx, ini, fim, cor, nota, extra){
     const txt = blocos[idx][1], k = chaves[idx];
     if (!k) return null;
     const lista = grifosDaLei();
@@ -375,7 +392,7 @@
       if (g.f <= ini || g.i >= fim) continue;
       const esq = g.i < ini, dir = g.f > fim;
       if (esq && dir) {
-        const g2 = { id: novoId(), k: g.k, i: fim, f: g.f, c: g.c, t: txt.slice(fim, g.f), ts: g.ts, _idx: idx };
+        const g2 = { id: novoId(), k: g.k, i: fim, f: g.f, c: g.c, tp: g.tp, b: g.b, t: txt.slice(fim, g.f), ts: g.ts, _idx: idx };
         lista.push(g2); g.f = ini; g.t = txt.slice(g.i, g.f);
       } else if (esq) { g.f = ini; g.t = txt.slice(g.i, g.f); }
       else if (dir) { g.i = fim; g.t = txt.slice(g.i, g.f); }
@@ -383,6 +400,7 @@
     }
     const novo = { id: novoId(), k, i: ini, f: fim, c: cor, t: txt.slice(ini, fim), ts: Date.now(), _idx: idx };
     if (nota) novo.n = nota;
+    if (extra) Object.assign(novo, extra);
     lista.push(novo);
     return novo;
   }
@@ -398,7 +416,7 @@
     corAtiva = cor;
     const tocados = new Set();
     if (acao.modo === 'novo') {
-      for (const p of acao.partes) { aplicarGrifo(p.idx, p.ini, p.fim, cor); tocados.add(p.idx); }
+      for (const p of acao.partes) { aplicarGrifo(p.idx, p.ini, p.fim, cor, '', modoSub ? { tp: 's' } : null); tocados.add(p.idx); }
       window.getSelection().removeAllRanges();
     } else {
       const g = achar(acao.gid); if (!g) return;
@@ -408,12 +426,33 @@
     tocados.forEach(rerenderBloco);
     fecharBarra();
   }
+  function alternarSub(){
+    if (acao && acao.modo === 'existente') {
+      const g = achar(acao.gid); if (!g) return;
+      if (g.tp === 's') delete g.tp; else g.tp = 's';
+      reindexar(); persistir(); rerenderBloco(g._idx); fecharBarra(); return;
+    }
+    modoSub = !modoSub; $('gSub').classList.toggle('ativo', modoSub);
+  }
+  function alternarNegrito(){
+    if (!acao) return;
+    const tocados = new Set();
+    if (acao.modo === 'novo') {
+      for (const p of acao.partes) { aplicarGrifo(p.idx, p.ini, p.fim, 'neutro', '', { b: 1 }); tocados.add(p.idx); }
+      window.getSelection().removeAllRanges();
+    } else {
+      const g = achar(acao.gid); if (!g) return;
+      if (g.b) delete g.b; else g.b = 1;
+      tocados.add(g._idx);
+    }
+    reindexar(); persistir(); tocados.forEach(rerenderBloco); fecharBarra();
+  }
   function salvarNota(){
     const nota = $('gNotaTxt').value.trim();
     if (!acao) return;
     const tocados = new Set();
     if (acao.modo === 'novo') {
-      for (const p of acao.partes) { aplicarGrifo(p.idx, p.ini, p.fim, corAtiva, nota); tocados.add(p.idx); }
+      for (const p of acao.partes) { aplicarGrifo(p.idx, p.ini, p.fim, corAtiva, nota, modoSub ? { tp: 's' } : null); tocados.add(p.idx); }
       window.getSelection().removeAllRanges();
     } else {
       const g = achar(acao.gid); if (!g) return;
@@ -455,6 +494,8 @@
   $('gBarra').addEventListener('mousedown', e => { if (!e.target.closest('textarea')) e.preventDefault(); });
   $('gFechar').addEventListener('click', () => { fecharBarra(); window.getSelection().removeAllRanges(); });
   $('gRemover').addEventListener('click', removerGrifo);
+  $('gSub').addEventListener('click', alternarSub);
+  $('gNeg').addEventListener('click', alternarNegrito);
   $('gNota').addEventListener('click', () => {
     const w = $('gNotaWrap'); w.hidden = !w.hidden;
     if (!w.hidden) { $('gNotaTxt').focus(); if (acao && acao.modo === 'novo') posicionarBarra(lerSelecao() ? lerSelecao().rect : $('gBarra').getBoundingClientRect()); }
@@ -464,7 +505,7 @@
     if (e.key === 'Escape') { if (!$('gGaveta').hidden) $('gGaveta').hidden = true; else fecharBarra(); return; }
     if ($('gBarra').hidden || document.activeElement === $('gNotaTxt')) return;
     const n = Number(e.key);
-    if (n >= 1 && n <= COR_IDS.length) { e.preventDefault(); grifar(COR_IDS[n - 1]); }
+    if (n >= 1 && n <= FAVORITAS.length) { e.preventDefault(); grifar(FAVORITAS[n - 1]); }
   });
   document.addEventListener('mousedown', e => {
     if (!$('gBarra').hidden && acao && acao.modo === 'existente' && !e.target.closest('#gBarra') && !e.target.closest('mark.g')) fecharBarra();
@@ -483,11 +524,12 @@
     const f = $('gFiltros'); f.textContent = '';
     const mk = (id, rot, cor) => {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'g-filtro' + (filtroCor === id ? ' on' : '');
-      b.innerHTML = (cor ? '<i style="background:var(--g-' + cor + '-s)"></i>' : '') + esc(rot);
+      b.innerHTML = (cor ? '<i style="background:' + hexDe(cor) + '"></i>' : '') + esc(rot);
       b.addEventListener('click', () => { filtroCor = id; desenharGaveta(); });
       f.appendChild(b);
     };
-    mk('', 'Todos'); CORES.forEach(c => mk(c.id, c.nome, c.id));
+    const usadas = new Set(); Object.keys(grifosTodos).forEach(k => (grifosTodos[k] || []).forEach(g => usadas.add(g.c)));
+    mk('', 'Todos'); PALETA.forEach(p => { if (usadas.has(p[0]) || p[0] === filtroCor) mk(p[0], p[1], p[0]); });
     const L = $('gLista'); L.textContent = '';
     let n = 0;
     Object.keys(grifosTodos).forEach(leiId => {
@@ -498,7 +540,7 @@
         const dados = leiId === (lei && lei.id) ? g : null;
         const orfao = dados && dados._idx < 0;
         b.innerHTML = '<small>' + esc(nomeLei(leiId)) + ' · ' + esc(refDoGrifo(leiId, g)) + (orfao ? ' · texto mudou na lei' : '') + '</small>' +
-          '<q><span class="c-' + esc(g.c) + '" style="background:var(--g-' + esc(g.c) + ')">' + esc(g.t) + '</span></q>' + (g.n ? '<em>' + esc(g.n) + '</em>' : '');
+          '<q><span class="gi' + (g.tp === 's' ? ' sub' : '') + (g.b ? ' neg' : '') + '" style="--gc:' + hexDe(g.c) + '">' + esc(g.t) + '</span></q>' + (g.n ? '<em>' + esc(g.n) + '</em>' : '');
         b.addEventListener('click', async () => {
           if (!lei || lei.id !== leiId) await abrirLei(leiId);
           const x = grifosDaLei().find(y => y.id === g.id);
@@ -536,9 +578,11 @@
           const atual = grifosTodos[leiId];
           src[leiId].forEach(g => {
             if (!g || typeof g.id !== 'string' || typeof g.k !== 'string' || typeof g.t !== 'string') return;
-            if (!Number.isInteger(g.i) || !Number.isInteger(g.f) || g.f <= g.i || !COR_IDS.includes(g.c)) return;
+            if (!Number.isInteger(g.i) || !Number.isInteger(g.f) || g.f <= g.i || !PAL_IDS.includes(g.c)) return;
             if (atual.some(x => x.id === g.id)) return;
             const novo = { id: g.id.slice(0, 40), k: g.k.slice(0, 40), i: g.i, f: g.f, c: g.c, t: g.t.slice(0, 20000), ts: Number(g.ts) || Date.now() };
+            if (g.tp === 's') novo.tp = 's';
+            if (g.b) novo.b = 1;
             if (typeof g.n === 'string' && g.n) novo.n = g.n.slice(0, 1000);
             atual.push(novo); add++;
           });
@@ -559,12 +603,19 @@
     const sel = $('selLei'); sel.textContent = '';
     indice.forEach(l => { const o = document.createElement('option'); o.value = l.id; o.textContent = l.nome + ' (' + l.norma.replace(/^Lei n[ºo°]? |^Decreto-Lei n[ºo°]? /i, '') + ')'; sel.appendChild(o); });
     sel.addEventListener('change', () => abrirLei(sel.value));
-    const cores = $('gCores'); cores.textContent = '';
-    CORES.forEach((c, i) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'g-cor'; b.dataset.cor = c.id;
-      b.style.background = 'var(--g-' + c.id + '-s)'; b.title = c.nome + ' (tecla ' + (i + 1) + ')'; b.setAttribute('aria-label', c.nome);
-      b.addEventListener('click', () => grifar(c.id)); cores.appendChild(b);
-    });
+    const cores = $('gCores'), pal = $('gPaletaGrade'); cores.textContent = ''; pal.textContent = '';
+    const mkCor = (p, i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'g-cor'; b.dataset.cor = p[0];
+      b.style.setProperty('--c', p[2]); b.title = p[1] + (i >= 0 ? ' (tecla ' + (i + 1) + ')' : ''); b.setAttribute('aria-label', p[1]);
+      b.addEventListener('click', () => grifar(p[0]));
+      b.addEventListener('mouseenter', () => { $('gPaletaNome').textContent = p[1]; });
+      return b;
+    };
+    FAVORITAS.forEach((id, i) => cores.appendChild(mkCor(PALETA.find(p => p[0] === id), i)));
+    PALETA.forEach(p => pal.appendChild(mkCor(p, -1)));
+    const mais = document.createElement('button'); mais.type = 'button'; mais.className = 'g-mais'; mais.title = 'Todas as cores'; mais.setAttribute('aria-label', 'Todas as cores');
+    mais.addEventListener('click', () => { $('gPaleta').hidden = !$('gPaleta').hidden; $('gPaletaNome').textContent = ''; });
+    cores.appendChild(mais);
     const leg = $('legenda'); leg.textContent = '';
     CORES.forEach(c => { const s = document.createElement('span'); s.className = 'l-chip'; s.innerHTML = '<i style="background:var(--g-' + c.id + '-s)"></i>' + esc(c.nome); leg.appendChild(s); });
     let tb = null;
