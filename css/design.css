@@ -649,3 +649,7 @@ body.ini-sem-extensao #hojeExtensao{ display:none; }
   background:var(--bg-elevated-2); color:var(--text); border:1px solid var(--ap-hairline); box-shadow:var(--shadow-pop); font-size:14px; font-weight:600; text-align:center;
   opacity:0; pointer-events:none; transition:opacity .2s, transform .25s var(--ap-ease); }
 .ini-toast.vis{ opacity:1; transform:translate(-50%, 0); }
+
+/* a meta do dia agora é o anel; a barra repetia a mesma informação */
+.meta-diaria .meta-barra{ display:none; }
+.meta-diaria .meta-topo{ margin-bottom:0; justify-content:center; gap:14px; }

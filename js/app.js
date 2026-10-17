@@ -825,7 +825,7 @@ function atualizarTudo(){
   elAnelWrap.classList.toggle('modo-branco', sessao.pomodoroMode);
 
   const horasMeta = (metaMsVisivel/3600000).toFixed(0);
-  elMetaTexto.textContent = `${(msHojeVisivel/3600000).toFixed(1)}h / ${horasMeta}h`;
+  elMetaTexto.textContent = `${(msHojeVisivel/3600000).toFixed(1)}h / ${horasMeta}h · ${Math.min(100, Math.round(msHojeVisivel / metaMsVisivel * 100))}%`;
   elMetaBarra.style.width = Math.min(100, (msHojeVisivel / metaMsVisivel) * 100) + '%';
 
   if (sessao.pomodoroMode) {
@@ -873,8 +873,8 @@ function atualizarTudo(){
       let msTotal = msHojeVisivel;
       if (emExecucao && inicioSessaoVisivel) msTotal += (Date.now() - inicioSessaoVisivel);
       elTimer.textContent = fmt(msTotal);
-      const fracaoHora = (msTotal % 3600000) / 3600000;
-      definirProgressoAnel(fracaoHora);
+      // O anel acompanha a meta do dia (igual à extensão): fecha o círculo quando a meta é batida.
+      definirProgressoAnel(metaMsVisivel > 0 ? msTotal / metaMsVisivel : 0);
       // Atravessou a meia-noite com a sessão LOCAL rodando: confirma o dia
       // anterior e recomeça a contagem no novo dia. Só se aplica ao registro
       // local (histórico do próprio site) — o espelho da extensão já vem
