@@ -4,28 +4,90 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#08090c">
-<title>Instalar a extensão</title>
+<title>Instalar a extensão — Concurseiro Blindado</title>
+<meta name="description" content="Instale a extensão no seu PC em 3 passos, sem loja e sem conta.">
 <script>try{var _t=localStorage.getItem("cb_tema");document.documentElement.dataset.theme=(_t==="light"||_t==="navy")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
 <link rel="stylesheet" href="css/landing.css">
 <style>
-main.inst{ max-width:720px; margin:0 auto; padding:32px 20px 72px; }
-.inst h1{ font-size:clamp(28px, 5vw, 40px); letter-spacing:-.03em; line-height:1.08; margin:6px 0 10px; font-weight:700; }
-.inst .sub{ color:var(--text-dim); font-size:16px; margin:0 0 26px; }
-.inst .voltar{ display:inline-block; font-size:14px; text-decoration:none; margin-bottom:8px; font-weight:600; }
-.box{ background:var(--bg-elevated); border:1px solid var(--hair); border-radius:22px; padding:22px; margin-bottom:14px; }
-.box h2{ font-size:17px; margin:0 0 12px; letter-spacing:-.01em; }
-.box p, .box li{ font-size:14.5px; color:var(--text-dim); }
-.box ol, .box ul{ margin:8px 0 0; padding-left:20px; }
-.box li{ margin:6px 0; }
-.box b{ color:var(--text); }
-.baixar{ display:flex; flex-direction:column; gap:10px; }
-.baixar .btn{ display:flex; justify-content:space-between; text-align:left; gap:12px; padding:14px 18px; border-radius:16px; font-size:15px; }
-.baixar .btn small{ font-weight:500; opacity:.8; font-size:12px; }
-code, .hash{ font-family:ui-monospace,Consolas,monospace; font-size:12px; word-break:break-all; background:var(--fill); border:1px solid var(--hair);
-  border-radius:8px; padding:2px 6px; color:var(--text); }
+main.inst{ max-width:880px; margin:0 auto; padding:0 20px 96px; }
+
+/* ---------- topo ---------- */
+.i-hero{ text-align:center; padding:64px 0 40px; }
+.i-hero h1{ font-size:clamp(40px, 8vw, 72px); line-height:1.02; letter-spacing:-.04em; font-weight:700; margin:0 0 14px; }
+.i-hero h1 em{ font-style:normal; color:var(--accent-text); }
+.i-hero .sub{ font-size:clamp(17px, 2.4vw, 21px); color:var(--text-dim); margin:0 auto 30px; max-width:520px; }
+.i-baixar{ display:inline-flex; align-items:center; gap:12px; padding:18px 34px; border-radius:999px; font-size:18px; font-weight:700; text-decoration:none;
+  background:var(--accent-fill); color:#fff; box-shadow:0 14px 36px var(--accent-glow); transition:transform .2s var(--ease), filter .2s; }
+.i-baixar:hover{ filter:brightness(1.08); transform:translateY(-1px); }
+.i-baixar:active{ transform:scale(.98); }
+.i-baixar svg{ width:22px; height:22px; }
+.i-meta{ margin-top:16px; font-size:13.5px; color:var(--text-faint); display:flex; gap:8px; justify-content:center; flex-wrap:wrap; align-items:center; }
+.i-meta .pt{ width:3px; height:3px; border-radius:50%; background:var(--text-faint); }
+
+/* ---------- passos ---------- */
+.passos-i{ display:grid; gap:16px; margin-top:20px; }
+.p-card{ background:var(--bg-elevated); border:1px solid var(--hair); border-radius:32px; padding:34px;
+  display:grid; grid-template-columns:1fr 1.05fr; gap:28px; align-items:center; box-shadow:var(--shadow); }
+.p-num{ width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:17px;
+  background:var(--accent-fill); color:#fff; margin-bottom:16px; }
+.p-card h2{ margin:0 0 8px; font-size:clamp(26px, 4.4vw, 36px); line-height:1.08; letter-spacing:-.03em; font-weight:700; }
+.p-card p{ margin:0; font-size:17px; color:var(--text-dim); }
+.p-card p b{ color:var(--text); }
+
+/* ilustrações */
+.ilu{ background:var(--bg); border:1px solid var(--hair); border-radius:22px; padding:22px; display:flex; flex-direction:column; gap:14px; align-items:center; justify-content:center; min-height:170px; }
+.arq{ display:flex; align-items:center; gap:14px; padding:14px 18px; border-radius:16px; background:var(--bg-elevated); border:1px solid var(--hair); }
+.arq svg{ width:38px; height:38px; color:var(--accent-text); }
+.arq b{ display:block; font-size:14px; }
+.arq span{ font-size:12.5px; color:var(--text-dim); }
+.cliques{ display:flex; gap:6px; align-items:center; font-size:13.5px; font-weight:600; color:var(--text-dim); }
+.dedo{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; background:var(--accent-soft); color:var(--accent-text); animation:pulso 1.8s ease-in-out infinite; }
+.dedo svg{ width:16px; height:16px; }
+
+.linha-modo{ width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-radius:16px; background:var(--bg-elevated); border:1px solid var(--hair); font-size:15px; font-weight:600; }
+.chave{ width:52px; height:30px; border-radius:999px; background:var(--accent-fill); position:relative; flex-shrink:0; box-shadow:0 0 0 0 var(--accent-glow); animation:pulso-anel 2s ease-in-out infinite; }
+.chave::after{ content:""; position:absolute; top:3px; right:3px; width:24px; height:24px; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.3); }
+.dica-mini{ font-size:12.5px; color:var(--text-faint); text-align:center; }
+
+.fluxo{ display:flex; flex-direction:column; gap:10px; width:100%; align-items:stretch; }
+.fl{ display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:14px; background:var(--bg-elevated); border:1px solid var(--hair); font-size:14.5px; font-weight:600; }
+.fl i{ font-style:normal; width:24px; height:24px; border-radius:50%; background:var(--accent-soft); color:var(--accent-text); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
+.fl.em{ border-color:color-mix(in srgb, var(--accent) 55%, transparent); background:var(--accent-soft); }
+kbd{ font-family:inherit; font-size:13px; font-weight:700; padding:3px 9px; border-radius:8px; background:var(--fill); border:1px solid var(--hair); border-bottom-width:2px; color:var(--text); }
+
+/* ---------- pronto ---------- */
+.pronto{ text-align:center; padding:56px 20px 8px; }
+.pronto .ok{ width:64px; height:64px; margin:0 auto 18px; border-radius:50%; background:var(--ok-soft); color:var(--ok); display:flex; align-items:center; justify-content:center; }
+.pronto .ok svg{ width:32px; height:32px; }
+.pronto h2{ margin:0 0 8px; font-size:clamp(28px, 5vw, 42px); letter-spacing:-.03em; }
+.pronto p{ margin:0 auto; max-width:460px; color:var(--text-dim); font-size:17px; }
+
+/* ---------- ajuda ---------- */
+.ajuda{ margin-top:48px; display:grid; gap:10px; }
+.ajuda details{ background:var(--bg-elevated); border:1px solid var(--hair); border-radius:20px; padding:0 22px; }
+.ajuda summary{ cursor:pointer; list-style:none; padding:18px 0; font-size:16.5px; font-weight:600; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.ajuda summary::-webkit-details-marker{ display:none; }
+.ajuda summary::after{ content:"+"; font-size:24px; font-weight:400; color:var(--text-dim); line-height:1; transition:transform .2s var(--ease); }
+.ajuda details[open] summary::after{ transform:rotate(45deg); }
+.ajuda .corpo{ padding:0 0 20px; color:var(--text-dim); font-size:15px; }
+.ajuda .corpo p{ margin:0 0 10px; }
+.ajuda .corpo b{ color:var(--text); }
+.ajuda ol{ margin:0; padding-left:20px; }
+.ajuda li{ margin:6px 0; }
+code, .hash{ font-family:ui-monospace,Consolas,monospace; font-size:12.5px; word-break:break-all; background:var(--fill); border:1px solid var(--hair); border-radius:8px; padding:2px 6px; color:var(--text); }
 .hash{ display:block; padding:9px 11px; margin-top:6px; }
-.selo2{ display:inline-block; font-size:10.5px; letter-spacing:.04em; padding:2px 9px; border-radius:30px; background:var(--gold-soft); color:var(--gold); }
-.aviso-box{ border-color:color-mix(in srgb, var(--gold) 40%, transparent); }
+.links-av{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+.links-av a{ font-size:14px; font-weight:600; padding:8px 14px; border-radius:999px; border:1px solid var(--hair); background:var(--fill); color:var(--text); text-decoration:none; }
+.links-av a:hover{ filter:brightness(1.1); }
+.voltar{ display:inline-block; font-size:14px; text-decoration:none; font-weight:600; margin-top:28px; }
+
+@keyframes pulso{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.14); } }
+@keyframes pulso-anel{ 0%,100%{ box-shadow:0 0 0 0 var(--accent-glow); } 50%{ box-shadow:0 0 0 9px transparent; } }
+@media (prefers-reduced-motion: reduce){ .dedo, .chave{ animation:none; } html{ scroll-behavior:auto; } }
+@media (max-width:720px){
+  .p-card{ grid-template-columns:1fr; padding:26px 22px; border-radius:28px; }
+  .i-hero{ padding:44px 0 28px; }
+}
 </style>
 </head>
 <body>
@@ -38,87 +100,126 @@ code, .hash{ font-family:ui-monospace,Consolas,monospace; font-size:12px; word-b
     <a class="btn principal pequeno" href="timer.html">Abrir o app</a>
   </div>
 </header>
+
 <main class="inst">
+  <section class="i-hero" style="padding-top:64px">
+    <h1>Instale em <em>3 passos.</em></h1>
+    <p class="sub">Para Windows · Opera, Chrome, Edge ou Brave. Sem loja e sem conta. Leva 2 minutos.</p>
+    <a class="i-baixar" id="btnBaixar" href="extensao/Instalar%20Concurseiro%20Blindado.bat" download>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Baixar o instalador
+    </a>
+    <div class="i-meta"><span id="versaoSelo">Extensão</span><span class="pt"></span><span>Arquivo único</span><span class="pt"></span><span>Grátis</span></div>
+  </section>
+
+  <div class="passos-i">
+    <!-- 1 -->
+    <section class="p-card" style="padding:34px">
+      <div>
+        <div class="p-num">1</div>
+        <h2>Baixe e abra.</h2>
+        <p>Clique em <b>Baixar</b> e dê <b>dois cliques</b> no arquivo que apareceu. Ele prepara tudo e abre o seu navegador.</p>
+      </div>
+      <div class="ilu" aria-hidden="true">
+        <div class="arq">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 13 11 15 9 17"/><line x1="13" y1="17" x2="16" y2="17"/></svg>
+          <div><b>Instalar Concurseiro Blindado</b><span>Arquivo de instalação · .bat</span></div>
+        </div>
+        <div class="cliques"><span class="dedo"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg></span><span class="dedo"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg></span>&nbsp;dois cliques</div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="p-card">
+      <div>
+        <div class="p-num">2</div>
+        <h2>Ligue o modo do desenvolvedor.</h2>
+        <p>Na página de extensões que abriu, ligue a chave <b>Modo do desenvolvedor</b>. É só um clique.</p>
+      </div>
+      <div class="ilu" aria-hidden="true">
+        <div class="linha-modo"><span>Modo do desenvolvedor</span><span class="chave"></span></div>
+        <div class="dica-mini">Fica no canto de cima, à direita (Edge: menu à esquerda)</div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="p-card">
+      <div>
+        <div class="p-num">3</div>
+        <h2>Carregue a pasta.</h2>
+        <p>Clique no botão abaixo, cole o endereço que já está copiado e confirme. <b>Pronto.</b></p>
+      </div>
+      <div class="ilu" aria-hidden="true">
+        <div class="fluxo">
+          <div class="fl em"><i>1</i><span>Carregar sem pacote<br><small class="dica-mini">no Opera: “Carregar descompactada”</small></span></div>
+          <div class="fl"><i>2</i><span>Clique na barra de endereço e tecle <kbd>Ctrl</kbd> + <kbd>V</kbd></span></div>
+          <div class="fl"><i>3</i><span>Enter e depois <b>Selecionar pasta</b></span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="pronto">
+    <div class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <h2>Pronto.</h2>
+    <p>Clique no ícone de peça de quebra-cabeça na barra do navegador e fixe o Concurseiro Blindado.</p>
+  </section>
+
+  <div class="ajuda">
+    <details>
+      <summary>O Windows mostrou um aviso</summary>
+      <div class="corpo">
+        <p>É normal para arquivos novos baixados da internet. Faça assim:</p>
+        <ol>
+          <li>Se o navegador perguntar ao baixar, clique em <b>Manter</b>.</li>
+          <li>Se aparecer <b>“O Windows protegeu seu computador”</b>, clique em <b>Mais informações</b>.</li>
+          <li>Depois clique em <b>Executar assim mesmo</b>.</li>
+        </ol>
+      </div>
+    </details>
+    <details>
+      <summary>É seguro?</summary>
+      <div class="corpo">
+        <p>O instalador é um arquivo de texto que você pode abrir no Bloco de Notas. Ele não pede administrador, não mexe no registro do Windows e não altera configurações do navegador.</p>
+        <p>Código de conferência (SHA-256) do ZIP:</p>
+        <span class="hash" id="hashZip">carregando…</span>
+      </div>
+    </details>
+    <details>
+      <summary>Atualizar ou remover</summary>
+      <div class="corpo">
+        <p><b>Atualizar:</b> baixe e abra o instalador de novo e clique na seta circular no cartão da extensão.</p>
+        <p><b>Remover:</b> clique em <b>Remover</b> no cartão da extensão. Para apagar também a pasta, apague <code>%LOCALAPPDATA%\ConcurseiroBlindado</code>.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Prefiro instalar manualmente</summary>
+      <div class="corpo">
+        <ol>
+          <li>Baixe o ZIP e extraia numa pasta <b>sem “_” no nome</b>, por exemplo <code>C:\ConcurseiroBlindado</code>.</li>
+          <li>Abra <code>opera://extensions</code> ou <code>chrome://extensions</code>.</li>
+          <li>Ligue o modo do desenvolvedor e carregue essa pasta.</li>
+        </ol>
+        <div class="links-av">
+          <a href="extensao/concurseiro-blindado.zip" download>Baixar o ZIP <span id="tamanhoZip"></span></a>
+          <a href="extensao/instalar-extensao.ps1" download>Script .ps1</a>
+          <a href="extensao/versao.json" download>versao.json</a>
+        </div>
+      </div>
+    </details>
+  </div>
+
   <a class="voltar" href="index.html">← Voltar ao início</a>
-  <h1>Instalar a extensão no PC</h1>
-  <p class="sub">Windows · Opera, Chrome, Edge e Brave. Leva uns 2 minutos e não precisa de loja nem de conta.</p>
-
-  <div class="box">
-    <h2>1. Baixe os arquivos</h2>
-    <div class="baixar">
-      <a class="btn principal" href="extensao/Instalar Concurseiro Blindado.bat" download>
-        <span>Instalador<br><small>faz quase tudo sozinho (recomendado)</small></span><span>.bat</span>
-      </a>
-      <a class="btn" href="extensao/instalar-extensao.ps1" download>
-        <span>Script do instalador<br><small>o .bat precisa deste arquivo na mesma pasta</small></span><span>.ps1</span>
-      </a>
-      <a class="btn" href="extensao/concurseiro-blindado.zip" download>
-        <span>Extensão <span class="selo2" id="versaoSelo">…</span><br><small id="tamanhoZip">arquivo ZIP</small></span><span>.zip</span>
-      </a>
-      <a class="btn" href="extensao/versao.json" download>
-        <span>versao.json<br><small>usado pelo instalador para conferir o ZIP</small></span><span>.json</span>
-      </a>
-    </div>
-    <p style="margin-top:12px">Salve os <b>quatro arquivos na mesma pasta</b> (por exemplo, em Downloads) e dê dois cliques em <b>Instalar Concurseiro Blindado.bat</b>.</p>
-  </div>
-
-  <div class="box">
-    <h2>2. O que o instalador faz sozinho</h2>
-    <ul>
-      <li>Confere o arquivo (SHA-256) para garantir que não veio corrompido.</li>
-      <li>Coloca a extensão em <code>%LOCALAPPDATA%\ConcurseiroBlindado\extensao</code>.</li>
-      <li>Copia esse caminho para a área de transferência.</li>
-      <li>Acha o seu navegador e abre a página de extensões nele.</li>
-    </ul>
-  </div>
-
-  <div class="box">
-    <h2>3. O que você faz (3 cliques, o navegador exige)</h2>
-    <ol>
-      <li>Na página de extensões que abriu, ligue o <b>Modo do desenvolvedor</b>.</li>
-      <li>Clique em <b>Carregar sem pacote</b> (no Opera: <b>Carregar descompactada</b>).</li>
-      <li>Clique na barra de endereço da janela, cole com <b>Ctrl+V</b>, tecle Enter e confirme em <b>Selecionar pasta</b>.</li>
-    </ol>
-    <p style="margin-top:10px">Para <b>atualizar</b> depois: rode o instalador de novo e clique no botão de recarregar (seta circular) no cartão da extensão.</p>
-  </div>
-
-  <div class="box aviso-box">
-    <h2>O Windows ou o antivírus pode mostrar um aviso</h2>
-    <p>É normal: o instalador é um arquivo novo, baixado da internet e sem assinatura digital paga, e o Windows desconfia de qualquer arquivo assim. Se aparecer
-      <b>“O Windows protegeu seu computador”</b>, clique em <b>Mais informações</b> e depois em <b>Executar assim mesmo</b>.</p>
-    <p>Você não precisa confiar às cegas:</p>
-    <ul>
-      <li>O instalador é um arquivo de texto que você pode abrir no Bloco de Notas e ler. Ele <b>não pede administrador</b>, não mexe no registro do Windows e não altera configurações do navegador.</li>
-      <li>O código da extensão fica visível dentro do ZIP e do navegador.</li>
-      <li>Você pode enviar o ZIP em <a href="https://www.virustotal.com" target="_blank" rel="noopener">virustotal.com</a> e comparar com o resultado de outros antivírus. Ele não será analisado antes de você enviar.</li>
-      <li>Confira o SHA-256 do ZIP: <span class="hash" id="hashZip">carregando…</span></li>
-    </ul>
-  </div>
-
-  <div class="box">
-    <h2>Prefere fazer tudo manualmente?</h2>
-    <ol>
-      <li>Baixe o <b>.zip</b> da extensão.</li>
-      <li>Extraia em uma pasta <b>sem “_” no nome</b> (por exemplo <code>C:\ConcurseiroBlindado</code>).</li>
-      <li>Abra <code>opera://extensions</code> (ou <code>chrome://extensions</code>), ligue o modo do desenvolvedor e carregue essa pasta.</li>
-    </ol>
-  </div>
-
-  <div class="box">
-    <h2>Remover</h2>
-    <p>No navegador, clique em <b>Remover</b> no cartão da extensão. Para apagar também a pasta, rode o instalador com <code>-Remover</code> ou apague <code>%LOCALAPPDATA%\ConcurseiroBlindado</code>.</p>
-  </div>
 </main>
 
 <script>
 (function(){
   function mb(n){ return (n / 1048576).toFixed(1).replace('.', ',') + ' MB'; }
-  fetch('extensao/versao.json', { cache: 'no-store' }).then(r => r.json()).then(v => {
-    document.getElementById('versaoSelo').textContent = 'v' + v.version;
-    document.getElementById('tamanhoZip').textContent = 'ZIP · ' + mb(v.bytes);
+  fetch('extensao/versao.json', { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(v){
+    document.getElementById('versaoSelo').textContent = 'Versão ' + v.version;
+    document.getElementById('tamanhoZip').textContent = '(' + mb(v.bytes) + ')';
     document.getElementById('hashZip').textContent = v.sha256;
-  }).catch(() => {
-    document.getElementById('versaoSelo').textContent = '';
+  }).catch(function(){
     document.getElementById('hashZip').textContent = 'não foi possível carregar agora — abra extensao/versao.json';
   });
 })();
