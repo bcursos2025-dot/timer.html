@@ -297,9 +297,11 @@ const paginas = document.querySelectorAll('.pagina');
 function irParaAba(nome){
   tabBtns.forEach(b => b.classList.toggle('ativa', b.dataset.tab === nome));
   paginas.forEach(p => p.classList.toggle('ativa', p.dataset.pagina === nome));
+  document.body.dataset.aba = nome;   // a sequência (fogo) só aparece na aba Hoje
   if (navigator.vibrate) navigator.vibrate(6);
 }
 tabBtns.forEach(b => b.addEventListener('click', () => irParaAba(b.dataset.tab)));
+document.body.dataset.aba = 'hoje';
 
 /* ============================================================
    SHEET DE AJUSTES

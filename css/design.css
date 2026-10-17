@@ -718,3 +718,7 @@ html:not([data-theme="light"]) .dt-campo > svg{ color:var(--violet-light); }
 }
 @media (max-width:400px){ .tabbar .tab-btn{ width:62px; font-size:9.5px; } }
 @media (prefers-reduced-transparency: reduce){ .tabbar{ background:var(--bg-elevated) !important; -webkit-backdrop-filter:none; backdrop-filter:none; } }
+
+/* a sequência (fogo) só aparece na aba Hoje; nas outras abas não fica fixa no topo */
+body:not([data-aba="hoje"]) #streakBadge{ display:none; }
+.top-row #btnAjustes{ margin-left:auto; }
