@@ -348,8 +348,10 @@ body{
 .is-paused .anel-progresso{ opacity:.42; }
 #cbGrad stop:first-child{ stop-color:var(--cb-anel-1); }
 #cbGrad stop:last-child{ stop-color:var(--cb-anel-3); }
-.timer{ font-family:inherit; font-weight:700; font-size:clamp(34px, 9.5vw, 46px); letter-spacing:.01em; font-variant-numeric:tabular-nums; line-height:1.1; }
-.anel-conteudo .label{ margin-top:8px; font-size:11.5px; letter-spacing:.07em; color:var(--text-dim); opacity:1; }
+/* o relógio acompanha o tamanho do anel (cqw) e fica dentro dele, como na extensão */
+.anel-wrap{ container-type:inline-size; }
+.timer{ font-family:'SF Mono','Cascadia Code',Consolas,ui-monospace,monospace; font-weight:700; font-size:clamp(22px, 6.4vw, 30px); font-size:min(9.6cqw, 34px); letter-spacing:0; font-variant-numeric:tabular-nums; line-height:1.1; white-space:nowrap; }
+.anel-conteudo .label{ margin-top:10px; font-size:clamp(10px, 3.4cqw, 11.5px); letter-spacing:.09em; color:var(--text-dim); opacity:1; }
 .anel-wrap.modo-branco .anel-progresso{ stroke:var(--text) !important; }
 
 /* meta do dia em trilho escavado */
