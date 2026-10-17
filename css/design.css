@@ -1179,3 +1179,10 @@ html[data-theme="dark"] body.perfil-oab, html[data-theme="navy"] body.perfil-oab
 .ferr-painel[hidden]{ display:none; }
 .ferr-card .geral-periodos{ margin-bottom:16px; }
 .ferr-card .geral-periodos button{ flex:1; }
+
+/* chat temporário: as listras ficam só no fundo; balões e sugestões ficam sólidos por cima delas */
+.ia-folha.ia-temporario .ia-bot{ background:color-mix(in srgb, var(--text) 13%, var(--bg-elevated)); }
+.ia-folha.ia-temporario .iac-sugestao{ background:color-mix(in srgb, var(--text) 10%, var(--bg-elevated)); }
+.ia-folha.ia-temporario .iac-sugestao:hover{ background:color-mix(in srgb, var(--accent) 22%, var(--bg-elevated)); }
+.ia-folha.ia-temporario .ia-erro{ background:color-mix(in srgb, var(--danger) 18%, var(--bg-elevated)); }
+.ia-folha.ia-temporario .ia-input-row{ background:var(--bg-elevated-2); }
