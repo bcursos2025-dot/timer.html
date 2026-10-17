@@ -681,3 +681,40 @@ html:not([data-theme="light"]) .dt-campo > svg{ color:var(--violet-light); }
 .bk-lembrete-txt b{ color:var(--text); }
 .cfg-copiar{ width:100%; margin-top:10px; padding:12px 16px; border-radius:14px; border:0; background:var(--ap-fill); color:var(--text); font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
 .cfg-copiar:hover{ background:var(--ap-fill-2); }
+
+/* =====================================================================
+   BARRA INFERIOR (celular/tablet): cápsula flutuante de vidro, igual à "ilha" da extensão
+   (copiado de apple.css). O item da aba aberta ganha uma pastilha por trás.
+   ===================================================================== */
+@media (max-width:979px){
+  .tabbar{
+    left:50%; right:auto; bottom:calc(14px + env(safe-area-inset-bottom)); transform:translateX(-50%);
+    width:max-content; max-width:calc(100vw - 20px); padding:5px; gap:2px; justify-content:center;
+    border-radius:999px; border:1px solid rgba(255,255,255,.7);
+    background:linear-gradient(180deg, rgba(255,255,255,.62), rgba(255,255,255,.28)), color-mix(in srgb, var(--bg-elevated) 20%, transparent);
+    -webkit-backdrop-filter:blur(26px) saturate(1.9); backdrop-filter:blur(26px) saturate(1.9);
+    box-shadow:0 12px 32px rgba(20,25,45,.16), 0 2px 6px rgba(20,25,45,.08), inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(255,255,255,.35);
+  }
+  html[data-theme="dark"] .tabbar, html[data-theme="navy"] .tabbar{
+    background:linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,.04)), color-mix(in srgb, var(--bg-elevated) 22%, transparent);
+    -webkit-backdrop-filter:blur(26px) saturate(1.9) brightness(1.1); backdrop-filter:blur(26px) saturate(1.9) brightness(1.1);
+    border-color:rgba(255,255,255,.16);
+    box-shadow:0 14px 34px rgba(0,0,0,.42), 0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.26), inset 0 -1px 0 rgba(255,255,255,.05);
+  }
+  html[data-theme="glass"] .tabbar{
+    background:linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,.06)); border-color:rgba(255,255,255,.28);
+    box-shadow:0 14px 34px rgba(15,8,40,.4), inset 0 1px 0 rgba(255,255,255,.35);
+  }
+  .tabbar .tab-btn{ position:relative; flex:none; width:70px; max-width:none; height:52px; padding:5px 0 4px; gap:3px; justify-content:center;
+    border-radius:999px; color:var(--text); font-size:10px; font-weight:700; opacity:.78; transition:background .18s ease, color .18s ease, opacity .18s ease, transform .18s ease; }
+  .tabbar .tab-btn .icon{ width:21px; height:21px; opacity:1; transform:none; }
+  .tabbar .tab-btn:hover{ background:color-mix(in srgb, var(--text) 10%, transparent); opacity:1; }
+  .tabbar .tab-btn:active{ background:color-mix(in srgb, var(--text) 16%, transparent); transform:scale(.94); }
+  .tabbar .tab-btn.ativa, html:not([data-theme="light"]) .tabbar .tab-btn.ativa{ opacity:1; color:var(--text); background:var(--ap-seg-on); box-shadow:var(--ap-seg-sombra); }
+  .tabbar .tab-btn.ativa .icon, html:not([data-theme="light"]) .tabbar .tab-btn.ativa .icon{ color:var(--accent-dark); }
+  html:not([data-theme="light"]) .tabbar .tab-btn.ativa .icon{ color:var(--violet-light); }
+  .tabbar .tab-btn.bloqueada::after{ top:5px; right:10px; }
+  .paginas{ padding-bottom:116px; }
+}
+@media (max-width:400px){ .tabbar .tab-btn{ width:62px; font-size:9.5px; } }
+@media (prefers-reduced-transparency: reduce){ .tabbar{ background:var(--bg-elevated) !important; -webkit-backdrop-filter:none; backdrop-filter:none; } }
