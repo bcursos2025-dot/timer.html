@@ -1123,3 +1123,19 @@ html:not([data-theme="light"]) .chat-link{ color:var(--violet-light); }
 .top-row .icon-btn{ width:44px; height:44px; border-radius:50%; }
 .top-row .icon-btn .icon{ width:19px; height:19px; }
 .perfil-streak{ height:40px; }
+
+/* =====================================================================
+   FOLHAS NO CELULAR: sem botão de fechar, risco para puxar e degradê no topo
+   (copiado de apple.css da extensão; o gesto está em js/folha-gestos.js)
+   ===================================================================== */
+.ap-sheet-head::before{ content:""; position:absolute; top:7px; left:50%; width:36px; height:5px; margin-left:-18px; border-radius:999px; background:color-mix(in srgb, var(--text) 20%, transparent); }
+.cb-arrastavel{ cursor:grab; user-select:none; -webkit-user-select:none; }
+.cb-arrastavel:active{ cursor:grabbing; }
+/* o conteúdo some em degradê sob o cabeçalho, em vez de ser cortado numa linha reta */
+.ap-sheet-body, .ia-mensagens, .chat-lista, .com-conteudo:not(.com-conteudo--chat){
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 28px); mask-image:linear-gradient(to bottom, transparent 0, #000 28px); }
+@media (max-width:979px){
+  .ap-sheet-head > .ap-sheet-close, .iac-head > .iac-fechar{ display:none; }
+  .ap-sheet-head{ padding-left:20px; padding-right:20px; }
+}
+@media (min-width:980px){ .ap-sheet-head::before{ display:none; } }
