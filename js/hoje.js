@@ -28,14 +28,20 @@
     const comFase = perfilAtual() !== 'concurso';
     el.innerHTML =
       '<p class="hoje-txt">Informe a data da sua prova pra eu contar os dias e organizar o estudo.</p>' +
-      '<div class="hoje-form">' +
-        '<input type="date" id="hojeProvaData" class="hoje-campo">' +
+      '<div class="prova-form">' +
+        '<label class="dt-rotulo" for="hojeProvaData">Data da prova</label>' +
+        '<div class="dt-campo">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>' +
+          '<input type="date" id="hojeProvaData" required>' +
+        '</div>' +
         (comFase
-          ? '<select id="hojeProvaFase" class="hoje-campo">' +
-              '<option value="1">1ª fase</option><option value="2">2ª fase</option>' +
-            '</select>'
+          ? '<label class="dt-rotulo" for="hojeProvaFase">Fase</label>' +
+            '<div class="dt-campo dt-sel">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 22V4"/><path d="M4 4h13l-2.5 4L17 12H4"/></svg>' +
+              '<select id="hojeProvaFase"><option value="1">1ª fase</option><option value="2">2ª fase</option></select>' +
+            '</div>'
           : '') +
-        '<button id="hojeProvaSalvar" class="hoje-btn">Salvar</button>' +
+        '<button id="hojeProvaSalvar" class="h-btn primario dt-salvar" type="button">Salvar data</button>' +
       '</div>';
     if (valorData) $('hojeProvaData').value = valorData;
     if (comFase && valorFase) $('hojeProvaFase').value = valorFase;

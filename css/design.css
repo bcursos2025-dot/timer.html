@@ -653,3 +653,22 @@ body.ini-sem-extensao #hojeExtensao{ display:none; }
 /* a meta do dia agora é o anel; a barra repetia a mesma informação */
 .meta-diaria .meta-barra{ display:none; }
 .meta-diaria .meta-topo{ margin-bottom:0; justify-content:center; gap:14px; }
+
+/* ---------- campo de data da prova (tela Hoje) ---------- */
+.prova-form{ display:grid; gap:8px; }
+.dt-rotulo{ margin-top:6px; font-size:11.5px; font-weight:600; letter-spacing:.045em; text-transform:uppercase; color:var(--text-dim); }
+.dt-campo{ position:relative; }
+.dt-campo > svg{ position:absolute; left:16px; top:50%; transform:translateY(-50%); width:20px; height:20px; color:var(--accent); pointer-events:none; }
+html:not([data-theme="light"]) .dt-campo > svg{ color:var(--violet-light); }
+.dt-campo input, .dt-campo select{ width:100%; box-sizing:border-box; height:54px; padding:0 16px 0 48px; border-radius:16px; border:1px solid var(--ap-hairline);
+  background:var(--ap-fill); color:var(--text); font:inherit; font-size:16px; font-weight:600; color-scheme:inherit; appearance:none; -webkit-appearance:none;
+  transition:border-color .15s, box-shadow .15s, background .15s; cursor:pointer; }
+.dt-campo input:hover, .dt-campo select:hover{ background:var(--ap-fill-2); }
+.dt-campo input:focus, .dt-campo select:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
+.dt-campo input:invalid{ color:var(--text-dim); }
+.dt-campo input[type="date"]::-webkit-calendar-picker-indicator{ position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
+.dt-campo input[type="date"]::-webkit-datetime-edit{ padding:0; }
+.dt-sel::after{ content:""; position:absolute; right:20px; top:50%; width:8px; height:8px; border-right:2px solid var(--text-dim); border-bottom:2px solid var(--text-dim);
+  transform:translateY(-70%) rotate(45deg); pointer-events:none; }
+.dt-campo select option{ background:var(--bg-elevated); color:var(--text); }
+.dt-salvar{ width:100%; margin-top:10px; height:52px; font-size:15.5px; }
