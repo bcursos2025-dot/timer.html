@@ -341,7 +341,7 @@ body{
 .abas .aba{ border-radius:999px; }
 
 /* o anel */
-.anel-wrap{ width:min(320px, 74vw); height:min(320px, 74vw); margin:6px auto 24px; cursor:default; }
+.anel-wrap{ width:min(340px, 76vw); height:min(340px, 76vw); margin:44px auto 28px; cursor:default; }
 .anel-spin, .anel-aura{ display:none !important; }
 .anel-fundo{ stroke:var(--cb-trilho); stroke-width:9; }
 .anel-progresso{ stroke-width:9; filter:var(--cb-anel-sombra) !important; animation:none !important; transition:stroke-dashoffset .9s cubic-bezier(.33,1,.68,1); }
@@ -350,8 +350,8 @@ body{
 #cbGrad stop:last-child{ stop-color:var(--cb-anel-3); }
 /* o relógio acompanha o tamanho do anel (cqw) e fica dentro dele, como na extensão */
 .anel-wrap{ container-type:inline-size; }
-.timer{ font-family:'SF Mono','Cascadia Code',Consolas,ui-monospace,monospace; font-weight:700; font-size:clamp(22px, 6.4vw, 30px); font-size:min(9.6cqw, 34px); letter-spacing:0; font-variant-numeric:tabular-nums; line-height:1.1; white-space:nowrap; }
-.anel-conteudo .label{ margin-top:10px; font-size:clamp(10px, 3.4cqw, 11.5px); letter-spacing:.09em; color:var(--text-dim); opacity:1; }
+.timer{ font-family:'SF Mono','Cascadia Code',Consolas,ui-monospace,monospace; font-weight:700; font-size:clamp(22px, 6.4vw, 30px); font-size:min(11cqw, 58px); letter-spacing:0; font-variant-numeric:tabular-nums; line-height:1.1; white-space:nowrap; }
+.anel-conteudo .label{ margin-top:10px; font-size:clamp(11px, 3cqw, 14px); letter-spacing:.09em; color:var(--text-dim); opacity:1; }
 .anel-wrap.modo-branco .anel-progresso{ stroke:var(--text) !important; }
 
 /* meta do dia em trilho escavado */
@@ -606,8 +606,8 @@ html[data-theme="light"] .streak-badge .icon{ color:var(--gold-dark); }
   .lat-abrir:hover{ color:var(--text); background:var(--bg-elevated-2); }
   .lat-abrir svg{ width:20px; height:20px; }
   .top-row{ margin-bottom:22px; }
-  .pagina[data-pagina="timer"] .card{ max-width:640px; padding:34px 44px 32px; border-radius:34px; }
-  .anel-wrap{ width:min(380px, 44vh); height:min(380px, 44vh); }
+  .pagina[data-pagina="timer"] .card{ max-width:700px; padding:34px 48px 32px; border-radius:34px; }
+  .anel-wrap{ width:min(450px, 50vh); height:min(450px, 50vh); margin:54px auto 30px; }
   .meta-diaria, .pagina[data-pagina="timer"] .btns{ max-width:480px; }
   .pagina[data-pagina="timer"] .btns button{ height:60px; font-size:17px; }
   .h-titulo{ font-size:44px; }
