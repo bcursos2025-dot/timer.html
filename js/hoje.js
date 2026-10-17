@@ -103,11 +103,11 @@
     try { estudou = Object.values(historico).some(ms => ms > 0) || sessao.sessionState !== 'stopped'; } catch (e) { /* sem histórico */ }
     return [
       { ok: !!perfilAtual(), txt: 'Escolher o seu perfil', acao: null },
-      { ok: !!lerProva(), txt: 'Informar a data da prova', acao: { rot: 'Informar', fn: () => { const i = $('hojeProvaData'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus(); } } } },
+      { rec: 'prova', ok: !!lerProva(), txt: 'Informar a data da prova', acao: { rot: 'Informar', fn: () => { const i = $('hojeProvaData'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus(); } } } },
       { ok: estudou, txt: 'Fazer o primeiro estudo com o cronômetro', acao: { rot: 'Abrir cronômetro', fn: () => irParaAba('timer') } },
-      { ok: grifos > 0, txt: 'Grifar um trecho de lei', acao: { rot: 'Abrir as leis', href: 'leis.html' } },
-      { ok: registros > 0, txt: 'Registrar questões que você fez', acao: { rot: 'Registrar', fn: () => window.abrirRegistroQuestoes && window.abrirRegistroQuestoes() } }
-    ];
+      { rec: 'leis', ok: grifos > 0, txt: 'Grifar um trecho de lei', acao: { rot: 'Abrir as leis', href: 'leis.html' } },
+      { rec: 'questoes', ok: registros > 0, txt: 'Registrar questões que você fez', acao: { rot: 'Registrar', fn: () => window.abrirRegistroQuestoes && window.abrirRegistroQuestoes() } }
+    ].filter(p => !p.rec || !window.cbLiberado || window.cbLiberado(p.rec));
   }
   let htmlPassos = '';
   function renderPassos(){

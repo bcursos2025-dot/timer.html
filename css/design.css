@@ -1186,3 +1186,22 @@ html[data-theme="dark"] body.perfil-oab, html[data-theme="navy"] body.perfil-oab
 .ia-folha.ia-temporario .iac-sugestao:hover{ background:color-mix(in srgb, var(--accent) 22%, var(--bg-elevated)); }
 .ia-folha.ia-temporario .ia-erro{ background:color-mix(in srgb, var(--danger) 18%, var(--bg-elevated)); }
 .ia-folha.ia-temporario .ia-input-row{ background:var(--bg-elevated-2); }
+
+/* =====================================================================
+   MODO INICIANTE (js/iniciante.js): na primeira vez só aparece o essencial;
+   cada recurso entra por dias de uso ou minutos de estudo
+   ===================================================================== */
+.tab-btn.bloqueada{ display:none !important; }
+.h-boasvindas{ display:none; margin:0 0 4px; font-size:15px; line-height:1.5; color:var(--text-dim); }
+body.ini-sem-prova .h-boasvindas{ display:block; }
+body.ini-sem-prova #hojeProva, body.ini-sem-prova .h-prova h3, body.ini-sem-prova .h-meta{ display:none; }
+body.ini-sem-prova .h-prova .h-acoes{ margin-top:12px; }
+body.ini-sem-streak #streakBadge{ display:none; }
+body.ini-sem-leis .h-leis:not(.h-ia):not(.h-com), body.ini-sem-leis .lateral a[href="leis.html"]{ display:none; }
+body.ini-sem-assistente #btnIA, body.ini-sem-assistente #btnIALateral, body.ini-sem-assistente .h-ia{ display:none; }
+body.ini-sem-perfil #btnPerfil, body.ini-sem-perfil #btnPerfilLateral{ display:none; }
+body.ini-sem-comunidade #btnComunidadeLateral, body.ini-sem-comunidade .h-com{ display:none; }
+body.ini-sem-extensao .lateral a[href="instalar.html"]{ display:none; }
+.top-row{ justify-content:flex-end; gap:8px; }
+.top-row #streakBadge{ margin-right:auto; }
+.top-row #btnIA, .top-row #btnPerfil, .top-row #btnAjustes{ margin-left:0; }
