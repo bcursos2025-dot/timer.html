@@ -267,7 +267,9 @@
         ap.addEventListener('click', () => { if (confirm('Apagar este comentário?')) ND.apagarComentario(q.id, c.id).then(() => pintarComentarios(q)).catch(e => alert(ND.erroHumano(e))); });
         rod.append(ap);
       }
-      card.append(topo, el('p', null, c.texto));
+      const corpo = el('div');
+      if (window.NormaTexto) window.NormaTexto.renderizar(c.texto, corpo); else corpo.append(el('p', null, c.texto));
+      card.append(topo, corpo);
       const embed = c.video ? ND.videoEmbed(c.video) : '';
       if (embed) {
         const vb = el('div', 'n-video');
@@ -288,13 +290,14 @@
 
     if (prof) {
       const form = el('form', 'n-novo');
-      const t = el('textarea'); t.maxLength = 2000; t.rows = 4; t.required = true;
-      t.setAttribute('aria-label', 'Seu comentário como professor'); t.placeholder = 'Explique a questão com suas palavras: por que a alternativa certa é a certa e por que as outras estão erradas. Não copie texto de curso ou de livro.';
+      const t = el('textarea'); t.maxLength = 6000; t.rows = 9; t.required = true;
+      t.setAttribute('aria-label', 'Seu comentário como professor'); t.placeholder = 'Escreva o comentário. Use a barra acima para negrito, marca-texto colorido, títulos e citação da lei, ou clique em Modelo. Não copie texto de curso ou de livro.';
       const vid = el('input'); vid.type = 'url'; vid.maxLength = 200; vid.placeholder = 'Link de vídeo da explicação (YouTube ou Google Drive) — opcional';
       vid.setAttribute('aria-label', 'Link do vídeo da explicação, opcional');
       const msg = el('div', 'p-msg'); msg.hidden = true; msg.setAttribute('role', 'alert');
       const enviar = el('button', 'btn principal', 'Comentar como professor'); enviar.type = 'submit';
-      form.append(t, vid, msg, enviar);
+      const ed = window.NormaTexto ? window.NormaTexto.montarEditor(t) : null;
+      if (ed) form.append(ed.barra, t, ed.titulo, ed.previa, vid, msg, enviar); else form.append(t, vid, msg, enviar);
       form.addEventListener('submit', ev => {
         ev.preventDefault(); msg.hidden = true; enviar.disabled = true;
         ND.comentar(q.id, ND.usuario(), prof, t.value, vid.value).then(() => pintarComentarios(q))

@@ -48,7 +48,8 @@
       var it = el('div', 'n-coment');
       var topo = el('div', 'n-coment-topo');
       topo.append(el('b', null, rotuloQuestao(c.qid) + (c.video ? ' · com vídeo' : '')), el('span', null, c.curtidas + (c.curtidas === 1 ? ' curtida' : ' curtidas') + (c.ts ? ' · ' + dia(c.ts) : '')));
-      var txt = el('p', null, c.texto.length > 280 ? c.texto.slice(0, 280).replace(/\s+\S*$/, '') + '…' : c.texto);
+      var plano = window.NormaTexto ? window.NormaTexto.semMarcas(c.texto) : c.texto;
+      var txt = el('p', null, plano.length > 280 ? plano.slice(0, 280).replace(/\s+\S*$/, '') + '…' : plano);
       var rod = el('div', 'n-linha'); rod.style.marginTop = '8px';
       var a = el('a', 'btn pequeno', 'Abrir a questão'); a.href = 'oab.html?q=' + encodeURIComponent(c.qid);
       rod.append(a); it.append(topo, txt, rod);

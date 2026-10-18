@@ -25,7 +25,7 @@
     databaseURL: 'https://concurseiro-blindado-default-rtdb.firebaseio.com',
     projectId: 'concurseiro-blindado',
   };
-  var LIM = { foto: 40000, nome: 80, oab: 20, areas: 200, curriculo: 1500, contato: 120, comentario: 2000, mensagem: 1500, precoMin: 50, precoMax: 5000, prazoMin: 2, prazoMax: 48 };
+  var LIM = { foto: 40000, nome: 80, oab: 20, areas: 200, curriculo: 1500, contato: 120, comentario: 6000, mensagem: 1500, precoMin: 50, precoMax: 5000, prazoMin: 2, prazoMax: 48 };
 
   /* ---------- modo de teste ---------- */
   var LOCAL = (function () { var h = location.hostname; return h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h.slice(-10) === '.localhost'; })();

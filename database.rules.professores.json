@@ -104,7 +104,7 @@
             ".validate": "newData.isString() && newData.val().length <= 80"
           },
           "texto": {
-            ".validate": "newData.isString() && newData.val().length >= 20 && newData.val().length <= 2000"
+            ".validate": "newData.isString() && newData.val().length >= 20 && newData.val().length <= 6000"
           },
           "ts": {
             ".validate": "newData.isNumber() && newData.val() === now"
