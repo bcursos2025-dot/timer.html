@@ -68,6 +68,18 @@
         <form id="formCad" novalidate>
           <div class="n-grade">
             <label class="p-campo cheio"><span class="p-rotulo">Nome completo</span><input id="cNome" maxlength="80" autocomplete="name" required></label>
+            <div class="p-campo cheio">
+              <span class="p-rotulo">Foto (opcional)</span>
+              <div class="n-foto-linha">
+                <div class="n-avatar grande" id="fotoPrev" aria-hidden="true"></div>
+                <div class="n-foto-acoes">
+                  <label class="btn pequeno" for="cFoto">Escolher foto</label>
+                  <input id="cFoto" type="file" accept="image/*" hidden>
+                  <button class="btn pequeno" type="button" id="btnFotoRemover" hidden>Remover foto</button>
+                  <p class="p-dica" id="msgFoto">Aparece no seu perfil público depois de aprovada. A página reduz a imagem sozinha. Use uma foto de rosto, de frente.</p>
+                </div>
+              </div>
+            </div>
             <label class="p-campo"><span class="p-rotulo">Número da OAB (só números)</span><input id="cOab" inputmode="numeric" maxlength="7" required></label>
             <label class="p-campo"><span class="p-rotulo">Seccional (UF)</span><select id="cUf" required></select></label>
             <label class="p-campo cheio"><span class="p-rotulo">Áreas em que atua</span><input id="cAreas" maxlength="200" placeholder="Ex.: Direito Civil, Processo Civil, Ética" required></label>

@@ -15,7 +15,44 @@
   UFS.forEach(function (u) { var o = el('option', null, u); o.value = u; uf.append(o); });
   if (D.mock) $('avisoTeste').hidden = false;
 
-  var usuario = null, cadastro = null, aprovado = null;
+  var usuario = null, cadastro = null, aprovado = null, foto = '';
+
+  /* ---------- foto: recorta o centro em quadrado, reduz e guarda como JPEG pequeno ---------- */
+  function iniciais(nome) { var p = String(nome || '?').trim().split(/\s+/); return ((p[0] || '?')[0] + ((p.length > 1 ? p[p.length - 1][0] : '') || '')).toUpperCase(); }
+  function pintarFoto() {
+    var box = $('fotoPrev'); box.textContent = '';
+    if (foto) { var i = el('img'); i.src = foto; i.alt = ''; box.append(i); } else box.append(el('span', null, iniciais($('cNome').value)));
+    $('btnFotoRemover').hidden = !foto;
+  }
+  function reduzir(arquivo) {
+    return new Promise(function (ok, no) {
+      if (!/^image\//.test(arquivo.type)) return no(new Error('Escolha um arquivo de imagem.'));
+      var url = URL.createObjectURL(arquivo), img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        var lado = Math.min(img.width, img.height), sx = (img.width - lado) / 2, sy = (img.height - lado) / 2, tam = 200, q = 0.82, out = '';
+        while (tam >= 100) {
+          var cv = document.createElement('canvas'); cv.width = cv.height = tam;
+          cv.getContext('2d').drawImage(img, sx, sy, lado, lado, 0, 0, tam, tam);
+          out = cv.toDataURL('image/jpeg', q);
+          if (out.length <= D.LIM.foto - 500) return ok(out);
+          q -= 0.1; if (q < 0.5) { q = 0.8; tam -= 30; }
+        }
+        no(new Error('Não consegui reduzir essa imagem. Tente outra foto.'));
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); no(new Error('Não consegui abrir essa imagem.')); };
+      img.src = url;
+    });
+  }
+  $('cFoto').addEventListener('change', function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    $('msgFoto').textContent = 'Reduzindo a imagem…';
+    reduzir(f).then(function (d) { foto = d; $('msgFoto').textContent = 'Foto pronta. Ela só vai ao perfil público quando um administrador aprovar.'; pintarFoto(); })
+      .catch(function (e) { $('msgFoto').textContent = e.message; });
+    this.value = '';
+  });
+  $('btnFotoRemover').addEventListener('click', function () { foto = ''; pintarFoto(); });
+  $('cNome').addEventListener('input', function () { if (!foto) pintarFoto(); });
 
   function msgCad(t) { $('msgCad').textContent = t || ''; $('msgCad').hidden = !t; }
 
@@ -26,6 +63,7 @@
       var topo = el('div', 'n-linha'); topo.append(el('h2', null, 'Você é professor na Norma'), el('span', 'n-selo ok', 'Aprovado'));
       box.append(topo,
         el('p', 'n-sub', 'Seu perfil já aparece na lista de professores. Para comentar uma questão, abra-a em Questões, responda e use a caixa "Comentar como professor".'));
+      if (cadastro && cadastro.status === 'pendente') box.append(el('p', 'n-sub', 'Suas últimas alterações estão em análise. O perfil que aparece na lista continua o atual até a aprovação.'));
       var l = el('div', 'n-linha');
       var a1 = el('a', 'btn principal', 'Ver a lista de professores'); a1.href = 'professores.html';
       var a2 = el('a', 'btn', 'Ir para as questões'); a2.href = 'oab.html';
@@ -47,6 +85,8 @@
     $('cAreas').value = c.areas || ''; $('cCurriculo').value = c.curriculo || '';
     $('cContato').value = c.contato || (usuario && usuario.email) || '';
     $('cPreco').value = c.preco_min || 50; $('cPrazo').value = c.prazo_h || 48;
+    foto = c.foto || '';
+    pintarFoto();
     contar();
   }
   function contar() { $('cntCurriculo').textContent = $('cCurriculo').value.length + ' / ' + D.LIM.curriculo + ' caracteres'; }
@@ -75,10 +115,10 @@
     var verificado = usuario.emailVerified;
     mostrar('boxVerif', !verificado);
     pintarStatus();
-    var podeEditar = !aprovado;
+    var podeEditar = true;     // o professor aprovado também pode editar; a mudança só vai ao ar depois que o admin aprovar
     mostrar('boxCadastro', podeEditar && verificado);
-    $('tituloCadastro').textContent = cadastro ? 'Corrigir meu cadastro' : 'Seu cadastro de professor';
-    $('btnEnviarCad').textContent = cadastro ? 'Reenviar para análise' : 'Enviar para análise';
+    $('tituloCadastro').textContent = aprovado ? 'Editar meu perfil' : (cadastro ? 'Corrigir meu cadastro' : 'Seu cadastro de professor');
+    $('btnEnviarCad').textContent = aprovado ? 'Enviar alterações para análise' : (cadastro ? 'Reenviar para análise' : 'Enviar para análise');
     mostrar('boxPedidos', !!aprovado);
     if (aprovado) pintarPedidos();
   }
@@ -115,7 +155,7 @@
   $('formCad').addEventListener('submit', function (ev) {
     ev.preventDefault(); msgCad('');
     var dados = { nome: $('cNome').value, oab: $('cOab').value, uf: $('cUf').value, areas: $('cAreas').value, curriculo: $('cCurriculo').value,
-      contato: $('cContato').value, preco_min: $('cPreco').value, prazo_h: $('cPrazo').value };
+      contato: $('cContato').value, preco_min: $('cPreco').value, prazo_h: $('cPrazo').value, foto: foto };
     var v = D.validarCadastro(dados);
     if (!v.ok) { msgCad(v.erro); return; }
     if (!$('cTermos').checked) { msgCad('Marque a declaração para enviar o cadastro.'); return; }

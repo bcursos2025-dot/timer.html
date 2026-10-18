@@ -19,6 +19,14 @@ Páginas: `professor.html` (cadastro do professor), `professores.html` (lista p�
 - Comentário só de professor aprovado, com o nome do perfil aprovado (as regras impedem usar nome de outro). O aluno só curte e pede correção. Ninguém curte o próprio comentário.
 - O pedido de correção é uma mensagem para o e-mail do aluno; **o pagamento não passa pela Norma ainda**. Professor e aluno combinam por e-mail.
 
+## Perfil do professor, vídeo e avaliações
+
+- **Foto e OAB:** o professor envia a foto (a página recorta e reduz sozinha para um JPEG pequeno) e o número da OAB no cadastro. Os dois só vão ao perfil público quando você aprova. O professor aprovado pode editar o perfil: a edição volta para análise, e o perfil público atual continua no ar até você aprovar.
+- **Comentário em vídeo:** além do texto, o professor pode colar um link de vídeo do **YouTube** ou do **Google Drive** (compartilhado como "qualquer pessoa com o link"). Qualquer outro endereço é recusado. O vídeo fica no Drive/YouTube dele (a Norma não guarda nada); no site aparece um botão que abre o player.
+- **Comentários do professor** aparecem no cartão dele, com link que abre a questão (`oab.html?q=47-001`).
+- **Avaliações dos alunos:** de 1 a 5 estrelas e um texto curto. **Só quem pediu correção àquele professor pode avaliar** (uma avaliação por aluno). Não entram no ranking.
+- **Admin:** `admin.html` mostra pendentes (com foto e OAB) e aprovados, e permite remover alguém da lista pública.
+
 ## Ranking dos professores
 
 `pontos = (curtidas ÷ comentários) × log2(1 + comentários)`

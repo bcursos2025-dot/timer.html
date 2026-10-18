@@ -1,50 +1,95 @@
 {
   "rules": {
-
     "admins": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         ".write": false
       }
     },
-
     "professores_pendentes": {
       ".read": "auth != null && ((auth.token.email === 'b.cursos2025@gmail.com' && auth.token.email_verified === true) || root.child('admins/' + auth.uid).val() === true)",
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && (((auth.token.email === 'b.cursos2025@gmail.com' && auth.token.email_verified === true) || root.child('admins/' + auth.uid).val() === true) || (auth.uid === $uid && auth.token.email_verified === true && newData.child('status').val() === 'pendente' && data.child('status').val() !== 'aprovado'))",
+        ".write": "auth != null && (((auth.token.email === 'b.cursos2025@gmail.com' && auth.token.email_verified === true) || root.child('admins/' + auth.uid).val() === true) || (auth.uid === $uid && auth.token.email_verified === true && newData.child('status').val() === 'pendente'))",
         ".validate": "newData.hasChildren(['nome', 'oab', 'uf', 'areas', 'curriculo', 'contato', 'preco_min', 'prazo_h', 'status', 'ts'])",
-        "nome":      { ".validate": "newData.isString() && newData.val().length >= 5 && newData.val().length <= 80" },
-        "oab":       { ".validate": "newData.isString() && newData.val().matches(/^[0-9]{1,7}$/)" },
-        "uf":        { ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{2}$/)" },
-        "areas":     { ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 200" },
-        "curriculo": { ".validate": "newData.isString() && newData.val().length >= 40 && newData.val().length <= 1500" },
-        "contato":   { ".validate": "newData.isString() && newData.val().length <= 120 && newData.val().matches(/^[^ @]+@[^ @]+\\.[^ @]{2,}$/)" },
-        "preco_min": { ".validate": "newData.isNumber() && newData.val() >= 50 && newData.val() <= 5000" },
-        "prazo_h":   { ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 48" },
-        "status":    { ".validate": "newData.isString() && (newData.val() === 'pendente' || newData.val() === 'aprovado' || newData.val() === 'recusado')" },
-        "motivo":    { ".validate": "newData.isString() && newData.val().length <= 300" },
-        "ts":        { ".validate": "newData.isNumber() && (newData.val() === now || newData.val() === data.val())" },
-        "$outro":    { ".validate": false }
+        "nome": {
+          ".validate": "newData.isString() && newData.val().length >= 5 && newData.val().length <= 80"
+        },
+        "oab": {
+          ".validate": "newData.isString() && newData.val().matches(/^[0-9]{1,7}$/)"
+        },
+        "uf": {
+          ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{2}$/)"
+        },
+        "areas": {
+          ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 200"
+        },
+        "curriculo": {
+          ".validate": "newData.isString() && newData.val().length >= 40 && newData.val().length <= 1500"
+        },
+        "contato": {
+          ".validate": "newData.isString() && newData.val().length <= 120 && newData.val().matches(/^[^ @]+@[^ @]+\\.[^ @]{2,}$/)"
+        },
+        "preco_min": {
+          ".validate": "newData.isNumber() && newData.val() >= 50 && newData.val() <= 5000"
+        },
+        "prazo_h": {
+          ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 48"
+        },
+        "status": {
+          ".validate": "newData.isString() && (newData.val() === 'pendente' || newData.val() === 'aprovado' || newData.val() === 'recusado')"
+        },
+        "motivo": {
+          ".validate": "newData.isString() && newData.val().length <= 300"
+        },
+        "ts": {
+          ".validate": "newData.isNumber() && (newData.val() === now || newData.val() === data.val())"
+        },
+        "$outro": {
+          ".validate": false
+        },
+        "foto": {
+          ".validate": "newData.isString() && newData.val().length <= 40000 && newData.val().beginsWith('data:image/jpeg;base64,')"
+        }
       }
     },
-
     "professores_aprovados": {
       ".read": true,
       "$uid": {
         ".write": "auth != null && ((auth.token.email === 'b.cursos2025@gmail.com' && auth.token.email_verified === true) || root.child('admins/' + auth.uid).val() === true)",
         ".validate": "newData.hasChildren(['nome', 'uf', 'areas', 'curriculo', 'preco_min', 'prazo_h', 'desde'])",
-        "nome":      { ".validate": "newData.isString() && newData.val().length >= 5 && newData.val().length <= 80" },
-        "uf":        { ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{2}$/)" },
-        "areas":     { ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 200" },
-        "curriculo": { ".validate": "newData.isString() && newData.val().length >= 40 && newData.val().length <= 1500" },
-        "preco_min": { ".validate": "newData.isNumber() && newData.val() >= 50 && newData.val() <= 5000" },
-        "prazo_h":   { ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 48" },
-        "desde":     { ".validate": "newData.isNumber()" },
-        "$outro":    { ".validate": false }
+        "nome": {
+          ".validate": "newData.isString() && newData.val().length >= 5 && newData.val().length <= 80"
+        },
+        "uf": {
+          ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{2}$/)"
+        },
+        "areas": {
+          ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 200"
+        },
+        "curriculo": {
+          ".validate": "newData.isString() && newData.val().length >= 40 && newData.val().length <= 1500"
+        },
+        "preco_min": {
+          ".validate": "newData.isNumber() && newData.val() >= 50 && newData.val() <= 5000"
+        },
+        "prazo_h": {
+          ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 48"
+        },
+        "desde": {
+          ".validate": "newData.isNumber()"
+        },
+        "$outro": {
+          ".validate": false
+        },
+        "oab": {
+          ".validate": "newData.isString() && newData.val().matches(/^[0-9]{1,7}$/)"
+        },
+        "foto": {
+          ".validate": "newData.isString() && newData.val().length <= 40000 && newData.val().beginsWith('data:image/jpeg;base64,')"
+        }
       }
     },
-
     "comentarios": {
       ".read": true,
       "$qid": {
@@ -52,15 +97,27 @@
         "$cid": {
           ".write": "auth != null && ((!data.exists() && newData.exists() && auth.token.email_verified === true && root.child('professores_aprovados/' + auth.uid).exists()) || (data.exists() && !newData.exists() && (data.child('uid').val() === auth.uid || ((auth.token.email === 'b.cursos2025@gmail.com' && auth.token.email_verified === true) || root.child('admins/' + auth.uid).val() === true))))",
           ".validate": "newData.hasChildren(['uid', 'nome', 'texto', 'ts']) && newData.child('uid').val() === auth.uid && newData.child('nome').val() === root.child('professores_aprovados/' + auth.uid + '/nome').val()",
-          "uid":    { ".validate": "newData.isString()" },
-          "nome":   { ".validate": "newData.isString() && newData.val().length <= 80" },
-          "texto":  { ".validate": "newData.isString() && newData.val().length >= 20 && newData.val().length <= 2000" },
-          "ts":     { ".validate": "newData.isNumber() && newData.val() === now" },
-          "$outro": { ".validate": false }
+          "uid": {
+            ".validate": "newData.isString()"
+          },
+          "nome": {
+            ".validate": "newData.isString() && newData.val().length <= 80"
+          },
+          "texto": {
+            ".validate": "newData.isString() && newData.val().length >= 20 && newData.val().length <= 2000"
+          },
+          "ts": {
+            ".validate": "newData.isNumber() && newData.val() === now"
+          },
+          "$outro": {
+            ".validate": false
+          },
+          "video": {
+            ".validate": "newData.isString() && newData.val().length <= 200 && newData.val().matches(/^https:\\/\\/(www\\.youtube\\.com\\/watch\\?v=[A-Za-z0-9_-]{11}|drive\\.google\\.com\\/file\\/d\\/[A-Za-z0-9_-]{10,100}\\/view)$/)"
+          }
         }
       }
     },
-
     "curtidas": {
       ".read": true,
       "$qid": {
@@ -72,23 +129,68 @@
         }
       }
     },
-
     "pedidos": {
       "$prof": {
         ".read": "auth != null && auth.uid === $prof",
         "$id": {
           ".write": "auth != null && ((!data.exists() && newData.exists() && auth.token.email_verified === true && root.child('professores_aprovados/' + $prof).exists() && newData.child('de').val() === auth.uid) || (data.exists() && !newData.exists() && auth.uid === $prof))",
           ".validate": "newData.hasChildren(['de', 'nome', 'contato', 'mensagem', 'ts'])",
-          "de":       { ".validate": "newData.isString()" },
-          "nome":     { ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 80" },
-          "contato":  { ".validate": "newData.isString() && newData.val().length <= 120 && newData.val().matches(/^[^ @]+@[^ @]+\\.[^ @]{2,}$/)" },
-          "tipo":     { ".validate": "newData.isString() && newData.val().length <= 40" },
-          "mensagem": { ".validate": "newData.isString() && newData.val().length >= 20 && newData.val().length <= 1500" },
-          "ts":       { ".validate": "newData.isNumber() && newData.val() === now" },
-          "$outro":   { ".validate": false }
+          "de": {
+            ".validate": "newData.isString()"
+          },
+          "nome": {
+            ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 80"
+          },
+          "contato": {
+            ".validate": "newData.isString() && newData.val().length <= 120 && newData.val().matches(/^[^ @]+@[^ @]+\\.[^ @]{2,}$/)"
+          },
+          "tipo": {
+            ".validate": "newData.isString() && newData.val().length <= 40"
+          },
+          "mensagem": {
+            ".validate": "newData.isString() && newData.val().length >= 20 && newData.val().length <= 1500"
+          },
+          "ts": {
+            ".validate": "newData.isNumber() && newData.val() === now"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "pedidos_de": {
+      "$aluno": {
+        ".read": "auth != null && auth.uid === $aluno",
+        "$prof": {
+          ".write": "auth != null && auth.uid === $aluno && auth.token.email_verified === true && root.child('professores_aprovados/' + $prof).exists()",
+          ".validate": "newData.val() === true"
+        }
+      }
+    },
+    "avaliacoes": {
+      ".read": true,
+      "$prof": {
+        "$aluno": {
+          ".write": "auth != null && auth.uid === $aluno && $aluno !== $prof && auth.token.email_verified === true && root.child('pedidos_de/' + auth.uid + '/' + $prof).val() === true",
+          ".validate": "newData.hasChildren(['estrelas', 'nome', 'ts'])",
+          "estrelas": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 5"
+          },
+          "nome": {
+            ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 40"
+          },
+          "texto": {
+            ".validate": "newData.isString() && newData.val().length <= 600"
+          },
+          "ts": {
+            ".validate": "newData.isNumber() && newData.val() === now"
+          },
+          "$outro": {
+            ".validate": false
+          }
         }
       }
     }
-
   }
 }

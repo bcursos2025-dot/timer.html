@@ -267,7 +267,22 @@
         ap.addEventListener('click', () => { if (confirm('Apagar este comentário?')) ND.apagarComentario(q.id, c.id).then(() => pintarComentarios(q)).catch(e => alert(ND.erroHumano(e))); });
         rod.append(ap);
       }
-      card.append(topo, el('p', null, c.texto), rod);
+      card.append(topo, el('p', null, c.texto));
+      const embed = c.video ? ND.videoEmbed(c.video) : '';
+      if (embed) {
+        const vb = el('div', 'n-video');
+        const play = el('button', 'btn pequeno', '▶ Assistir à explicação em vídeo'); play.type = 'button';
+        play.addEventListener('click', () => {
+          play.remove();
+          const f = el('iframe'); f.src = embed; f.title = 'Explicação em vídeo de ' + c.nome; f.loading = 'lazy';
+          f.allow = 'encrypted-media; fullscreen; picture-in-picture'; f.referrerPolicy = 'no-referrer'; f.allowFullscreen = true;
+          f.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation allow-popups');
+          const fora = el('a', 'btn pequeno', 'Abrir em outra aba'); fora.href = c.video; fora.target = '_blank'; fora.rel = 'noopener noreferrer';
+          vb.append(f, el('p', 'n-video-aviso', 'Se o vídeo não abrir, o professor precisa liberar o acesso ("qualquer pessoa com o link").'), fora);
+        });
+        vb.append(play); card.append(vb);
+      }
+      card.append(rod);
       box.append(card);
     });
 
@@ -275,12 +290,14 @@
       const form = el('form', 'n-novo');
       const t = el('textarea'); t.maxLength = 2000; t.rows = 4; t.required = true;
       t.setAttribute('aria-label', 'Seu comentário como professor'); t.placeholder = 'Explique a questão com suas palavras: por que a alternativa certa é a certa e por que as outras estão erradas. Não copie texto de curso ou de livro.';
+      const vid = el('input'); vid.type = 'url'; vid.maxLength = 200; vid.placeholder = 'Link de vídeo da explicação (YouTube ou Google Drive) — opcional';
+      vid.setAttribute('aria-label', 'Link do vídeo da explicação, opcional');
       const msg = el('div', 'p-msg'); msg.hidden = true; msg.setAttribute('role', 'alert');
       const enviar = el('button', 'btn principal', 'Comentar como professor'); enviar.type = 'submit';
-      form.append(t, msg, enviar);
+      form.append(t, vid, msg, enviar);
       form.addEventListener('submit', ev => {
         ev.preventDefault(); msg.hidden = true; enviar.disabled = true;
-        ND.comentar(q.id, ND.usuario(), prof, t.value).then(() => pintarComentarios(q))
+        ND.comentar(q.id, ND.usuario(), prof, t.value, vid.value).then(() => pintarComentarios(q))
           .catch(e => { msg.textContent = e && e.code === 'validacao' ? e.message : ND.erroHumano(e); msg.hidden = false; enviar.disabled = false; });
       });
       box.append(form);
@@ -347,5 +364,23 @@
     else if (e.key === 'ArrowLeft') { e.preventDefault(); ir(-1); }
   });
 
-  carregarIndice().then(ok => { if (ok) abrirExame(selExame.value); });
+  // link direto para uma questão (usado pela lista de professores): oab.html?q=47-001
+  function exameDaQuestao(qid){
+    const m = /^([A-Za-z0-9]+)-\d+$/.exec(qid || ''); if (!m) return null;
+    const cand = 'exame-' + m[1].toLowerCase();
+    if (estado.indice.exames.some(x => x.id === cand)) return cand;
+    if (/^ETI$/i.test(m[1]) && estado.indice.exames.some(x => x.id === 'norma-etica-profissional')) return 'norma-etica-profissional';
+    return null;
+  }
+  carregarIndice().then(async ok => {
+    if (!ok) return;
+    let alvoQ = null; try { alvoQ = new URLSearchParams(location.search).get('q'); } catch (e) { /* sem parâmetro */ }
+    const ex = alvoQ && exameDaQuestao(alvoQ);
+    if (ex) selExame.value = ex;
+    await abrirExame(selExame.value);
+    if (ex && estado.exame) {
+      const i = estado.lista.findIndex(q => q.id === alvoQ);
+      if (i >= 0) { estado.pos = i; pintar(); $('boxQuestao').scrollIntoView({ block: 'start' }); }
+    }
+  });
 })();

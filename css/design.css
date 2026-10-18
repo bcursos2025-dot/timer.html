@@ -1300,3 +1300,5 @@ html[data-theme="light"] .tag.paused{ color:#b12e46; }
 /* "Parar" (só no Pomodoro) fica neutro: o vermelho é do "Pausar", para não repetir a cor */
 .pagina[data-pagina="timer"] #btnStop{ background:var(--ap-fill-2, var(--bg-elevated-2)); color:var(--text); box-shadow:inset 0 0 0 1px var(--ap-hairline); }
 .pagina[data-pagina="timer"] #btnStop:disabled{ opacity:.5; }
+
+a.cb-perfil-conta-btn{ text-decoration:none; display:inline-block; }

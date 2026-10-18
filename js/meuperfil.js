@@ -131,6 +131,9 @@
       '<div class="cb-perfil-conta"><span class="cb-perfil-conta-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.2 3.58-7 8-7s8 2.8 8 7"/></svg></span>' +
       '<span class="cb-perfil-conta-txt"><strong>' + (concurso ? 'Estudando para concurso' : 'Estudando para a OAB') + '</strong><small>Seus dados ficam só neste aparelho</small></span>' +
       '<button type="button" class="cb-perfil-conta-btn" id="perfilConfig">Configurações</button></div>' +
+      '<div class="cb-perfil-conta"><span class="cb-perfil-conta-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg></span>' +
+      '<span class="cb-perfil-conta-txt"><strong>É advogado(a)? Seja professor</strong><small>Comente questões e corrija peças de alunos</small></span>' +
+      '<a class="cb-perfil-conta-btn" href="professor.html">Cadastrar</a></div>' +
       semanaHtml() + provaHtml +
       '<div class="cb-perfil-secao"><div class="cb-perfil-secao-tit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Hoje em números</div>' +
       '<div class="perfil-hoje"><div><b>' + fmtHM(hoje) + '</b><span>estudados de ' + Math.round(meta / 3600000) + 'h</span></div><div><b>' + streak + '</b><span>' + (streak === 1 ? 'dia seguido' : 'dias seguidos') + '</span></div></div></div>' +

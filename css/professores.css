@@ -76,3 +76,34 @@ main.prof{ padding:30px 0 96px; }
 
 /* o atributo hidden precisa vencer regras de display dos botões e linhas */
 .prof [hidden], .n-dialogo [hidden], .n-coments[hidden]{ display:none !important; }
+
+/* ---------- cartão do professor (lista pública) ---------- */
+.n-avatar{ width:48px; height:48px; border-radius:50%; overflow:hidden; display:grid; place-items:center; flex:0 0 auto;
+  background:var(--bg-elevated-2); border:1px solid var(--hair); color:var(--text); font-weight:700; font-size:16px; }
+.n-avatar.grande{ width:76px; height:76px; font-size:24px; }
+.n-avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
+.n-prof-card{ padding:20px; }
+.n-prof-cab{ display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+.n-prof-id{ flex:1 1 220px; min-width:0; display:grid; gap:8px; }
+.n-prof-card .n-prof-nome{ display:flex; align-items:center; font-size:20px; }
+.n-chips{ display:flex; flex-wrap:wrap; gap:6px; }
+.n-chip{ font-size:12.5px; padding:3px 10px; border-radius:999px; border:1px solid var(--hair); color:var(--text-dim); background:var(--bg); }
+.n-chip.oab{ color:var(--text); font-weight:700; background:var(--bg-elevated-2); }
+.n-estrelas-linha{ font-size:13.5px; color:var(--text-dim); display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.n-estrelas{ color:var(--p-aviso); letter-spacing:1px; }
+.n-numeros{ display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 4px; }
+.n-pilula{ font-size:13.5px; padding:6px 12px; border-radius:999px; background:var(--bg); border:1px solid var(--hair); color:var(--text-dim); font-variant-numeric:tabular-nums; }
+.n-pilula b{ color:var(--text); font-size:14.5px; margin:0; }
+.n-abas-card{ display:flex; flex-wrap:wrap; gap:6px; margin-top:14px; padding-top:12px; border-top:1px solid var(--hair); }
+.n-aba-card{ font:inherit; font-size:14px; font-weight:600; color:var(--text-dim); background:transparent; border:1px solid var(--hair); border-radius:999px; padding:8px 14px; cursor:pointer; }
+.n-aba-card.ativo{ color:var(--text); background:var(--bg-elevated-2); }
+.n-aba-card:focus-visible, .n-estrela:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+.n-painel{ margin-top:14px; display:grid; gap:10px; }
+.n-estrela{ font-size:26px; line-height:1; background:none; border:0; cursor:pointer; color:var(--p-aviso); padding:2px 4px; }
+.n-foto-linha{ display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+.n-foto-acoes{ display:grid; gap:8px; flex:1 1 220px; }
+
+/* vídeo-explicação nos comentários */
+.n-video{ margin-top:10px; }
+.n-video iframe{ width:100%; aspect-ratio:16 / 9; border:0; border-radius:14px; background:var(--bg); }
+.n-video-aviso{ margin:6px 0 0; font-size:12.5px; color:var(--text-dim); }

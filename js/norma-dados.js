@@ -25,7 +25,7 @@
     databaseURL: 'https://concurseiro-blindado-default-rtdb.firebaseio.com',
     projectId: 'concurseiro-blindado',
   };
-  var LIM = { nome: 80, oab: 20, areas: 200, curriculo: 1500, contato: 120, comentario: 2000, mensagem: 1500, precoMin: 50, precoMax: 5000, prazoMin: 2, prazoMax: 48 };
+  var LIM = { foto: 40000, nome: 80, oab: 20, areas: 200, curriculo: 1500, contato: 120, comentario: 2000, mensagem: 1500, precoMin: 50, precoMax: 5000, prazoMin: 2, prazoMax: 48 };
 
   /* ---------- modo de teste ---------- */
   var LOCAL = (function () { var h = location.hostname; return h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h.slice(-10) === '.localhost'; })();
@@ -88,7 +88,31 @@
     if (!emailOk(r.contato)) return { erro: 'Informe um e-mail de contato válido.', campo: 'contato' };
     if (!(r.preco_min >= LIM.precoMin && r.preco_min <= LIM.precoMax)) return { erro: 'O preço mínimo por correção é R$ ' + LIM.precoMin + ' (e no máximo R$ ' + LIM.precoMax + ').', campo: 'preco_min' };
     if (!(r.prazo_h >= LIM.prazoMin && r.prazo_h <= LIM.prazoMax && Math.floor(r.prazo_h) === r.prazo_h)) return { erro: 'O prazo de devolução vai de ' + LIM.prazoMin + ' a ' + LIM.prazoMax + ' horas.', campo: 'prazo_h' };
+    var foto = typeof d.foto === 'string' ? d.foto : '';
+    if (foto) {
+      if (foto.indexOf('data:image/jpeg;base64,') !== 0 || foto.length > LIM.foto) return { erro: 'A foto precisa ser um JPEG pequeno (a página reduz sozinha). Tente outra imagem.', campo: 'foto' };
+      r.foto = foto;
+    }
     return { ok: true, dados: r };
+  }
+
+  /* vídeo-explicação: só YouTube e Google Drive, guardado sempre no formato canônico (as regras do banco conferem o mesmo formato) */
+  function videoCanonico(u) {
+    u = String(u == null ? '' : u).trim();
+    if (!u) return { ok: true, url: '' };
+    var m;
+    if ((m = /^https:\/\/(?:www\.|m\.)?youtube\.com\/watch\?(?:[^#]*&)?v=([A-Za-z0-9_-]{11})/.exec(u))) return { ok: true, url: 'https://www.youtube.com/watch?v=' + m[1] };
+    if ((m = /^https:\/\/youtu\.be\/([A-Za-z0-9_-]{11})/.exec(u))) return { ok: true, url: 'https://www.youtube.com/watch?v=' + m[1] };
+    if ((m = /^https:\/\/(?:www\.)?youtube\.com\/(?:shorts|embed|live)\/([A-Za-z0-9_-]{11})/.exec(u))) return { ok: true, url: 'https://www.youtube.com/watch?v=' + m[1] };
+    if ((m = /^https:\/\/drive\.google\.com\/file\/d\/([A-Za-z0-9_-]{10,100})(?:[/?#]|$)/.exec(u))) return { ok: true, url: 'https://drive.google.com/file/d/' + m[1] + '/view' };
+    if ((m = /^https:\/\/drive\.google\.com\/open\?(?:[^#]*&)?id=([A-Za-z0-9_-]{10,100})/.exec(u))) return { ok: true, url: 'https://drive.google.com/file/d/' + m[1] + '/view' };
+    return { erro: 'Use um link do YouTube ou do Google Drive. No Drive, compartilhe como "qualquer pessoa com o link".' };
+  }
+  function videoEmbed(url) {
+    var m;
+    if ((m = /^https:\/\/www\.youtube\.com\/watch\?v=([A-Za-z0-9_-]{11})$/.exec(url || ''))) return 'https://www.youtube-nocookie.com/embed/' + m[1];
+    if ((m = /^https:\/\/drive\.google\.com\/file\/d\/([A-Za-z0-9_-]{10,100})\/view$/.exec(url || ''))) return 'https://drive.google.com/file/d/' + m[1] + '/preview';
+    return '';
   }
 
   /* pontuação do ranking: média de curtidas por comentário, valorizando quem comenta mais (log). Documentada em docs/PROFESSORES.md */
@@ -223,7 +247,7 @@
      API PÚBLICA
      ============================================================ */
   var NormaDados = {
-    mock: MOCK, LIM: LIM, erroHumano: erroHumano, validarCadastro: validarCadastro, pontuacao: pontuacao, emailOk: emailOk, texto: texto,
+    mock: MOCK, LIM: LIM, videoCanonico: videoCanonico, videoEmbed: videoEmbed, erroHumano: erroHumano, validarCadastro: validarCadastro, pontuacao: pontuacao, emailOk: emailOk, texto: texto,
     usuario: base.usuario, onUsuario: base.onUsuario, entrar: base.entrar, criar: base.criar, sair: base.sair, recuperar: base.recuperar,
     reenviarVerificacao: base.reenviarVerificacao, recarregarUsuario: base.recarregarUsuario,
 
@@ -247,9 +271,16 @@
 
     /* admin */
     listarPendentes: function () { return base.ler('professores_pendentes').then(function (o) { return lista(o).filter(function (x) { return x.status === 'pendente'; }); }); },
+    listarCadastros: function () { return base.ler('professores_pendentes').then(lista); },
+    remover: function (uid) {
+      var m = {}; m['professores_aprovados/' + uid] = null; m['professores_pendentes/' + uid + '/status'] = 'recusado'; m['professores_pendentes/' + uid + '/motivo'] = 'Removido da lista pelo administrador.';
+      return base.atualizar(m);
+    },
     aprovar: function (uid, c) {
       var m = {};
-      m['professores_aprovados/' + uid] = { nome: c.nome, uf: c.uf, areas: c.areas, curriculo: c.curriculo, preco_min: c.preco_min, prazo_h: c.prazo_h, desde: base.agora() };
+      var pub = { nome: c.nome, oab: c.oab, uf: c.uf, areas: c.areas, curriculo: c.curriculo, preco_min: c.preco_min, prazo_h: c.prazo_h, desde: c.desde || base.agora() };
+      if (c.foto) pub.foto = c.foto;
+      m['professores_aprovados/' + uid] = pub;
       m['professores_pendentes/' + uid + '/status'] = 'aprovado';
       return base.atualizar(m);
     },
@@ -265,21 +296,49 @@
         return cs.map(function (c) { var l = cu[c.id] || {}; return Object.assign(c, { curtidas: Object.keys(l), }); }).sort(function (a, b) { return b.curtidas.length - a.curtidas.length || (a.ts || 0) - (b.ts || 0); });
       });
     },
-    comentar: function (qid, user, perfil, txt) {
+    comentar: function (qid, user, perfil, txt, videoUrl) {
       var t = texto(txt, LIM.comentario); if (t.length < 20) return Promise.reject({ code: 'validacao', message: 'Escreva um comentário com pelo menos 20 caracteres.' });
-      return base.empurrar('comentarios/' + qid, { uid: user.uid, nome: perfil.nome, texto: t, ts: base.agora() });
+      var v = videoCanonico(videoUrl); if (!v.ok) return Promise.reject({ code: 'validacao', message: v.erro });
+      var corpo = { uid: user.uid, nome: perfil.nome, texto: t, ts: base.agora() }; if (v.url) corpo.video = v.url;
+      return base.empurrar('comentarios/' + qid, corpo);
     },
     apagarComentario: function (qid, cid) { return base.gravar('comentarios/' + qid + '/' + cid, null); },
     curtir: function (qid, cid, uid, sim) { return base.gravar('curtidas/' + qid + '/' + cid + '/' + uid, sim ? true : null); },
 
-    /* ranking */
+    /* ranking: pontuação por curtidas; junto vêm os comentários e as avaliações de cada professor */
     ranking: function () {
-      return Promise.all([base.ler('professores_aprovados'), base.ler('comentarios'), base.ler('curtidas')]).then(function (r) {
-        var st = estatisticas(r[1], r[2]);
-        return lista(r[0]).map(function (p) { var s = st[p.id] || { comentarios: 0, curtidas: 0, pontos: 0 }; return Object.assign(p, s); })
-          .sort(function (a, b) { return b.pontos - a.pontos || b.curtidas - a.curtidas || (a.desde || 0) - (b.desde || 0); });
+      var tolera = function (p) { return p.catch(function () { return null; }); };   // avaliações: se as regras novas ainda não foram publicadas, a lista continua
+      return Promise.all([base.ler('professores_aprovados'), base.ler('comentarios'), base.ler('curtidas'), tolera(base.ler('avaliacoes'))]).then(function (r) {
+        var st = estatisticas(r[1], r[2]), cm = r[1] || {}, cu = r[2] || {}, av = r[3] || {};
+        var porProf = {};
+        Object.keys(cm).forEach(function (q) {
+          Object.keys(cm[q] || {}).forEach(function (c) {
+            var x = cm[q][c]; if (!x || !x.uid) return;
+            var l = cu[q] && cu[q][c] ? Object.keys(cu[q][c]).length : 0;
+            (porProf[x.uid] = porProf[x.uid] || []).push({ qid: q, cid: c, texto: x.texto, video: x.video || '', ts: x.ts || 0, curtidas: l });
+          });
+        });
+        return lista(r[0]).map(function (p) {
+          var s0 = st[p.id] || { comentarios: 0, curtidas: 0, pontos: 0 };
+          var coments = (porProf[p.id] || []).sort(function (a, b) { return b.curtidas - a.curtidas || b.ts - a.ts; });
+          var avs = lista(av[p.id]).sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
+          var media = avs.length ? avs.reduce(function (t, x) { return t + Number(x.estrelas || 0); }, 0) / avs.length : 0;
+          return Object.assign(p, s0, { lista_comentarios: coments, avaliacoes: avs, media: media });
+        }).sort(function (a, b) { return b.pontos - a.pontos || b.curtidas - a.curtidas || (a.desde || 0) - (b.desde || 0); });
       });
     },
+
+    /* avaliações dos alunos (só quem pediu correção ao professor; não mudam o ranking) */
+    jaPediu: function (uid, profUid) { return base.ler('pedidos_de/' + uid + '/' + profUid).then(function (v) { return v === true; }).catch(function () { return false; }); },
+    minhaAvaliacao: function (uid, profUid) { return base.ler('avaliacoes/' + profUid + '/' + uid).catch(function () { return null; }); },
+    avaliar: function (profUid, user, d) {
+      var est = Number(d.estrelas), nome = texto(d.nome, 40), t = texto(d.texto, 600);
+      if (!(est >= 1 && est <= 5 && Math.floor(est) === est)) return Promise.reject({ code: 'validacao', message: 'Escolha de 1 a 5 estrelas.' });
+      if (nome.length < 2) return Promise.reject({ code: 'validacao', message: 'Escreva seu primeiro nome.' });
+      var o = { estrelas: est, nome: nome, ts: base.agora() }; if (t) o.texto = t;
+      return base.gravar('avaliacoes/' + profUid + '/' + user.uid, o);
+    },
+    apagarAvaliacao: function (profUid, uid) { return base.gravar('avaliacoes/' + profUid + '/' + uid, null); },
 
     /* pedidos de correção */
     enviarPedido: function (profUid, user, d) {
@@ -287,7 +346,9 @@
       if (nome.length < 3) return Promise.reject({ code: 'validacao', message: 'Escreva seu nome.' });
       if (!emailOk(contato)) return Promise.reject({ code: 'validacao', message: 'Informe um e-mail de contato válido.' });
       if (msg.length < 20) return Promise.reject({ code: 'validacao', message: 'Conte em pelo menos 20 caracteres o que você precisa (peça, prazo, prova).' });
-      return base.empurrar('pedidos/' + profUid, { de: user.uid, nome: nome, contato: contato, tipo: tipo, mensagem: msg, ts: base.agora() });
+      return base.gravar('pedidos_de/' + user.uid + '/' + profUid, true).then(function () {
+        return base.empurrar('pedidos/' + profUid, { de: user.uid, nome: nome, contato: contato, tipo: tipo, mensagem: msg, ts: base.agora() });
+      });
     },
     meusPedidos: function (uid) { return base.ler('pedidos/' + uid).then(function (o) { return lista(o).sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); }); }); },
     apagarPedido: function (uid, id) { return base.gravar('pedidos/' + uid + '/' + id, null); },
