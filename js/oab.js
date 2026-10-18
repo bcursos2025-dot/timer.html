@@ -177,7 +177,12 @@
     fb.className = 'o-feedback ' + (certa ? 'ok' : 'erro');
     fb.append(el('b', null, q.anulada ? 'Questão anulada pela banca: vale como acerto para todos'
       : certa ? 'Resposta certa' : 'Resposta errada: o gabarito é a alternativa ' + q.gabarito));
-    if (q.comentario) fb.append(el('p', null, q.comentario));
+    // Comentário só aparece quando tem autor (professor ou aluno). O texto gerado por IA no banco original NÃO é exibido como comentário.
+    if (q.comentario && q.comentario_por) {
+      fb.append(el('p', null, q.comentario), el('p', 'o-fonte', 'Comentário de ' + q.comentario_por));
+    } else if (q.fonte && q.fonte.trecho) {
+      fb.append(el('p', null, 'Trecho da lei: “' + q.fonte.trecho + '”'));
+    }
     if (q.fonte && q.fonte.dispositivo) {
       const p = el('p', 'o-fonte');
       p.append(document.createTextNode('Base legal: ' + q.fonte.dispositivo + '. '));

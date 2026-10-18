@@ -11,7 +11,8 @@ Colunas (a primeira linha é o cabeçalho):
   gabarito      A, B, C ou D (gabarito DEFINITIVO da banca); deixe vazio se a questão foi anulada
   anulada       "sim" se foi anulada pela banca
   pagina        página do PDF da prova onde está a questão (opcional; abre o PDF nela)
-  comentario    SEU comentário (escrito por você; não copie texto da banca nem de curso)
+  comentario    comentário de PROFESSOR ou ALUNO (nunca texto da banca, de curso ou gerado por IA)
+  autor         quem escreveu o comentário (obrigatório quando houver comentário; sem autor ele não aparece no site)
   lei, dispositivo   opcionais: código da lei em leis/ (ex.: l8906) e o dispositivo (ex.: Art. 5º, § 1º)
 
 Nada aqui copia enunciado nem alternativas da FGV: a pessoa abre o PDF oficial e marca A-D no site.
@@ -77,7 +78,10 @@ def principal():
         if l.get('pagina', '').isdigit():
             q['pagina'] = int(l['pagina'])
         if l.get('comentario'):
-            q['comentario'] = l['comentario']
+            if l.get('autor'):
+                q['comentario'] = l['comentario']; q['comentario_por'] = l['autor']
+            else:
+                print('Aviso: questão %s tem comentário sem autor; ele não será gravado.' % n)
         if l.get('lei'):
             q['fonte'] = {'lei': l['lei'], 'dispositivo': l.get('dispositivo', '')}
         questoes.append(q)
