@@ -191,6 +191,61 @@
           }
         }
       }
+    },
+    "duvidas": {
+      ".read": true,
+      "$qid": {
+        ".validate": "$qid.matches(/^[A-Za-z0-9-]{3,30}$/)",
+        "$id": {
+          ".write": "auth != null && ((!data.exists() && newData.exists() && auth.token.email_verified === true) || (data.exists() && !newData.exists() && (data.child('uid').val() === auth.uid || ((auth.token.email === 'b.cursos2025@gmail.com' && auth.token.email_verified === true) || root.child('admins/' + auth.uid).val() === true))))",
+          ".validate": "newData.hasChildren(['uid', 'nome', 'texto', 'ts']) && newData.child('uid').val() === auth.uid",
+          "uid": {
+            ".validate": "newData.isString()"
+          },
+          "nome": {
+            ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 40"
+          },
+          "texto": {
+            ".validate": "newData.isString() && newData.val().length >= 10 && newData.val().length <= 600"
+          },
+          "ts": {
+            ".validate": "newData.isNumber() && newData.val() === now"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "respostas": {
+      ".read": true,
+      "$qid": {
+        ".validate": "$qid.matches(/^[A-Za-z0-9-]{3,30}$/)",
+        "$did": {
+          "$rid": {
+            ".write": "auth != null && ((!data.exists() && newData.exists() && auth.token.email_verified === true && root.child('professores_aprovados/' + auth.uid).exists()) || (data.exists() && !newData.exists() && (data.child('uid').val() === auth.uid || ((auth.token.email === 'b.cursos2025@gmail.com' && auth.token.email_verified === true) || root.child('admins/' + auth.uid).val() === true))))",
+            ".validate": "newData.hasChildren(['uid', 'nome', 'texto', 'ts']) && newData.child('uid').val() === auth.uid && newData.child('nome').val() === root.child('professores_aprovados/' + auth.uid + '/nome').val() && root.child('duvidas/' + $qid + '/' + $did).exists()",
+            "uid": {
+              ".validate": "newData.isString()"
+            },
+            "nome": {
+              ".validate": "newData.isString() && newData.val().length <= 80"
+            },
+            "texto": {
+              ".validate": "newData.isString() && newData.val().length >= 20 && newData.val().length <= 6000"
+            },
+            "video": {
+              ".validate": "newData.isString() && newData.val().length <= 200 && newData.val().matches(/^https:\\/\\/(www\\.youtube\\.com\\/watch\\?v=[A-Za-z0-9_-]{11}|drive\\.google\\.com\\/file\\/d\\/[A-Za-z0-9_-]{10,100}\\/view)$/)"
+            },
+            "ts": {
+              ".validate": "newData.isNumber() && newData.val() === now"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          }
+        }
+      }
     }
   }
 }

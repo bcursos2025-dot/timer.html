@@ -109,6 +109,20 @@
     }).catch(function (e) { lista.append(el('p', 'n-vazio', D.erroHumano(e))); });
   }
 
+  function pintarDuvidasAbertas() {
+    var lista = $('listaDuvidas'); lista.textContent = '';
+    D.duvidasAbertas().then(function (ds) {
+      if (!ds.length) { lista.append(el('p', 'n-vazio', 'Nenhuma dúvida sem resposta agora.')); return; }
+      ds.slice(0, 30).forEach(function (d) {
+        var c = el('div', 'n-coment');
+        var topo = el('div', 'n-coment-topo'); topo.append(el('b', null, d.nome + ' · questão ' + d.qid), el('span', null, data(d.ts)));
+        var rod = el('div', 'n-linha'); rod.style.marginTop = '8px';
+        var a = el('a', 'btn pequeno principal', 'Abrir e responder'); a.href = 'oab.html?q=' + encodeURIComponent(d.qid) + '&dv=1';
+        rod.append(a); c.append(topo, el('p', null, d.texto), rod); lista.append(c);
+      });
+    }).catch(function (e) { lista.append(el('p', 'n-vazio', D.erroHumano(e))); });
+  }
+
   function atualizarTela() {
     $('txtEmail').textContent = usuario.email;
     $('txtPapel').textContent = aprovado ? 'Professor aprovado' : (cadastro && cadastro.status === 'pendente' ? 'Cadastro em análise' : 'Conta criada');
@@ -120,7 +134,8 @@
     $('tituloCadastro').textContent = aprovado ? 'Editar meu perfil' : (cadastro ? 'Corrigir meu cadastro' : 'Seu cadastro de professor');
     $('btnEnviarCad').textContent = aprovado ? 'Enviar alterações para análise' : (cadastro ? 'Reenviar para análise' : 'Enviar para análise');
     mostrar('boxPedidos', !!aprovado);
-    if (aprovado) pintarPedidos();
+    mostrar('boxDuvidas', !!aprovado);
+    if (aprovado) { pintarPedidos(); pintarDuvidasAbertas(); }
   }
 
   function carregarDados() {

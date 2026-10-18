@@ -170,6 +170,8 @@
     });
     $('qFeedback').hidden = true;
     tokenComent++; $('qComents').hidden = true;
+    tokenDuv++; $('qDuvidas').hidden = true;
+    pintarNota(q);
     if (p) mostrarResposta(q, p.r, true);
     $('btnAnterior').disabled = estado.pos === 0;
     $('btnProxima').disabled = estado.pos >= estado.lista.length - 1;
@@ -205,6 +207,7 @@
     fb.append(refazer);
     fb.hidden = false;
     pintarComentarios(q);
+    pintarDuvidas(q);
   }
 
 
@@ -223,7 +226,7 @@
       ouvindoLogin = true;
       ND.onUsuario(() => {
         const agora = (ND.usuario() || {}).uid || null;
-        if (agora !== uidRenderizado && qComentAtual && !$('qComents').hidden) pintarComentarios(qComentAtual);
+        if (agora !== uidRenderizado && qComentAtual && !$('qComents').hidden) { pintarComentarios(qComentAtual); pintarDuvidas(qComentAtual); }
       });
     }
     box.hidden = false; box.textContent = '';
@@ -313,6 +316,137 @@
     }
   }
 
+
+  /* ---------- dúvidas dos alunos (professor aprovado responde) ---------- */
+  let tokenDuv = 0;
+  const LS_NOME = 'cb2_nome_duvida';
+
+  function pintarDuvidas(q){
+    const box = $('qDuvidas');
+    if (!ND) { box.hidden = true; return; }
+    const meu = ++tokenDuv;
+    box.hidden = false; box.textContent = '';
+    box.append(el('h3', null, 'Dúvidas dos alunos'), el('p', 'n-vazio', 'Carregando…'));
+    Promise.all([ND.duvidas(q.id), ND.usuario() ? ND.souAprovado(ND.usuario().uid) : Promise.resolve(null)]).then(([lista, prof]) => {
+      if (meu !== tokenDuv) return;
+      desenharDuvidas(q, lista, prof);
+    }).catch(() => {
+      if (meu !== tokenDuv) return;
+      box.textContent = '';
+      box.append(el('h3', null, 'Dúvidas dos alunos'), el('p', 'n-vazio', 'Não consegui carregar as dúvidas agora. Tente de novo em instantes.'));
+    });
+  }
+
+  function desenharDuvidas(q, lista, prof){
+    const box = $('qDuvidas'); box.textContent = '';
+    const user = ND.usuario();
+    box.append(el('h3', null, 'Dúvidas dos alunos'));
+    box.append(el('p', 'n-vazio', 'Pergunte aqui: um professor aprovado responde e aparece com nome e OAB no perfil dele.'));
+    if (!lista.length) box.append(el('p', 'n-vazio', 'Ainda não há dúvidas nesta questão.'));
+    lista.forEach(d => {
+      const card = el('div', 'n-coment');
+      const topo = el('div', 'n-coment-topo'); topo.append(el('b', null, d.nome + ' perguntou'), el('span', null, dataCurta(d.ts)));
+      card.append(topo, el('p', null, d.texto));
+      d.respostas.forEach(r => {
+        const rb = el('div', 'n-resposta');
+        const rt = el('div', 'n-coment-topo'); rt.append(el('b', null, r.nome + ' · professor(a)'), el('span', null, dataCurta(r.ts)));
+        const corpo = el('div'); if (window.NormaTexto) window.NormaTexto.renderizar(r.texto, corpo); else corpo.append(el('p', null, r.texto));
+        rb.append(rt, corpo);
+        const embed = r.video ? ND.videoEmbed(r.video) : '';
+        if (embed) { const a = el('a', 'btn pequeno', '▶ Assistir à explicação em vídeo'); a.href = r.video; a.target = '_blank'; a.rel = 'noopener noreferrer'; rb.append(a); }
+        if (user && user.uid === r.uid) {
+          const ap = el('button', 'btn pequeno', 'Apagar minha resposta'); ap.type = 'button'; ap.style.marginTop = '8px';
+          ap.addEventListener('click', () => { if (confirm('Apagar esta resposta?')) ND.apagarResposta(q.id, d.id, r.id).then(() => pintarDuvidas(q)).catch(e => alert(ND.erroHumano(e))); });
+          rb.append(ap);
+        }
+        card.append(rb);
+      });
+      const rod = el('div', 'n-linha'); rod.style.marginTop = '8px';
+      if (prof) {
+        const bt = el('button', 'btn pequeno', 'Responder como professor'); bt.type = 'button';
+        bt.addEventListener('click', () => {
+          bt.remove();
+          const f = el('form', 'n-novo');
+          const t = el('textarea'); t.maxLength = 6000; t.rows = 6; t.required = true; t.setAttribute('aria-label', 'Sua resposta'); t.placeholder = 'Responda a dúvida. Use a barra para formatar.';
+          const ed = window.NormaTexto ? window.NormaTexto.montarEditor(t) : null;
+          const msg = el('div', 'p-msg'); msg.hidden = true; msg.setAttribute('role', 'alert');
+          const env = el('button', 'btn principal', 'Enviar resposta'); env.type = 'submit';
+          if (ed) f.append(ed.barra, t, ed.titulo, ed.previa, msg, env); else f.append(t, msg, env);
+          f.addEventListener('submit', ev => {
+            ev.preventDefault(); msg.hidden = true; env.disabled = true;
+            ND.responder(q.id, d.id, ND.usuario(), prof, t.value, '').then(() => pintarDuvidas(q))
+              .catch(e => { msg.textContent = e && e.code === 'validacao' ? e.message : ND.erroHumano(e); msg.hidden = false; env.disabled = false; });
+          });
+          card.append(f); t.focus();
+        });
+        rod.append(bt);
+      }
+      if (user && user.uid === d.uid) {
+        const ap = el('button', 'btn pequeno', 'Apagar minha dúvida'); ap.type = 'button';
+        ap.addEventListener('click', () => { if (confirm('Apagar esta dúvida?')) ND.apagarDuvida(q.id, d.id).then(() => pintarDuvidas(q)).catch(e => alert(ND.erroHumano(e))); });
+        rod.append(ap);
+      }
+      if (rod.childNodes.length) card.append(rod);
+      box.append(card);
+    });
+
+    // formulário de nova dúvida
+    if (!user) {
+      const b = el('button', 'btn', 'Entrar para perguntar'); b.type = 'button';
+      b.addEventListener('click', () => window.NormaAuthUI.abrir('entrar').then(() => { pintarDuvidas(q); }));
+      box.append(b);
+    } else if (!user.emailVerified) {
+      box.append(el('p', 'n-vazio', 'Confirme o seu e-mail (link que o Firebase enviou) para poder perguntar. Depois recarregue a página.'));
+    } else {
+      const f = el('form', 'n-novo');
+      const nome = el('input'); nome.maxLength = 40; nome.required = true; nome.placeholder = 'Seu primeiro nome'; nome.setAttribute('aria-label', 'Seu primeiro nome');
+      try { nome.value = localStorage.getItem(LS_NOME) || String(user.email || '').split('@')[0].replace(/[^A-Za-zÀ-ú]+/g, ' ').trim().split(' ')[0] || ''; } catch (e) { /* sem armazenamento */ }
+      const t = el('textarea'); t.maxLength = 600; t.rows = 3; t.required = true; t.setAttribute('aria-label', 'Sua dúvida'); t.placeholder = 'Qual é a sua dúvida sobre esta questão? (mínimo 10 caracteres)';
+      const msg = el('div', 'p-msg'); msg.hidden = true; msg.setAttribute('role', 'alert');
+      const env = el('button', 'btn principal', 'Enviar dúvida'); env.type = 'submit';
+      f.append(nome, t, msg, env);
+      f.addEventListener('submit', ev => {
+        ev.preventDefault(); msg.hidden = true; env.disabled = true;
+        try { localStorage.setItem(LS_NOME, nome.value.trim().slice(0, 40)); } catch (e) { /* ok */ }
+        ND.perguntar(q.id, ND.usuario(), { nome: nome.value, texto: t.value }).then(() => pintarDuvidas(q))
+          .catch(e => { msg.textContent = e && e.code === 'validacao' ? e.message : ND.erroHumano(e); msg.hidden = false; env.disabled = false; });
+      });
+      box.append(f);
+    }
+  }
+
+  /* ---------- minha anotação (só neste aparelho; entra no backup) ---------- */
+  const LS_NOTAS = 'cb2_oab_notas';
+  let notas = lsLer(LS_NOTAS, {});
+  if (!notas || typeof notas !== 'object' || Array.isArray(notas)) notas = {};
+
+  function pintarNota(q){
+    const box = $('qNota');
+    box.hidden = false; box.textContent = '';
+    const tem = Boolean(notas[q.id] && notas[q.id].t);
+    const sum = el('summary', null, 'Minha anotação (só você vê)' + (tem ? ' · salva' : ''));
+    const ta = el('textarea'); ta.maxLength = 4000; ta.rows = 6; ta.value = tem ? notas[q.id].t : '';
+    ta.setAttribute('aria-label', 'Minha anotação sobre esta questão');
+    ta.placeholder = 'Anote o que você quer lembrar: pegadinha, artigo, macete. Use a barra para grifar.';
+    const status = el('p', 'n-vazio'); status.setAttribute('aria-live', 'polite');
+    box.append(sum);
+    const ed = window.NormaTexto ? window.NormaTexto.montarEditor(ta) : null;
+    if (ed) box.append(ed.barra, ta, ed.titulo, ed.previa); else box.append(ta);
+    box.append(status);
+    box.open = tem;
+    let timer = null;
+    ta.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (ta.value.trim()) notas[q.id] = { t: ta.value.slice(0, 4000), ts: Date.now() }; else delete notas[q.id];
+        const ok = lsGravar(LS_NOTAS, notas);
+        const h = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        status.textContent = ok ? 'Salvo neste aparelho às ' + h + '.' : 'Não consegui salvar (armazenamento cheio ou bloqueado).';
+        sum.textContent = 'Minha anotação (só você vê)' + (notas[q.id] ? ' · salva' : '');
+      }, 500);
+    });
+  }
+
   function registrarDesempenho(q){
     let regs = lsLer(LS_DESEMP, []);
     if (!Array.isArray(regs)) regs = [];
@@ -383,7 +517,12 @@
     await abrirExame(selExame.value);
     if (ex && estado.exame) {
       const i = estado.lista.findIndex(q => q.id === alvoQ);
-      if (i >= 0) { estado.pos = i; pintar(); $('boxQuestao').scrollIntoView({ block: 'start' }); }
+      if (i >= 0) {
+        estado.pos = i; pintar();
+        let dv = false; try { dv = new URLSearchParams(location.search).get('dv') === '1'; } catch (e) { /* sem parâmetro */ }
+        if (dv && !atual(alvoQ)) { const q = estado.lista[i]; pintarComentarios(q); pintarDuvidas(q); $('qDuvidas').scrollIntoView({ block: 'start' }); }
+        else $('boxQuestao').scrollIntoView({ block: 'start' });
+      }
     }
   });
 })();

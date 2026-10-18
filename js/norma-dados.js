@@ -363,6 +363,44 @@
     },
     apagarAvaliacao: function (profUid, uid) { return base.gravar('avaliacoes/' + profUid + '/' + uid, null); },
 
+    /* dúvidas dos alunos (qualquer conta com e-mail confirmado) e respostas dos professores aprovados */
+    duvidas: function (qid) {
+      return Promise.all([base.ler('duvidas/' + qid), base.ler('respostas/' + qid)]).then(function (r) {
+        var rs = r[1] || {};
+        return lista(r[0]).map(function (d) {
+          return Object.assign(d, { respostas: lista(rs[d.id]).sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); }) });
+        }).sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
+      });
+    },
+    perguntar: function (qid, user, d) {
+      var nome = texto(d.nome, 40), t = texto(d.texto, 600);
+      if (nome.length < 2) return Promise.reject({ code: 'validacao', message: 'Escreva seu primeiro nome.' });
+      if (t.length < 10) return Promise.reject({ code: 'validacao', message: 'Escreva a sua dúvida com pelo menos 10 caracteres.' });
+      return base.empurrar('duvidas/' + qid, { uid: user.uid, nome: nome, texto: t, ts: base.agora() });
+    },
+    responder: function (qid, did, user, perfil, txt, videoUrl) {
+      var t = texto(txt, LIM.comentario);
+      if (t.length < 20) return Promise.reject({ code: 'validacao', message: 'Escreva uma resposta com pelo menos 20 caracteres.' });
+      var v = videoCanonico(videoUrl); if (!v.ok) return Promise.reject({ code: 'validacao', message: v.erro });
+      var corpo = { uid: user.uid, nome: perfil.nome, texto: t, ts: base.agora() }; if (v.url) corpo.video = v.url;
+      return base.empurrar('respostas/' + qid + '/' + did, corpo);
+    },
+    apagarDuvida: function (qid, id) { return base.gravar('duvidas/' + qid + '/' + id, null); },
+    apagarResposta: function (qid, did, rid) { return base.gravar('respostas/' + qid + '/' + did + '/' + rid, null); },
+    duvidasAbertas: function () {
+      return Promise.all([base.ler('duvidas'), base.ler('respostas')]).then(function (r) {
+        var ds = r[0] || {}, rs = r[1] || {}, fora = [];
+        Object.keys(ds).forEach(function (q) {
+          Object.keys(ds[q] || {}).forEach(function (id) {
+            var d = ds[q][id]; if (!d || !d.texto) return;
+            if (rs[q] && rs[q][id] && Object.keys(rs[q][id]).length) return;
+            fora.push({ qid: q, id: id, nome: d.nome, texto: d.texto, ts: d.ts || 0 });
+          });
+        });
+        return fora.sort(function (a, b) { return b.ts - a.ts; });
+      });
+    },
+
     /* pedidos de correção */
     enviarPedido: function (profUid, user, d) {
       var msg = texto(d.mensagem, LIM.mensagem), nome = texto(d.nome, LIM.nome), contato = texto(d.contato, LIM.contato).toLowerCase(), tipo = texto(d.tipo, 40);

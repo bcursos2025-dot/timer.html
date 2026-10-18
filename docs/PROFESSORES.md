@@ -28,6 +28,12 @@ Páginas: `professor.html` (cadastro do professor), `professores.html` (lista p�
 - **Avaliações dos alunos:** de 1 a 5 estrelas e um texto curto. **Só quem pediu correção àquele professor pode avaliar** (uma avaliação por aluno). Não entram no ranking.
 - **Admin:** `admin.html` mostra pendentes (com foto e OAB) e aprovados, e permite remover alguém da lista pública.
 
+## Dúvidas dos alunos e anotações
+
+- **Dúvida do aluno:** embaixo de cada questão (depois de responder), qualquer pessoa com conta e e-mail confirmado pode perguntar (10 a 600 caracteres). **Só professor aprovado responde**, com o editor formatado, e a resposta aparece com nome e OAB. A dúvida não pode ser editada; o aluno apaga a dele e o professor apaga a própria resposta (o admin apaga qualquer uma, pelo console).
+- **Painel do professor:** `professor.html` lista as dúvidas **sem resposta**, com o botão "Abrir e responder" (`oab.html?q=47-001&dv=1`, que abre a questão com dúvidas e comentários mesmo sem a pessoa ter respondido).
+- **Minha anotação:** em cada questão, um bloco recolhível só do aluno, com a mesma barra de formatação, salvo **neste aparelho** (`cb2_oab_notas`) e incluído no backup (junto com o progresso das questões).
+
 ## Ranking dos professores
 
 `pontos = (curtidas ÷ comentários) × log2(1 + comentários)`
