@@ -641,6 +641,19 @@ function sincronizarComPC(){
   }).catch(() => { /* sem internet agora — os dados continuam salvos localmente */ });
 }
 
+// Viagem sem o PC: o tempo estudado fica salvo neste aparelho e é reenviado sozinho quando a internet volta ou a página reabre.
+// A extensão importa esse histórico (o maior valor de cada dia entre PC e celular) quando o PC abrir.
+let ultimaSincNuvem = 0;
+function sincronizarAoVoltar(){
+  if (!firebaseDisponivel || !deviceId || !refCelular) return;
+  const agora = Date.now();
+  if (agora - ultimaSincNuvem < 20000) return;      // evita rajadas
+  ultimaSincNuvem = agora;
+  sincronizarComPC();
+}
+window.addEventListener('online', sincronizarAoVoltar);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) sincronizarAoVoltar(); });
+
 /* ------------------------------------------------------------
    CONTROLE REMOTO DO PC — reaproveita o MESMO mecanismo que a
    extensão já sabia atender (dispositivos/{id}/comandoRemoto), então
