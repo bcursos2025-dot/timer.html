@@ -37,6 +37,7 @@ def principal():
     ap.add_argument('--titulo', required=True)
     ap.add_argument('--ano', type=int)
     ap.add_argument('--fonte', default='FGV')
+    ap.add_argument('--ordem', type=int, help='número do exame, para ordenar a lista (47 vem antes de 46)')
     ap.add_argument('--pdf-prova', default='')
     ap.add_argument('--pdf-gabarito', default='')
     ap.add_argument('--saida', default=PASTA, help='pasta de saída (padrão: data/oab)')
@@ -90,7 +91,7 @@ def principal():
 
     questoes.sort(key=lambda q: q['numero'])
     sem_com = sum(1 for q in questoes if not q.get('comentario'))
-    obj = {'id': a.id, 'titulo': a.titulo, 'tipo': 'exame_gabarito', 'ano': a.ano, 'fonte': a.fonte,
+    obj = {'id': a.id, 'titulo': a.titulo, 'tipo': 'exame_gabarito', 'ano': a.ano, 'ordem': a.ordem, 'fonte': a.fonte,
            'aviso': 'O texto das questões é da %s: abra a prova oficial pelo botão e marque aqui a sua resposta. '
                     'Gabarito conforme o gabarito definitivo divulgado pela banca; assuntos e comentários são do Norma.' % a.fonte,
            'pdf_prova': a.pdf_prova, 'pdf_gabarito': a.pdf_gabarito, 'questoes': questoes}

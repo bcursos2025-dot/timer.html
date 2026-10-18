@@ -115,11 +115,11 @@ def main():
             contagem[q['disciplina']] = contagem.get(q['disciplina'], 0) + 1
         exames.append({
             'id': d.get('id', nome[:-5]), 'arquivo': nome, 'titulo': d.get('titulo', nome[:-5]),
-            'tipo': tipo, 'ano': d.get('ano'), 'fonte': d.get('fonte', ''),
+            'tipo': tipo, 'ano': d.get('ano'), 'ordem': d.get('ordem'), 'fonte': d.get('fonte', ''),
             'total': len(qs), 'disciplinas': contagem,
             'kb': round(os.path.getsize(os.path.join(PASTA, nome)) / 1024),
         })
-    exames.sort(key=lambda e: (e['tipo'] == 'original', -(e['ano'] or 0), e['titulo']))
+    exames.sort(key=lambda e: (e['tipo'] == 'original', -(e.get('ordem') or 0), -(e['ano'] or 0), e['titulo']))
     gravar(os.path.join(PASTA, 'indice.json'), {'versao': 1, 'total': sum(e['total'] for e in exames), 'exames': exames})
     print('%d arquivo(s) de exame, %d questões no índice, %d erro(s).' % (len(exames), sum(e['total'] for e in exames), erros))
     return 1 if erros else 0
