@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#08090c">
+<title>Correção de peça por IA — Norma</title>
+<meta name="description" content="Treine a peça da 2ª fase da OAB ou a discursiva de Procurador e receba uma correção orientativa por quesito. Não substitui a avaliação humana.">
+<script>try{var _t=localStorage.getItem("cb_tema");document.documentElement.dataset.theme=(_t==="light"||_t==="navy")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
+<link rel="stylesheet" href="css/landing.css">
+<link rel="stylesheet" href="css/peca.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="marca" href="index.html" aria-label="Norma">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 4.5 5.5v6c0 4.7 3.1 8.3 7.5 10 4.4-1.7 7.5-5.3 7.5-10v-6z"/><polyline points="8.8 12.2 11.2 14.6 15.4 9.8"/></svg></span>
+      Norma
+    </a>
+    <nav class="nav-links" aria-label="Páginas">
+      <a href="timer.html">App</a>
+      <a href="oab.html">Questões</a>
+      <a href="leis.html">Leis</a>
+      <a href="peca.html" aria-current="page">Peça</a>
+      <a href="instalar.html">Extensão</a>
+    </nav>
+    <a class="btn principal pequeno" href="timer.html">Abrir o app</a>
+  </div>
+</header>
+
+<main class="peca">
+  <div class="p-wrap">
+    <h1>Correção de peça por IA</h1>
+    <p class="p-sub">Escolha OAB ou Procurador, escreva a peça e receba uma correção orientativa, quesito por quesito, num espelho genérico. Se tiver o espelho oficial da prova, cole abaixo.</p>
+
+    <!-- situação do serviço: preenchida por js/peca.js -->
+    <div class="p-aviso" id="statusServico" role="status"></div>
+
+    <form id="form" class="p-form" novalidate>
+      <fieldset class="p-modos" aria-describedby="dicaModo">
+        <legend class="p-rotulo">O que você está treinando</legend>
+        <div class="p-modo-botoes" role="radiogroup" aria-label="Modo de correção">
+          <label class="p-modo"><input type="radio" name="modo" value="oab" checked><span><b>OAB, 2ª fase</b><small>Peça prático-profissional · vale 5,00</small></span></label>
+          <label class="p-modo"><input type="radio" name="modo" value="procurador"><span><b>Procurador</b><small>Peça, parecer ou discursiva · vale 10,00</small></span></label>
+        </div>
+        <small id="dicaModo" class="p-dica"></small>
+      </fieldset>
+
+      <label class="p-campo">
+        <span class="p-rotulo">Tipo de peça</span>
+        <select id="selTipo" aria-describedby="dicaTipo"></select>
+        <small id="dicaTipo" class="p-dica">A IA confere se a peça escolhida é a cabível para o enunciado. Se você escolher a peça errada, os quesitos afetados perdem pontos.</small>
+      </label>
+
+      <div class="p-campo">
+        <label class="p-rotulo" for="txtEnunciado">Enunciado / problema</label>
+        <textarea id="txtEnunciado" rows="6" placeholder="Cole aqui o enunciado do problema da prova." aria-describedby="cntEnunciado"></textarea>
+        <div class="p-contador" id="cntEnunciado"></div>
+      </div>
+
+      <div class="p-campo">
+        <label class="p-rotulo" for="txtPeca">Sua peça</label>
+        <textarea id="txtPeca" rows="18" placeholder="Escreva ou cole a sua peça. Não coloque seu nome real nem dados pessoais: assine como &quot;Advogado ... OAB/UF nº ...&quot;." aria-describedby="cntPeca"></textarea>
+        <div class="p-contador" id="cntPeca"></div>
+      </div>
+
+      <details class="p-espelho" id="boxEspelho">
+        <summary>Tenho o espelho ou gabarito oficial (opcional)</summary>
+        <div class="p-campo">
+          <label class="p-rotulo" for="txtEspelho">Espelho / gabarito da banca</label>
+          <textarea id="txtEspelho" rows="7" placeholder="Cole o espelho oficial divulgado pela banca. A IA usa o que a banca esperava para decidir o que você acertou e o que faltou." aria-describedby="cntEspelho"></textarea>
+          <div class="p-contador" id="cntEspelho"></div>
+        </div>
+      </details>
+
+      <div class="p-msg" id="msgForm" role="alert" hidden></div>
+
+      <label class="p-ciente" id="boxCiente" hidden>
+        <input type="checkbox" id="chkCiente">
+        <span>Entendo que o enunciado e a peça serão enviados ao servidor de correção e a um provedor de IA externo para serem avaliados. Não incluí dados pessoais reais.</span>
+      </label>
+
+      <div class="p-acoes">
+        <button class="btn principal grande" id="btnCorrigir" type="submit">Corrigir</button>
+        <button class="btn" id="btnLimpar" type="button">Limpar campos</button>
+        <span class="p-rascunho" id="infoRascunho" aria-live="polite"></span>
+      </div>
+    </form>
+
+    <section class="p-resultado" id="resultado" aria-live="polite" aria-label="Resultado da correção" hidden></section>
+
+    <section class="p-hist" id="boxHistorico" aria-labelledby="tHist">
+      <div class="p-hist-topo">
+        <h2 id="tHist">Histórico de correções</h2>
+        <button class="btn pequeno" id="btnApagarTudo" type="button" hidden>Apagar histórico</button>
+      </div>
+      <p class="p-hist-ajuda">Fica salvo só neste navegador. Você pode apagar quando quiser.</p>
+      <ul class="p-hist-lista" id="listaHistorico"></ul>
+    </section>
+  </div>
+</main>
+
+<!-- Endereço do serviço de correção (window.CB_PECA_ENDPOINT). Este arquivo só existe depois que
+     você publica o Worker; sem ele a página mostra "ainda não ativada". Veja worker/README.md. -->
+<script src="js/peca-config.js"></script>
+<script src="js/peca.js"></script>
+</body>
+</html>

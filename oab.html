@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#08090c">
+<title>Questões da OAB — Norma</title>
+<meta name="description" content="Questões da 1ª fase da OAB por exame e por disciplina, com gabarito comentado e link para o artigo da lei. Seu progresso fica salvo no seu aparelho.">
+<script>try{var _t=localStorage.getItem("cb_tema");document.documentElement.dataset.theme=(_t==="light"||_t==="navy")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
+<link rel="stylesheet" href="css/landing.css">
+<link rel="stylesheet" href="css/peca.css">
+<link rel="stylesheet" href="css/oab.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="marca" href="index.html" aria-label="Norma">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 4.5 5.5v6c0 4.7 3.1 8.3 7.5 10 4.4-1.7 7.5-5.3 7.5-10v-6z"/><polyline points="8.8 12.2 11.2 14.6 15.4 9.8"/></svg></span>
+      Norma
+    </a>
+    <nav class="nav-links" aria-label="Páginas">
+      <a href="timer.html">App</a>
+      <a href="oab.html" aria-current="page">Questões</a>
+      <a href="leis.html">Leis</a>
+      <a href="peca.html">Peça</a>
+      <a href="instalar.html">Extensão</a>
+    </nav>
+    <a class="btn principal pequeno" href="timer.html">Abrir o app</a>
+  </div>
+</header>
+
+<main class="oab">
+  <div class="o-wrap">
+    <h1>Questões da OAB</h1>
+    <p class="p-sub">1ª fase, por exame e por disciplina. Responda, veja o gabarito comentado e abra o artigo da lei.</p>
+
+    <div class="p-aviso atencao" id="avisoBanco" role="note"></div>
+
+    <div class="o-controles">
+      <label class="p-campo"><span class="p-rotulo">Exame ou banco</span>
+        <select id="selExame" aria-label="Escolher o exame ou banco"></select>
+      </label>
+      <label class="p-campo"><span class="p-rotulo">Disciplina</span>
+        <select id="selDisc" aria-label="Filtrar por disciplina"></select>
+      </label>
+      <label class="p-campo"><span class="p-rotulo">Mostrar</span>
+        <select id="selFiltro" aria-label="Filtrar por situação">
+          <option value="todas">Todas</option>
+          <option value="novas">Ainda não respondidas</option>
+          <option value="erradas">Que eu errei</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="o-placar" id="placar" aria-live="polite"></div>
+
+    <div class="p-msg" id="msgErro" role="alert" hidden></div>
+
+    <section class="o-questao" id="boxQuestao" aria-live="polite" hidden>
+      <div class="o-topo">
+        <span class="o-etiqueta" id="qEtiqueta"></span>
+        <span class="o-pos" id="qPos"></span>
+      </div>
+      <p class="o-enunciado" id="qEnunciado"></p>
+      <p class="o-prova" id="qProva" hidden></p>
+      <div class="o-alts" id="qAlts" role="radiogroup" aria-label="Alternativas"></div>
+      <div class="o-feedback" id="qFeedback" hidden></div>
+      <div class="o-nav">
+        <button class="btn" id="btnAnterior" type="button">Anterior</button>
+        <button class="btn principal" id="btnProxima" type="button">Próxima</button>
+      </div>
+      <p class="o-dica">Atalhos: teclas A a D respondem; setas ← → navegam.</p>
+    </section>
+
+    <div class="o-vazio" id="boxVazio" hidden></div>
+
+    <div class="o-rodape">
+      <button class="btn pequeno" id="btnZerar" type="button">Zerar progresso deste exame</button>
+    </div>
+  </div>
+</main>
+
+<script src="js/oab.js"></script>
+</body>
+</html>

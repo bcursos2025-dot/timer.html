@@ -556,7 +556,7 @@
   function exportar(){
     const blob = new Blob([JSON.stringify({ versao: 1, exportado_em: new Date().toISOString(), grifos: grifosSemTemp() }, null, 1)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = 'grifos-concurseiro-blindado.json'; document.body.appendChild(a); a.click(); a.remove();
+    a.download = 'grifos-norma.json'; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }
   function grifosSemTemp(){

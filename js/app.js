@@ -284,7 +284,7 @@ function pedirPermissaoNotificacao(){
 function notificarFimDeFase(novaFase){
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   try {
-    new Notification('Concurseiro Blindado', {
+    new Notification('Norma', {
       body: novaFase === 'work' ? 'Pausa terminada — hora de focar de novo.' : 'Sessão de foco terminada — hora da pausa.',
     });
   } catch (e) { /* alguns navegadores exigem Service Worker p/ isso — ignora se falhar */ }
@@ -488,7 +488,7 @@ function iniciarFirebase(){
     db = firebase.database();
     firebaseDisponivel = true;
   } catch (e) {
-    console.warn('[Concurseiro Blindado] Firebase indisponível — o cronômetro segue funcionando normalmente, só o pareamento fica fora do ar.', e);
+    console.warn('[Norma] Firebase indisponível — o cronômetro segue funcionando normalmente, só o pareamento fica fora do ar.', e);
     return;
   }
   if (deviceId) ativarPareamento(deviceId);
@@ -1572,7 +1572,25 @@ document.querySelectorAll('.q-tab').forEach((btn) => {
     document.querySelectorAll('.q-tab').forEach((b) => b.classList.toggle('ativo', b === btn));
     const ehConcurso = btn.dataset.exame === 'concurso';
     document.getElementById('qConteudoConcurso').style.display = ehConcurso ? 'block' : 'none';
-    document.getElementById('qEmBreve').style.display = ehConcurso ? 'none' : 'block';
+    const emBreve = document.getElementById('qEmBreve');
+    emBreve.style.display = ehConcurso ? 'none' : 'block';
+    if (btn.dataset.exame === 'oab') {
+      // OAB: banco por exame na página própria oab.html (os arquivos são baixados só quando o exame é aberto)
+      emBreve.textContent = '';
+      const p = document.createElement('p');
+      p.style.cssText = 'color:var(--text-dim); font-size:13.5px; margin:0 0 14px;';
+      p.textContent = 'As questões da OAB ficam organizadas por exame e por disciplina, com gabarito comentado e link para o artigo da lei.';
+      const a = document.createElement('a');
+      a.className = 'q-cta'; a.href = 'oab.html'; a.style.display = 'inline-flex';
+      a.textContent = 'Abrir as questões da OAB';
+      emBreve.append(p, a);
+    } else if (!ehConcurso) {
+      emBreve.textContent = '';
+      const p = document.createElement('p');
+      p.style.cssText = 'color:var(--text-dim); font-size:13.5px; margin:0;';
+      p.textContent = 'Ainda não tem questões nessa categoria — em breve.';
+      emBreve.append(p);
+    }
   });
 });
 
@@ -2273,7 +2291,7 @@ renderAgenda();
 (function(){
   const w = document.getElementById('btnWhatsCompartilhar');
   if (!w) return;
-  const texto = 'Estou estudando para a OAB com o Concurseiro Blindado: cronômetro, revisão, questões e leis com grifos. Experimenta: https://bcursos2025-dot.github.io/timer.html/timer.html';
+  const texto = 'Estou estudando para a OAB com a Norma: cronômetro, revisão, questões e leis com grifos. Experimenta: https://bcursos2025-dot.github.io/timer.html/timer.html';
   w.href = 'https://wa.me/?text=' + encodeURIComponent(texto);
   const cp = document.getElementById('btnCopiarLink');
   if (cp) cp.addEventListener('click', () => {

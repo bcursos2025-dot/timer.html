@@ -72,7 +72,7 @@ def og():
     d = ImageDraw.Draw(img)
     ic = icone(150)
     img.alpha_composite(ic, (90, 90))
-    d.text((270, 104), 'Concurseiro Blindado', font=fonte(46), fill=(240, 244, 252))
+    d.text((270, 104), 'Norma', font=fonte(46), fill=(240, 244, 252))
     d.text((90, 290), 'Estude para a OAB', font=fonte(88), fill=(255, 255, 255))
     d.text((90, 392), 'com método.', font=fonte(88), fill=(157, 193, 255))
     d.text((90, 540), 'Cronômetro, revisão, leis com grifos e desempenho — comece grátis.', font=fonte(32, False), fill=(170, 184, 214))

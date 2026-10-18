@@ -131,7 +131,7 @@
     return linhas.join(' ');
   }
   function sistema(trechos){
-    let s = 'Você é o assistente de estudos do Concurseiro Blindado, para quem se prepara para a OAB e concursos jurídicos no Brasil. ' +
+    let s = 'Você é o assistente de estudos da Norma, para quem se prepara para a OAB e concursos jurídicos no Brasil. ' +
       'Responda sempre em português do Brasil, de forma clara e amigável. ' +
       (modo === 'res' ? 'Seja didático: explique com exemplos e termine com uma dica curta de memorização (até uns 25 linhas). ' : 'Seja objetivo, com no máximo umas 12 linhas. ') +
       'Use listas curtas quando ajudar. Não use tabelas nem HTML. ' +

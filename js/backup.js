@@ -28,7 +28,7 @@
     const blob = new Blob([JSON.stringify(corpo, null, 1)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'backup-concurseiro-blindado-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.download = 'backup-norma-' + new Date().toISOString().slice(0, 10) + '.json';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     try { localStorage.setItem(LS_ULTIMO, String(Date.now())); localStorage.removeItem(LS_ADIAR); } catch (e) { /* ok */ }
@@ -43,7 +43,7 @@
     rd.onload = () => {
       let corpo;
       try { corpo = JSON.parse(rd.result); } catch (e) { return aviso('Esse arquivo não é um backup válido.'); }
-      if (!corpo || corpo.app !== 'concurseiro-blindado' || !corpo.dados || typeof corpo.dados !== 'object') return aviso('Esse arquivo não é um backup do Concurseiro Blindado.');
+      if (!corpo || corpo.app !== 'concurseiro-blindado' || !corpo.dados || typeof corpo.dados !== 'object') return aviso('Esse arquivo não é um backup da Norma.');
       const chaves = Object.keys(corpo.dados).filter(k => CHAVES.includes(k));
       if (!chaves.length) return aviso('O backup não tem dados reconhecidos.');
       if (!confirm('Restaurar este backup vai SUBSTITUIR os dados atuais de: ' + chaves.length + ' item(ns) deste aparelho. Continuar?')) return;
