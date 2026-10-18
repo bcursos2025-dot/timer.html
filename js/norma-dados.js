@@ -20,6 +20,8 @@
   // Login com Apple: o código está pronto, mas o botão só aparece quando isto for true. Só funciona depois de
   // configurar o Apple Developer Program (US$ 99/ano) e o provedor Apple no Firebase (docs/PROFESSORES.md, "Login com Apple").
   var LOGIN_APPLE = false;
+  // Login com Google: gratuito. Exige o provedor "Google" ligado em Authentication (já ligado) e o domínio do site autorizado.
+  var LOGIN_GOOGLE = true;
   var SDK_VERSAO = '10.12.2';
   var SDK_URLS = ['app', 'auth', 'database'].map(function (n) { return 'https://www.gstatic.com/firebasejs/' + SDK_VERSAO + '/firebase-' + n + '-compat.js'; });
   var CONFIG = {
@@ -56,7 +58,7 @@
       'auth/weak-password': 'Senha fraca: use pelo menos 8 caracteres.',
       'auth/too-many-requests': 'Muitas tentativas. Espere alguns minutos e tente de novo.',
       'auth/network-request-failed': 'Sem conexão com o Firebase. Verifique sua internet.',
-      'auth/operation-not-allowed': 'O login por e-mail e senha ainda não foi ligado no Firebase (veja docs/PROFESSORES.md, passo 1).',
+      'auth/operation-not-allowed': 'Este método de login ainda não foi ligado no Firebase (Authentication → Método de login; veja docs/PROFESSORES.md, passo 1).',
       'auth/unauthorized-domain': 'Este endereço do site não está autorizado no Firebase (veja docs/PROFESSORES.md, passo 2).',
       'auth/popup-closed-by-user': 'Você fechou a janela de login antes de terminar.',
       'auth/cancelled-popup-request': 'Já existe uma janela de login aberta.',
@@ -181,6 +183,7 @@
       recuperar: function () { return Promise.resolve(); },
       reenviarVerificacao: function () { return Promise.resolve(); },
       entrarApple: function () { return Promise.reject({ code: 'auth/operation-not-allowed' }); },
+      entrarGoogle: function () { return Promise.reject({ code: 'auth/operation-not-allowed' }); },
       recarregarUsuario: function () {
         // no teste, "verificar o e-mail" acontece sozinho ao clicar em "já verifiquei"
         var u = atual(); if (!u) return Promise.resolve(null);
@@ -235,6 +238,12 @@
       sair: function () { return f().then(function (x) { return x.auth.signOut(); }); },
       recuperar: function (e) { return f().then(function (x) { return x.auth.sendPasswordResetEmail(e); }); },
       reenviarVerificacao: function () { return f().then(function (x) { return x.auth.currentUser ? x.auth.currentUser.sendEmailVerification() : null; }); },
+      entrarGoogle: function () {
+        return f().then(function (x) {
+          var prov = new firebase.auth.GoogleAuthProvider(); prov.setCustomParameters({ prompt: 'select_account' });
+          return x.auth.signInWithPopup(prov);
+        }).then(function () {});
+      },
       entrarApple: function () {
         return f().then(function (x) {
           var prov = new firebase.auth.OAuthProvider('apple.com'); prov.addScope('email'); prov.addScope('name');
@@ -261,7 +270,7 @@
      API PÚBLICA
      ============================================================ */
   var NormaDados = {
-    mock: MOCK, loginApple: LOGIN_APPLE && !MOCK, entrarApple: function () { return base.entrarApple(); }, LIM: LIM, videoCanonico: videoCanonico, videoEmbed: videoEmbed, erroHumano: erroHumano, validarCadastro: validarCadastro, pontuacao: pontuacao, emailOk: emailOk, texto: texto,
+    mock: MOCK, loginGoogle: LOGIN_GOOGLE && !MOCK, entrarGoogle: function () { return base.entrarGoogle(); }, loginApple: LOGIN_APPLE && !MOCK, entrarApple: function () { return base.entrarApple(); }, LIM: LIM, videoCanonico: videoCanonico, videoEmbed: videoEmbed, erroHumano: erroHumano, validarCadastro: validarCadastro, pontuacao: pontuacao, emailOk: emailOk, texto: texto,
     usuario: base.usuario, onUsuario: base.onUsuario, entrar: base.entrar, criar: base.criar, sair: base.sair, recuperar: base.recuperar,
     reenviarVerificacao: base.reenviarVerificacao, recarregarUsuario: base.recarregarUsuario,
 

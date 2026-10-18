@@ -95,4 +95,4 @@ O código de "Entrar com Apple" já está em `js/norma-dados.js` (`entrarApple`)
 
 Para ligar quando tiver a conta: crie o Services ID e a chave "Sign in with Apple" no portal da Apple, preencha o provedor Apple no Firebase (Authentication → Método de login → Apple) com esses dados, adicione o domínio `concurseiro-blindado.firebaseapp.com` como domínio e URL de retorno no Services ID, e então troque `LOGIN_APPLE` para `true`.
 
-Alternativa gratuita: **Google** (Authentication → Método de login → Google, sem custo). É a opção que a maioria das pessoas, inclusive em iPhone, já usa.
+**Login com Google (ligado, gratuito):** o botão "Continuar com o Google" aparece no diálogo de entrada. Exige o provedor Google ligado em Authentication (já está) e o domínio do site em Domínios autorizados. Se a pessoa já tem conta de e-mail e senha com o mesmo e-mail, o Firebase junta as duas (mesma conta). Recomendação: manter desligado o provedor "Smartphone" (SMS), que o site não usa.

@@ -42,14 +42,19 @@
     var ok = el('button', 'btn principal', 'Entrar'); ok.type = 'submit'; ok.id = 'nAuthOk';
     var cancela = el('button', 'btn', 'Cancelar'); cancela.type = 'button'; cancela.id = 'nAuthCancela';
     acoes.append(ok, cancela); form.append(acoes);
-    if (D.loginApple) {
-      var ou = el('p', 'n-sub', 'ou'); ou.style.textAlign = 'center'; ou.style.margin = '0'; form.append(ou);
-      var ap = el('button', 'btn n-apple', ' Entrar com Apple'); ap.type = 'button'; ap.id = 'nAuthApple';
-      ap.addEventListener('click', function () {
-        ap.disabled = true;
-        D.entrarApple().then(function () { fechar(D.usuario()); }).catch(function (er) { mostrar(D.erroHumano(er)); }).then(function () { ap.disabled = false; });
+    function botaoProvedor(id, rotulo, acao) {
+      var b = el('button', 'btn n-prov', rotulo); b.type = 'button'; b.id = id;
+      b.addEventListener('click', function () {
+        b.disabled = true;
+        acao().then(function () { fechar(D.usuario()); }).catch(function (er) { mostrar(D.erroHumano(er)); }).then(function () { b.disabled = false; });
       });
-      form.append(ap);
+      form.append(b);
+    }
+    if (D.loginGoogle || D.loginApple) {
+      var ou = el('p', 'n-sub', 'ou'); ou.style.textAlign = 'center'; ou.style.margin = '0'; form.append(ou);
+      if (D.loginGoogle) botaoProvedor('nAuthGoogle', 'Continuar com o Google', function () { return D.entrarGoogle(); });
+      if (D.loginApple) botaoProvedor('nAuthApple', 'Entrar com Apple', function () { return D.entrarApple(); });
+      var nota = el('p', 'n-sub', 'Ao continuar com o Google, você concorda que o seu e-mail fique guardado no Firebase para o funcionamento do site.'); nota.style.fontSize = '12.5px'; nota.style.margin = '0'; form.append(nota);
     }
     var esq = el('button', 'n-link', 'Esqueci minha senha'); esq.type = 'button'; esq.id = 'nAuthEsqueci'; form.append(esq);
     dlg.append(form); document.body.append(dlg);

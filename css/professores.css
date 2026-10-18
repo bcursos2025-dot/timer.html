@@ -146,3 +146,5 @@ html[data-theme="light"] .n-rt .mk-azul{ background:rgba(96,165,250,.45); }
 html[data-theme="light"] .n-rt .mk-verde{ background:rgba(74,222,128,.50); }
 html[data-theme="light"] .n-rt .mk-rosa{ background:rgba(244,114,182,.42); }
 html[data-theme="light"] .n-rt .mk-vermelho{ background:rgba(248,113,113,.45); }
+
+.n-prov{ width:100%; justify-content:center; text-align:center; }
