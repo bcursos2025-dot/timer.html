@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#08090c">
+<title>Professores — Norma</title>
+<meta name="description" content="Advogados que comentam questões da OAB e corrigem peças. Veja o currículo, o preço e peça uma correção.">
+<script>try{var _t=localStorage.getItem("cb_tema");document.documentElement.dataset.theme=(_t==="light"||_t==="navy")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
+<link rel="stylesheet" href="css/landing.css">
+<link rel="stylesheet" href="css/peca.css">
+<link rel="stylesheet" href="css/professores.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="marca" href="index.html" aria-label="Norma">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 4.5 5.5v6c0 4.7 3.1 8.3 7.5 10 4.4-1.7 7.5-5.3 7.5-10v-6z"/><polyline points="8.8 12.2 11.2 14.6 15.4 9.8"/></svg></span>
+      Norma
+    </a>
+    <nav class="nav-links" aria-label="Páginas">
+      <a href="timer.html">App</a>
+      <a href="oab.html">Questões</a>
+      <a href="professores.html" aria-current="page">Professores</a>
+      <a href="leis.html">Leis</a>
+      <a href="peca.html">Peça</a>
+    </nav>
+    <a class="btn principal pequeno" href="timer.html">Abrir o app</a>
+  </div>
+</header>
+
+<main class="prof">
+  <div class="n-wrap">
+    <h1>Professores</h1>
+    <p class="n-sub">Advogados inscritos na OAB que comentam questões e corrigem peças. A ordem da lista vem das curtidas que os comentários deles recebem dos alunos. As estrelas e avaliações de serviço não mudam a ordem.</p>
+
+    <div class="p-aviso atencao" id="avisoTeste" hidden><b>Modo de teste</b><p>Os dados desta página ficam só neste navegador (não vão para o Firebase).</p></div>
+    <div class="p-aviso" id="avisoIA"><b>A correção por IA é só um primeiro olhar</b><p>Uma pessoa experiente enxerga mais e orienta melhor. Aqui você escolhe quem corrige. O preço e o pagamento são combinados direto com o professor, por e-mail.</p></div>
+    <div class="p-msg" id="msgLista" role="alert" hidden></div>
+
+    <section class="n-prof" id="lista" aria-live="polite"><p class="n-vazio">Carregando professores…</p></section>
+
+    <p class="n-sub" style="margin-top:22px">É advogado(a) e quer aparecer aqui? <a href="professor.html">Cadastre-se como professor</a>.</p>
+  </div>
+</main>
+
+<dialog class="n-dialogo" id="dlgPedido" aria-labelledby="dlgPedidoTit">
+  <form id="formPedido" method="dialog">
+    <h2 id="dlgPedidoTit">Pedir correção</h2>
+    <p class="n-sub" id="dlgPedidoSub"></p>
+    <label class="p-campo"><span class="p-rotulo">Seu nome</span><input id="pNome" maxlength="80" autocomplete="name" required></label>
+    <label class="p-campo"><span class="p-rotulo">Seu e-mail (o professor responde para ele)</span><input id="pContato" type="email" maxlength="120" autocomplete="email" required></label>
+    <label class="p-campo"><span class="p-rotulo">O que você quer corrigir</span>
+      <select id="pTipo"><option>Peça da 2ª fase da OAB</option><option>Peça de concurso (Procurador)</option><option>Questão discursiva</option><option>Outro</option></select></label>
+    <label class="p-campo"><span class="p-rotulo">Mensagem</span><textarea id="pMsg" maxlength="1500" rows="5" placeholder="Qual prova ou disciplina, prazo que você precisa, o que você quer saber."></textarea></label>
+    <p class="p-dica">Não cole sua peça aqui. Depois que o professor responder, vocês combinam como enviar o arquivo. Preço e prazo são acertados com ele.</p>
+    <div class="p-msg" id="msgPedido" role="alert" hidden></div>
+    <div class="n-acoes"><button class="btn principal" id="btnPedidoEnviar" type="submit">Enviar pedido</button><button class="btn" id="btnPedidoFechar" type="button">Cancelar</button></div>
+  </form>
+</dialog>
+
+<script src="js/norma-dados.js"></script>
+<script src="js/norma-auth-ui.js"></script>
+<script src="js/professores.js"></script>
+</body>
+</html>

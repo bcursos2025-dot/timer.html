@@ -1,0 +1,78 @@
+/* =====================================================================
+   PROFESSORES.CSS — cadastro de professor, lista de professores, admin e comentários nas questões.
+   Usa os tokens de landing.css e as classes p-* de peca.css. Só variáveis de tema (nada de cor fixa).
+   ===================================================================== */
+:root{
+  --n-ok:#7fe0a6; --n-ok-fundo:rgba(60,190,120,.14); --n-ok-linha:rgba(127,224,166,.5);
+}
+html[data-theme="light"]{
+  --n-ok:#0d6b3a; --n-ok-fundo:rgba(24,140,80,.10); --n-ok-linha:rgba(13,107,58,.5);
+}
+
+main.prof{ padding:30px 0 96px; }
+.n-wrap{ width:100%; max-width:880px; margin:0 auto; padding:0 20px; }
+.prof h1{ margin:0 0 6px; font-size:clamp(28px, 5vw, 40px); letter-spacing:-.03em; line-height:1.08; font-weight:700; }
+.prof h2{ margin:0 0 10px; font-size:20px; letter-spacing:-.015em; }
+.n-sub{ margin:0 0 18px; color:var(--text-dim); font-size:15.5px; line-height:1.55; }
+
+.n-card{ background:var(--bg-elevated); border:1px solid var(--hair); border-radius:20px; padding:18px; margin:0 0 16px; }
+.n-card h2{ margin-top:0; }
+.n-linha{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+.n-grade{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.n-grade .cheio{ grid-column:1 / -1; }
+@media (max-width:640px){ .n-grade{ grid-template-columns:1fr; } }
+
+.prof input, .prof select, .prof textarea, .n-dialogo input, .n-dialogo select, .n-dialogo textarea{
+  width:100%; font:inherit; font-size:15.5px; color:var(--text); background:var(--bg); border:1px solid var(--hair); border-radius:14px; padding:11px 13px; }
+.prof select, .n-dialogo select{ height:46px; padding-top:0; padding-bottom:0; }
+.prof textarea, .n-dialogo textarea{ line-height:1.6; resize:vertical; min-height:110px; }
+.prof input:focus-visible, .prof select:focus-visible, .prof textarea:focus-visible,
+.n-dialogo input:focus-visible, .n-dialogo select:focus-visible, .n-dialogo textarea:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+.prof input[type=checkbox], .n-dialogo input[type=checkbox]{ width:auto; }
+
+/* status do cadastro */
+.n-selo{ display:inline-block; padding:3px 11px; border-radius:999px; font-size:12.5px; font-weight:700; letter-spacing:.02em; border:1px solid var(--hair); color:var(--text); background:var(--bg-elevated-2); }
+.n-selo.ok{ color:var(--n-ok); background:var(--n-ok-fundo); border-color:var(--n-ok-linha); }
+.n-selo.erro{ color:var(--p-erro); background:var(--p-erro-fundo); border-color:var(--p-erro-linha); }
+.n-selo.espera{ color:var(--p-aviso); background:var(--p-aviso-fundo); border-color:var(--p-aviso-linha); }
+
+/* diálogo de login */
+.n-dialogo{ width:min(440px, calc(100vw - 32px)); border:1px solid var(--hair); border-radius:22px; padding:22px; color:var(--text); background:var(--bg-elevated); }
+.n-dialogo::backdrop{ background:rgba(0,0,0,.55); }
+.n-dialogo form{ display:grid; gap:14px; }
+.n-dialogo h2{ margin:0; font-size:22px; letter-spacing:-.02em; }
+.n-dialogo .n-sub{ margin:-6px 0 2px; font-size:14px; }
+.n-abas{ display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:4px; border-radius:14px; background:var(--bg); border:1px solid var(--hair); }
+.n-aba{ font:inherit; font-size:14.5px; font-weight:600; color:var(--text-dim); background:transparent; border:0; border-radius:10px; padding:9px 8px; cursor:pointer; }
+.n-aba.ativo{ background:var(--bg-elevated-2); color:var(--text); }
+.n-aba:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+.n-acoes{ display:flex; gap:10px; flex-wrap:wrap; }
+.n-link{ font:inherit; font-size:13.5px; color:var(--accent-text, var(--accent)); background:none; border:0; padding:4px 0; cursor:pointer; text-align:left; text-decoration:underline; }
+.p-msg.n-ok{ color:var(--n-ok); background:var(--n-ok-fundo); border-color:var(--n-ok-linha); }
+
+/* lista de professores */
+.n-prof{ display:grid; gap:10px; }
+.n-prof-topo{ display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap; }
+.n-prof-nome{ font-size:18px; font-weight:700; letter-spacing:-.01em; margin:0; }
+.n-prof-meta{ color:var(--text-dim); font-size:13.5px; margin:2px 0 0; }
+.n-numeros{ display:flex; flex-wrap:wrap; gap:6px 18px; font-size:14px; color:var(--text-dim); font-variant-numeric:tabular-nums; }
+.n-numeros b{ color:var(--text); font-size:17px; margin-right:4px; }
+.n-curriculo{ font-size:15px; line-height:1.6; color:var(--text); white-space:pre-line; margin:0; }
+.n-posicao{ display:inline-grid; place-items:center; min-width:30px; height:30px; padding:0 6px; border-radius:50%; font-size:13px; font-weight:700; background:var(--bg-elevated-2); color:var(--text); margin-right:8px; }
+
+/* comentários nas questões (oab.html) */
+.n-coments{ margin-top:18px; padding-top:16px; border-top:1px solid var(--hair); display:grid; gap:12px; }
+.n-coments h3{ margin:0; font-size:16px; letter-spacing:-.01em; }
+.n-coment{ padding:12px 14px; border:1px solid var(--hair); border-radius:14px; background:var(--bg); }
+.n-coment-topo{ display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:6px; font-size:13.5px; color:var(--text-dim); }
+.n-coment-topo b{ color:var(--text); font-size:14.5px; }
+.n-coment p{ margin:0; font-size:15px; line-height:1.6; color:var(--text); white-space:pre-line; }
+.n-curtir{ font:inherit; font-size:13.5px; font-weight:600; color:var(--text); background:var(--bg-elevated-2); border:1px solid var(--hair); border-radius:999px; padding:5px 12px; cursor:pointer; }
+.n-curtir[aria-pressed="true"]{ color:var(--n-ok); border-color:var(--n-ok-linha); background:var(--n-ok-fundo); }
+.n-curtir:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+.n-curtir:disabled{ opacity:.7; cursor:default; }
+.n-vazio{ color:var(--text-dim); font-size:14.5px; margin:0; }
+.n-novo{ display:grid; gap:10px; }
+
+/* o atributo hidden precisa vencer regras de display dos botões e linhas */
+.prof [hidden], .n-dialogo [hidden], .n-coments[hidden]{ display:none !important; }

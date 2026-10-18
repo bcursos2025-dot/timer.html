@@ -85,7 +85,7 @@
     el.hidden = false;
     el.innerHTML = '<h3>Backup dos seus dados</h3>' +
       '<p class="bk-lembrete-titulo">' + (ultimo ? 'Faz ' + dias + ' dias que você não baixa o backup.' : 'Você ainda não baixou nenhum backup.') + '</p>' +
-      '<p class="bk-lembrete-txt">Nós não coletamos nenhuma informação pessoal e não temos conta nem login: o seu histórico fica <b>só neste aparelho</b>. ' +
+      '<p class="bk-lembrete-txt">Para estudar não precisamos de conta nem coletamos informação pessoal: o seu histórico fica <b>só neste aparelho</b>. ' +
       'Baixe o arquivo e guarde num lugar seguro; assim você não perde nada se limpar o navegador ou trocar de computador.</p>' +
       '<div class="h-acoes" style="margin-top:14px"><button type="button" class="h-btn primario" id="bkLembreAgora">Baixar backup agora</button>' +
       '<button type="button" class="h-btn" id="bkLembreDepois">Lembrar daqui a ' + ADIAR_DIAS + ' dias</button></div>';

@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="css/landing.css">
 <link rel="stylesheet" href="css/peca.css">
 <link rel="stylesheet" href="css/oab.css">
+<link rel="stylesheet" href="css/professores.css">
 </head>
 <body>
 
@@ -22,6 +23,7 @@
     <nav class="nav-links" aria-label="Páginas">
       <a href="timer.html">App</a>
       <a href="oab.html" aria-current="page">Questões</a>
+      <a href="professores.html">Professores</a>
       <a href="leis.html">Leis</a>
       <a href="peca.html">Peça</a>
       <a href="instalar.html">Extensão</a>
@@ -66,6 +68,7 @@
       <p class="o-prova" id="qProva" hidden></p>
       <div class="o-alts" id="qAlts" role="radiogroup" aria-label="Alternativas"></div>
       <div class="o-feedback" id="qFeedback" hidden></div>
+      <section class="n-coments" id="qComents" aria-label="Comentários de professores" hidden></section>
       <div class="o-nav">
         <button class="btn" id="btnAnterior" type="button">Anterior</button>
         <button class="btn principal" id="btnProxima" type="button">Próxima</button>
@@ -81,6 +84,8 @@
   </div>
 </main>
 
+<script src="js/norma-dados.js"></script>
+<script src="js/norma-auth-ui.js"></script>
 <script src="js/oab.js"></script>
 </body>
 </html>

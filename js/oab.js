@@ -169,6 +169,7 @@
       alts.append(b);
     });
     $('qFeedback').hidden = true;
+    tokenComent++; $('qComents').hidden = true;
     if (p) mostrarResposta(q, p.r, true);
     $('btnAnterior').disabled = estado.pos === 0;
     $('btnProxima').disabled = estado.pos >= estado.lista.length - 1;
@@ -203,6 +204,93 @@
     refazer.addEventListener('click', () => { limparResposta(q.id); lsGravar(LS_PROG, progresso); pintarPlacar(); pintar(); });
     fb.append(refazer);
     fb.hidden = false;
+    pintarComentarios(q);
+  }
+
+
+  /* ---------- comentários de professores (Firebase carregado só depois da primeira resposta) ---------- */
+  const ND = window.NormaDados;
+  let qComentAtual = null, uidRenderizado = null, ouvindoLogin = false;
+  let tokenComent = 0, perfilProf;          // perfilProf: undefined = não sabido, null = não é professor, objeto = professor aprovado
+  const dataCurta = ts => ts ? new Date(ts).toLocaleDateString('pt-BR') : '';
+
+  function pintarComentarios(q){
+    const box = $('qComents');
+    if (!ND) { box.hidden = true; return; }
+    const meu = ++tokenComent;
+    qComentAtual = q; uidRenderizado = (ND.usuario() || {}).uid || null;
+    if (!ouvindoLogin) {                        // só liga o Firebase quando a primeira questão é respondida
+      ouvindoLogin = true;
+      ND.onUsuario(() => {
+        const agora = (ND.usuario() || {}).uid || null;
+        if (agora !== uidRenderizado && qComentAtual && !$('qComents').hidden) pintarComentarios(qComentAtual);
+      });
+    }
+    box.hidden = false; box.textContent = '';
+    box.append(el('h3', null, 'Comentários de professores'), el('p', 'n-vazio', 'Carregando…'));
+    Promise.all([ND.comentarios(q.id), ND.usuario() ? ND.souAprovado(ND.usuario().uid) : Promise.resolve(null)]).then(([lista, prof]) => {
+      if (meu !== tokenComent) return;           // a pessoa já foi para outra questão
+      perfilProf = prof;
+      desenharComentarios(q, lista, prof, meu);
+    }).catch(() => {
+      if (meu !== tokenComent) return;
+      box.textContent = '';
+      box.append(el('h3', null, 'Comentários de professores'), el('p', 'n-vazio', 'Não consegui carregar os comentários agora. Tente de novo em instantes.'));
+    });
+  }
+
+  function desenharComentarios(q, lista, prof, meu){
+    const box = $('qComents'); box.textContent = '';
+    box.append(el('h3', null, 'Comentários de professores'));
+    const user = ND.usuario();
+    if (!lista.length) box.append(el('p', 'n-vazio', 'Ainda não há comentários nesta questão.'));
+    lista.forEach(c => {
+      const card = el('div', 'n-coment');
+      const topo = el('div', 'n-coment-topo');
+      topo.append(el('b', null, c.nome + ' · professor(a)'), el('span', null, dataCurta(c.ts)));
+      const rod = el('div', 'n-linha'); rod.style.marginTop = '8px';
+      const jaCurti = Boolean(user) && c.curtidas.includes(user.uid);
+      const b = el('button', 'n-curtir', (jaCurti ? 'Curtido' : 'Curtir') + ' · ' + c.curtidas.length); b.type = 'button';
+      b.setAttribute('aria-pressed', jaCurti ? 'true' : 'false');
+      if (user && user.uid === c.uid) { b.disabled = true; b.title = 'Você não pode curtir o próprio comentário.'; }
+      b.addEventListener('click', () => {
+        const agir = u => {
+          if (!u) return;
+          b.disabled = true;
+          ND.curtir(q.id, c.id, u.uid, !c.curtidas.includes(u.uid)).then(() => pintarComentarios(q)).catch(e => { b.disabled = false; alert(ND.erroHumano(e)); });
+        };
+        if (ND.usuario()) agir(ND.usuario()); else window.NormaAuthUI.abrir('entrar').then(agir);
+      });
+      rod.append(b);
+      if (user && user.uid === c.uid) {
+        const ap = el('button', 'btn pequeno', 'Apagar meu comentário'); ap.type = 'button';
+        ap.addEventListener('click', () => { if (confirm('Apagar este comentário?')) ND.apagarComentario(q.id, c.id).then(() => pintarComentarios(q)).catch(e => alert(ND.erroHumano(e))); });
+        rod.append(ap);
+      }
+      card.append(topo, el('p', null, c.texto), rod);
+      box.append(card);
+    });
+
+    if (prof) {
+      const form = el('form', 'n-novo');
+      const t = el('textarea'); t.maxLength = 2000; t.rows = 4; t.required = true;
+      t.setAttribute('aria-label', 'Seu comentário como professor'); t.placeholder = 'Explique a questão com suas palavras: por que a alternativa certa é a certa e por que as outras estão erradas. Não copie texto de curso ou de livro.';
+      const msg = el('div', 'p-msg'); msg.hidden = true; msg.setAttribute('role', 'alert');
+      const enviar = el('button', 'btn principal', 'Comentar como professor'); enviar.type = 'submit';
+      form.append(t, msg, enviar);
+      form.addEventListener('submit', ev => {
+        ev.preventDefault(); msg.hidden = true; enviar.disabled = true;
+        ND.comentar(q.id, ND.usuario(), prof, t.value).then(() => pintarComentarios(q))
+          .catch(e => { msg.textContent = e && e.code === 'validacao' ? e.message : ND.erroHumano(e); msg.hidden = false; enviar.disabled = false; });
+      });
+      box.append(form);
+    } else {
+      const dica = el('p', 'n-vazio');
+      dica.append(document.createTextNode('É advogado(a)? '));
+      const a = el('a', null, 'Cadastre-se como professor'); a.href = 'professor.html';
+      dica.append(a, document.createTextNode(' para comentar as questões.'));
+      box.append(dica);
+    }
   }
 
   function registrarDesempenho(q){

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#08090c">
+<title>Aprovar professores — Norma</title>
+<script>try{var _t=localStorage.getItem("cb_tema");document.documentElement.dataset.theme=(_t==="light"||_t==="navy")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
+<link rel="stylesheet" href="css/landing.css">
+<link rel="stylesheet" href="css/peca.css">
+<link rel="stylesheet" href="css/professores.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="marca" href="index.html" aria-label="Norma">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 4.5 5.5v6c0 4.7 3.1 8.3 7.5 10 4.4-1.7 7.5-5.3 7.5-10v-6z"/><polyline points="8.8 12.2 11.2 14.6 15.4 9.8"/></svg></span>
+      Norma
+    </a>
+    <nav class="nav-links" aria-label="Páginas"><a href="professor.html">Meu cadastro</a><a href="professores.html">Professores</a></nav>
+    <a class="btn principal pequeno" href="timer.html">Abrir o app</a>
+  </div>
+</header>
+
+<main class="prof">
+  <div class="n-wrap">
+    <h1>Aprovar professores</h1>
+    <p class="n-sub">Confira o número da OAB de cada candidato no <a href="https://cna.oab.org.br/" target="_blank" rel="noopener noreferrer">Cadastro Nacional dos Advogados</a> (nome, número e seccional têm de bater) antes de aprovar.</p>
+    <div class="p-aviso atencao" id="avisoTeste" hidden><b>Modo de teste</b><p>Os dados desta página ficam só neste navegador. Para ser admin no teste, abra o console e rode: <code>NormaAdminTeste()</code></p></div>
+    <div class="p-msg" id="msgAdm" role="alert" hidden></div>
+    <section class="n-card" id="boxEntrar" hidden><p class="n-sub">Entre com a conta de administrador.</p><button class="btn principal" id="btnEntrar" type="button">Entrar</button></section>
+    <section class="n-card" id="boxNegado" hidden><h2>Sem permissão</h2><p class="n-sub">Esta conta não é de administrador.</p><button class="btn" id="btnSair" type="button">Sair</button></section>
+    <section class="n-prof" id="lista" hidden></section>
+  </div>
+</main>
+
+<script src="js/norma-dados.js"></script>
+<script src="js/norma-auth-ui.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
