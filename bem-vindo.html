@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#08090c">
+<title>Bem-vindo à Norma</title>
+<meta name="description" content="Grife as leis, cronometre o estudo, faça questões da OAB e acompanhe o seu desempenho. Escolha por onde começar.">
+<script>try{var _t=localStorage.getItem("cb_tema");document.documentElement.dataset.theme=(_t==="light"||_t==="navy")?_t:"dark";}catch(e){document.documentElement.dataset.theme="dark";}</script>
+<link rel="stylesheet" href="css/landing.css">
+<link rel="stylesheet" href="css/bemvindo.css">
+</head>
+<body class="bv">
+
+<header class="bv-topo">
+  <a class="marca" href="index.html" aria-label="Norma">
+    <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 4.5 5.5v6c0 4.7 3.1 8.3 7.5 10 4.4-1.7 7.5-5.3 7.5-10v-6z"/><polyline points="8.8 12.2 11.2 14.6 15.4 9.8"/></svg></span>
+    Norma
+  </a>
+  <a class="bv-pular" href="timer.html" data-feito>Ir direto para o app</a>
+</header>
+
+<main class="bv-main">
+  <section class="bv-hero">
+    <p class="bv-eyebrow">Bem-vindo</p>
+    <h1>O que você quer<br>fazer hoje?</h1>
+    <p class="bv-sub">Escolha um caminho para ver como funciona. Você pode mudar de ideia quando quiser.</p>
+  </section>
+
+  <section class="bv-grade" aria-label="Caminhos">
+
+    <!-- 1. MARCA-TEXTO NAS LEIS -->
+    <button class="bv-cartao" type="button" data-caminho="marca" aria-haspopup="dialog">
+      <div class="bv-ilu ilu" aria-hidden="true">
+        <div class="mj">
+          <div class="mj-barra"><i></i><i></i><i></i><span class="mj-aba"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4z"/><path d="M8 8h8M8 12h6"/></svg>Lei 8.906/94</span></div>
+          <div class="mj-corpo">
+            <p class="mj-art"><b>Art. 5º</b> O advogado postula, em juízo ou fora dele, fazendo prova do mandato.</p>
+            <p class="mj-par"><b>§ 1º</b> O advogado, <u>afirmando urgência</u>, <mark class="m-amarelo">pode atuar sem procuração</mark>, obrigando-se a apresentá-la <mark class="m-azul">no prazo de quinze dias</mark>, <mark class="m-verde">prorrogável por igual período</mark>.</p>
+            <div class="mj-paleta"><i class="c-amarelo"></i><i class="c-verde"></i><i class="c-azul"></i><i class="c-rosa"></i><i class="c-laranja"></i><i class="c-roxo"></i></div>
+          </div>
+        </div>
+      </div>
+      <div class="bv-texto">
+        <h2>Grifar os artigos das leis</h2>
+        <p>Marca-texto em 6 cores direto no texto da lei.</p>
+      </div>
+      <span class="bv-seta" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+    </button>
+
+    <!-- 2. CRONÔMETRO -->
+    <button class="bv-cartao" type="button" data-caminho="cronometro" aria-haspopup="dialog">
+      <div class="bv-ilu ilu" aria-hidden="true">
+        <svg class="cena" viewBox="0 0 480 300" role="img" focusable="false">
+          <defs>
+            <linearGradient id="gTela" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".35"/><stop offset="1" stop-color="var(--accent)" stop-opacity=".12"/></linearGradient>
+            <linearGradient id="gMesa" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--text)" stop-opacity=".16"/><stop offset="1" stop-color="var(--text)" stop-opacity=".07"/></linearGradient>
+          </defs>
+          <ellipse cx="240" cy="270" rx="210" ry="14" fill="var(--text)" opacity=".07"/>
+          <!-- mesa -->
+          <rect x="40" y="214" width="400" height="14" rx="7" fill="url(#gMesa)"/>
+          <rect x="70" y="228" width="10" height="42" rx="4" fill="var(--text)" opacity=".12"/>
+          <rect x="400" y="228" width="10" height="42" rx="4" fill="var(--text)" opacity=".12"/>
+          <!-- aluno -->
+          <path d="M88 214 C88 168 108 146 140 146 C172 146 190 166 192 214 Z" fill="var(--accent)" opacity=".85"/>
+          <rect x="128" y="124" width="24" height="26" rx="10" fill="#e9b894"/>
+          <circle cx="140" cy="108" r="26" fill="#f0c4a2"/>
+          <path d="M113 106 C112 80 132 70 150 74 C164 77 169 90 166 104 C158 96 146 92 132 94 C124 95 118 99 113 106 Z" fill="#3a2a22"/>
+          <path d="M176 176 C196 186 212 196 232 200" stroke="#f0c4a2" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <!-- notebook -->
+          <path d="M226 214 L238 108 Q239 100 247 100 L396 100 Q404 100 405 108 L412 214 Z" fill="url(#gTela)" stroke="var(--text)" stroke-opacity=".28" stroke-width="3" stroke-linejoin="round"/>
+          <rect x="204" y="212" width="236" height="10" rx="5" fill="var(--text)" opacity=".24"/>
+          <!-- anel do cronômetro na tela -->
+          <circle cx="322" cy="152" r="36" fill="none" stroke="var(--text)" stroke-opacity=".16" stroke-width="9"/>
+          <circle cx="322" cy="152" r="36" fill="none" stroke="var(--accent)" stroke-width="9" stroke-linecap="round" stroke-dasharray="226" stroke-dashoffset="70" transform="rotate(-90 322 152)"/>
+          <text x="322" y="157" text-anchor="middle" font-size="15" font-weight="700" fill="var(--text)" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">2:35</text>
+          <rect x="268" y="196" width="108" height="8" rx="4" fill="var(--text)" opacity=".16"/>
+          <rect x="268" y="196" width="72" height="8" rx="4" fill="var(--ok)"/>
+          <!-- caderno e caneca -->
+          <rect x="52" y="200" width="46" height="14" rx="3" fill="var(--gold)" opacity=".9"/>
+          <rect x="58" y="188" width="38" height="12" rx="3" fill="var(--ok)" opacity=".85"/>
+          <path d="M428 196 h22 v18 a8 8 0 0 1 -8 8 h-6 a8 8 0 0 1 -8 -8 z" fill="var(--text)" opacity=".2"/>
+        </svg>
+      </div>
+      <div class="bv-texto">
+        <h2>Cronometrar o meu estudo</h2>
+        <p>Meta diária, ofensiva e histórico, até sem internet.</p>
+      </div>
+      <span class="bv-seta" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+    </button>
+
+    <!-- 3. QUESTÕES DA OAB -->
+    <button class="bv-cartao" type="button" data-caminho="questoes" aria-haspopup="dialog">
+      <div class="bv-ilu ilu" aria-hidden="true">
+        <div class="mj">
+          <div class="mj-barra"><i></i><i></i><i></i><span class="mj-aba"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Questões da OAB</span></div>
+          <div class="mj-corpo">
+            <div class="mj-q-topo"><b>Ética Profissional</b><span>12 de 80</span></div>
+            <p class="mj-q-enun">O advogado pode atuar sem procuração em caso de urgência?</p>
+            <div class="mj-alts">
+              <div><span>A</span><i style="width:78%"></i></div>
+              <div class="certa"><span>B</span><i style="width:92%"></i></div>
+              <div><span>C</span><i style="width:64%"></i></div>
+              <div class="errada"><span>D</span><i style="width:70%"></i></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bv-texto">
+        <h2>Fazer questões da OAB</h2>
+        <p>1.440 questões de 18 exames, com gabarito.</p>
+      </div>
+      <span class="bv-seta" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+    </button>
+
+    <!-- 4. DESEMPENHO -->
+    <button class="bv-cartao" type="button" data-caminho="desempenho" aria-haspopup="dialog">
+      <div class="bv-ilu ilu" aria-hidden="true">
+        <div class="mj">
+          <div class="mj-barra"><i></i><i></i><i></i><span class="mj-aba"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-5 3 3 5-7"/></svg>Site de questões</span></div>
+          <div class="mj-corpo">
+            <div class="mj-d-topo"><b>Seu desempenho</b><span class="mj-sinc">Sincronizado</span></div>
+            <div class="mj-d-grade">
+              <div class="mj-rosca"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="14" fill="none" stroke="var(--text)" stroke-opacity=".14" stroke-width="5"/><circle cx="18" cy="18" r="14" fill="none" stroke="var(--ok)" stroke-width="5" stroke-linecap="round" stroke-dasharray="88" stroke-dashoffset="25" transform="rotate(-90 18 18)"/></svg><b>72%</b></div>
+              <div class="mj-barras">
+                <div><span>Ética</span><i style="width:88%" class="b-ok"></i></div>
+                <div><span>Civil</span><i style="width:61%" class="b-acc"></i></div>
+                <div><span>Penal</span><i style="width:44%" class="b-ouro"></i></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bv-texto">
+        <h2>Acompanhar o meu desempenho</h2>
+        <p>Sincronize com o QConcursos ou registre de outros sites.</p>
+      </div>
+      <span class="bv-seta" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+    </button>
+  </section>
+
+  <p class="bv-rodape">Grátis · Sem cadastro para estudar · Seus dados ficam no seu aparelho</p>
+</main>
+
+<!-- ====================== FOLHA (detalhe de cada caminho) ====================== -->
+<dialog class="bv-folha" id="folha" aria-labelledby="folhaTitulo">
+  <div class="bv-folha-cab">
+    <button class="bv-fechar" type="button" id="folhaFechar" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="bv-folha-ilu ilu" id="folhaIlu" aria-hidden="true"></div>
+
+  <!-- marca-texto -->
+  <div class="bv-folha-corpo" data-folha="marca" hidden>
+    <h2 id="folhaTitulo-marca">Grife as leis do jeito que você estuda</h2>
+    <p class="lead">Selecione um trecho e escolha a cor. Seus grifos ficam salvos. Há três jeitos de usar; comece pelo mais fácil.</p>
+
+    <div class="bv-seg" role="tablist" aria-label="Três formas de usar o marca-texto">
+      <span class="bv-seg-fundo" aria-hidden="true"></span>
+      <button type="button" role="tab" id="t-site" aria-controls="p-site" aria-selected="true"><b>No site</b><small>Mais fácil</small></button>
+      <button type="button" role="tab" id="t-firefox" aria-controls="p-firefox" aria-selected="false" tabindex="-1"><b>No Firefox</b><small>Mais comum</small></button>
+      <button type="button" role="tab" id="t-outro" aria-controls="p-outro" aria-selected="false" tabindex="-1"><b>Outro navegador</b><small>Mais trabalhoso</small></button>
+    </div>
+
+    <div class="bv-painel" id="p-site" role="tabpanel" aria-labelledby="t-site">
+      <ol class="bv-passos">
+        <li><b>Abra “Leis com grifos”.</b><span>Nada para instalar. Funciona no celular e no computador, e está liberado mesmo no modo iniciante.</span></li>
+        <li><b>Escolha a lei.</b><span>São 16 leis do Planalto, como o Estatuto da OAB, a Constituição e os códigos.</span></li>
+        <li><b>Selecione o trecho e toque na cor.</b><span>Seis cores de marca-texto (e uma paleta completa) e notas. Seus grifos ficam salvos no seu aparelho.</span></li>
+      </ol>
+      <div class="bv-acoes"><a class="btn principal grande" href="leis.html" data-feito>Abrir as leis agora</a></div>
+    </div>
+
+    <div class="bv-painel" id="p-firefox" role="tabpanel" aria-labelledby="t-firefox" hidden>
+      <p class="bv-nota">A extensão grifa direto no site do Planalto, enquanto você lê a lei de verdade.</p>
+      <ol class="bv-passos">
+        <li><b>Adicione ao Firefox.</b><span>Abra a página da extensão na loja oficial do Firefox e clique em “Adicionar ao Firefox”.</span></li>
+        <li><b>Libere os sites.</b><span>O Firefox deixa as permissões desligadas. Se a extensão pedir, siga o guia de permissões que ela mostra (ou abra <code>about:addons</code> e ligue em “Permissões”).</span></li>
+        <li><b>Abra uma lei e selecione o trecho.</b><span>No planalto.gov.br, selecione o texto e escolha a cor do marca-texto.</span></li>
+      </ol>
+      <div class="bv-acoes"><a class="btn principal grande" href="https://addons.mozilla.org/pt-BR/firefox/addon/concurseiro-blindado-anal%C3%ADtico/" target="_blank" rel="noopener noreferrer" data-feito>Adicionar ao Firefox</a></div>
+    </div>
+
+    <div class="bv-painel" id="p-outro" role="tabpanel" aria-labelledby="t-outro" hidden>
+      <p class="bv-nota">Para Chrome, Edge, Opera ou Brave, no Windows. Sem loja e sem conta; leva uns 2 minutos.</p>
+      <ol class="bv-passos">
+        <li><b>Baixe e abra o instalador.</b><span>Na página de instalação, clique em “Baixar o instalador” e dê dois cliques no arquivo. Ele prepara tudo e abre o seu navegador.</span></li>
+        <li><b>Ligue o “Modo do desenvolvedor”.</b><span>Na página de extensões que abriu, é uma chave no canto de cima, à direita.</span></li>
+        <li><b>Carregue a pasta.</b><span>Clique em “Carregar sem pacote”, cole o endereço que já está copiado (Ctrl + V), confirme e pronto.</span></li>
+      </ol>
+      <p class="bv-aviso">O Windows pode mostrar um aviso por ser um arquivo novo. A página de instalação explica como seguir. No celular não dá para instalar extensões: use o site.</p>
+      <div class="bv-acoes"><a class="btn principal grande" href="instalar.html" data-feito>Ver o passo a passo completo</a></div>
+    </div>
+  </div>
+
+  <!-- cronômetro -->
+  <div class="bv-folha-corpo" data-folha="cronometro" hidden>
+    <h2>Estude com meta, ofensiva e histórico</h2>
+    <p class="lead">Um cronômetro simples que mostra se você está cumprindo o que planejou.</p>
+    <ul class="bv-lista">
+      <li><b>Cronômetro e Pomodoro</b><span>Inicie, pause e acompanhe a meta do dia.</span></li>
+      <li><b>Ofensiva</b><span>Quantos dias seguidos você bateu a meta.</span></li>
+      <li><b>Funciona sem internet</b><span>O tempo fica salvo no aparelho e sincroniza depois.</span></li>
+      <li><b>Pareado com o PC (opcional)</b><span>Com a extensão, o celular mostra e controla o cronômetro do computador. Se você ficar só com o celular, o tempo é reenviado quando a internet voltar.</span></li>
+    </ul>
+    <div class="bv-acoes"><a class="btn principal grande" href="timer.html" data-feito>Abrir o cronômetro</a><a class="btn grande" href="instalar.html" data-feito>Extensão para o PC</a></div>
+  </div>
+
+  <!-- questões -->
+  <div class="bv-folha-corpo" data-folha="questoes" hidden>
+    <h2>Questões da OAB com gabarito</h2>
+    <p class="lead">Responda, veja o gabarito e vá direto ao artigo da lei.</p>
+    <ul class="bv-lista">
+      <li><b>18 exames, 1.440 questões</b><span>Do XVI ao 47º Exame, com gabarito definitivo, mais um banco de Ética.</span></li>
+      <li><b>Filtros</b><span>Por exame, disciplina, e só as que você ainda não fez ou errou.</span></li>
+      <li><b>Dúvidas e comentários</b><span>Pergunte a professores aprovados e veja os comentários deles, com marca-texto e vídeo.</span></li>
+      <li><b>Sua anotação</b><span>Em cada questão, um espaço só seu, com grifos.</span></li>
+    </ul>
+    <p class="bv-aviso">O texto das questões é da banca (FGV/OAB), reproduzido para estudo, com link para a prova original.</p>
+    <div class="bv-acoes"><a class="btn principal grande" href="oab.html" data-feito>Fazer questões</a><a class="btn grande" href="professores.html" data-feito>Ver os professores</a></div>
+  </div>
+
+  <!-- desempenho -->
+  <div class="bv-folha-corpo" data-folha="desempenho" hidden>
+    <h2>Veja onde você mais erra</h2>
+    <p class="lead">Seus acertos por disciplina e assunto, para saber o que estudar primeiro.</p>
+    <ul class="bv-lista">
+      <li><b>QConcursos, automático</b><span>Com a extensão no computador, o seu desempenho no QConcursos aparece sozinho no Painel e aponta os assuntos mais fracos. Use apenas com a sua conta e dentro das regras do site.</span></li>
+      <li><b>Outros sites, manual</b><span>TEC, Gran, simulados e provas: registre quantas fez e quantas acertou em menos de um minuto no Painel.</span></li>
+      <li><b>Resultado por disciplina</b><span>Acerto por matéria e a lista do que mais pesa nos seus erros.</span></li>
+    </ul>
+    <div class="bv-acoes"><a class="btn principal grande" href="instalar.html" data-feito>Instalar a extensão</a><a class="btn grande" href="timer.html" data-feito>Registrar manualmente</a></div>
+  </div>
+</dialog>
+
+<script src="js/bemvindo.js"></script>
+</body>
+</html>
