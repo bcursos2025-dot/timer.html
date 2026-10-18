@@ -17,6 +17,9 @@
 (function () {
   'use strict';
 
+  // Login com Apple: o código está pronto, mas o botão só aparece quando isto for true. Só funciona depois de
+  // configurar o Apple Developer Program (US$ 99/ano) e o provedor Apple no Firebase (docs/PROFESSORES.md, "Login com Apple").
+  var LOGIN_APPLE = false;
   var SDK_VERSAO = '10.12.2';
   var SDK_URLS = ['app', 'auth', 'database'].map(function (n) { return 'https://www.gstatic.com/firebasejs/' + SDK_VERSAO + '/firebase-' + n + '-compat.js'; });
   var CONFIG = {
@@ -55,6 +58,10 @@
       'auth/network-request-failed': 'Sem conexão com o Firebase. Verifique sua internet.',
       'auth/operation-not-allowed': 'O login por e-mail e senha ainda não foi ligado no Firebase (veja docs/PROFESSORES.md, passo 1).',
       'auth/unauthorized-domain': 'Este endereço do site não está autorizado no Firebase (veja docs/PROFESSORES.md, passo 2).',
+      'auth/popup-closed-by-user': 'Você fechou a janela de login antes de terminar.',
+      'auth/cancelled-popup-request': 'Já existe uma janela de login aberta.',
+      'auth/popup-blocked': 'O navegador bloqueou a janela de login. Libere pop-ups para este site e tente de novo.',
+      'auth/account-exists-with-different-credential': 'Já existe uma conta com esse e-mail por outro método. Entre com e-mail e senha.',
       'auth/user-disabled': 'Esta conta foi desativada.',
       'auth/requires-recent-login': 'Por segurança, saia e entre de novo para continuar.',
       'PERMISSION_DENIED': 'O banco recusou esta operação. As regras novas do banco ainda não foram publicadas, ou sua conta não tem permissão (veja docs/PROFESSORES.md, passo 3).',
@@ -173,6 +180,7 @@
       sair: function () { localStorage.removeItem(KU); avisar(); return Promise.resolve(); },
       recuperar: function () { return Promise.resolve(); },
       reenviarVerificacao: function () { return Promise.resolve(); },
+      entrarApple: function () { return Promise.reject({ code: 'auth/operation-not-allowed' }); },
       recarregarUsuario: function () {
         // no teste, "verificar o e-mail" acontece sozinho ao clicar em "já verifiquei"
         var u = atual(); if (!u) return Promise.resolve(null);
@@ -227,6 +235,12 @@
       sair: function () { return f().then(function (x) { return x.auth.signOut(); }); },
       recuperar: function (e) { return f().then(function (x) { return x.auth.sendPasswordResetEmail(e); }); },
       reenviarVerificacao: function () { return f().then(function (x) { return x.auth.currentUser ? x.auth.currentUser.sendEmailVerification() : null; }); },
+      entrarApple: function () {
+        return f().then(function (x) {
+          var prov = new firebase.auth.OAuthProvider('apple.com'); prov.addScope('email'); prov.addScope('name');
+          return x.auth.signInWithPopup(prov);
+        }).then(function () {});
+      },
       recarregarUsuario: function () {
         return f().then(function (x) {
           var u = x.auth.currentUser; if (!u) return null;
@@ -247,7 +261,7 @@
      API PÚBLICA
      ============================================================ */
   var NormaDados = {
-    mock: MOCK, LIM: LIM, videoCanonico: videoCanonico, videoEmbed: videoEmbed, erroHumano: erroHumano, validarCadastro: validarCadastro, pontuacao: pontuacao, emailOk: emailOk, texto: texto,
+    mock: MOCK, loginApple: LOGIN_APPLE && !MOCK, entrarApple: function () { return base.entrarApple(); }, LIM: LIM, videoCanonico: videoCanonico, videoEmbed: videoEmbed, erroHumano: erroHumano, validarCadastro: validarCadastro, pontuacao: pontuacao, emailOk: emailOk, texto: texto,
     usuario: base.usuario, onUsuario: base.onUsuario, entrar: base.entrar, criar: base.criar, sair: base.sair, recuperar: base.recuperar,
     reenviarVerificacao: base.reenviarVerificacao, recarregarUsuario: base.recarregarUsuario,
 

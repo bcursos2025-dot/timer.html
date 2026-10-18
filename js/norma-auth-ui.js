@@ -42,6 +42,15 @@
     var ok = el('button', 'btn principal', 'Entrar'); ok.type = 'submit'; ok.id = 'nAuthOk';
     var cancela = el('button', 'btn', 'Cancelar'); cancela.type = 'button'; cancela.id = 'nAuthCancela';
     acoes.append(ok, cancela); form.append(acoes);
+    if (D.loginApple) {
+      var ou = el('p', 'n-sub', 'ou'); ou.style.textAlign = 'center'; ou.style.margin = '0'; form.append(ou);
+      var ap = el('button', 'btn n-apple', ' Entrar com Apple'); ap.type = 'button'; ap.id = 'nAuthApple';
+      ap.addEventListener('click', function () {
+        ap.disabled = true;
+        D.entrarApple().then(function () { fechar(D.usuario()); }).catch(function (er) { mostrar(D.erroHumano(er)); }).then(function () { ap.disabled = false; });
+      });
+      form.append(ap);
+    }
     var esq = el('button', 'n-link', 'Esqueci minha senha'); esq.type = 'button'; esq.id = 'nAuthEsqueci'; form.append(esq);
     dlg.append(form); document.body.append(dlg);
 

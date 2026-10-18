@@ -88,3 +88,11 @@ Em `localhost`, abra qualquer página com `?mock=1` (por exemplo `professor.html
 - **Comentários de alunos pagos**, **avisos por e-mail** ao professor quando chega pedido, **moderação** (hoje só o admin pode apagar comentário, pelo console).
 - **Exclusão da conta pela própria pessoa**: por enquanto é a pedido ao responsável pelo site (a política de privacidade do app já diz isso).
 - **Escala:** o ranking lê todos os comentários e curtidas. Aguenta centenas de professores e milhares de curtidas; depois disso vale guardar contadores prontos.
+
+## Login com Apple (código pronto, desligado)
+
+O código de "Entrar com Apple" já está em `js/norma-dados.js` (`entrarApple`) e `js/norma-auth-ui.js`, mas o botão só aparece quando `LOGIN_APPLE = true`. **Sem a conta paga da Apple não funciona**: o Firebase exige um Services ID, Team ID, Key ID e uma chave privada, que só o Apple Developer Program (US$ 99/ano) fornece. Ligar o provedor "Apple" no console, sem essas credenciais, deixa o botão dar erro.
+
+Para ligar quando tiver a conta: crie o Services ID e a chave "Sign in with Apple" no portal da Apple, preencha o provedor Apple no Firebase (Authentication → Método de login → Apple) com esses dados, adicione o domínio `concurseiro-blindado.firebaseapp.com` como domínio e URL de retorno no Services ID, e então troque `LOGIN_APPLE` para `true`.
+
+Alternativa gratuita: **Google** (Authentication → Método de login → Google, sem custo). É a opção que a maioria das pessoas, inclusive em iPhone, já usa.

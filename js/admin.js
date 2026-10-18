@@ -44,6 +44,14 @@
       });
       ac.append(ok, no);
     } else {
+      var atu = el('button', 'btn principal', 'Atualizar perfil público'); atu.type = 'button';
+      atu.title = 'Copia o cadastro (OAB, foto, currículo, preço) para o perfil que aparece na lista';
+      atu.addEventListener('click', function () {
+        atu.disabled = true;
+        D.souAprovado(p.id).then(function (a) { return D.aprovar(p.id, Object.assign({}, p, { desde: a && a.desde })); })
+          .then(function () { msg(''); pintar(); }).catch(function (e) { msg(D.erroHumano(e)); atu.disabled = false; });
+      });
+      ac.append(atu);
       var rem = el('button', 'btn', 'Remover da lista pública'); rem.type = 'button';
       rem.addEventListener('click', function () {
         if (!confirm('Remover ' + p.nome + ' da lista pública? Os comentários dele continuam no banco.')) return;
