@@ -43,3 +43,7 @@ Formato do arquivo gerado: `{ id, titulo, tipo:"exame_gabarito", ano, fonte, avi
 Atenção: gabarito PRELIMINAR pode não refletir as anulações finais; prefira o definitivo.
 
 Dica: os links em `origem.txt` (pasta das provas) vêm com http://; troque por https://oab.fgv.br/... (testado: o https responde com o PDF).
+
+
+## Provas anteriores com texto completo (tipo "exame")
+Os 18 exames publicados trazem enunciado e alternativas, além de gabarito, disciplina, assunto e página do PDF oficial. Texto extraído dos cadernos de prova (Tipo 1) do site oab.fgv.br; nos exames 35, 42 e 45 parte do texto veio de OCR e há aviso na página. Questão anulada vale acerto. Fonte e aviso: campo `aviso` de cada arquivo.

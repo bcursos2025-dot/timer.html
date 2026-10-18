@@ -58,7 +58,7 @@ def valida_questao(q, tipo='original'):
     alts = q['alternativas']
     if not isinstance(alts, dict) or len(alts) < 2:
         return 'alternativas inválidas'
-    if q['gabarito'] not in alts:
+    if q['gabarito'] not in alts and not q.get('anulada'):
         return 'gabarito "%s" não está nas alternativas' % q['gabarito']
     return None
 

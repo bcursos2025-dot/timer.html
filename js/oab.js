@@ -147,7 +147,16 @@
       a.href = base ? base + (q.pagina ? '#page=' + encodeURIComponent(q.pagina) : '') : 'https://oab.fgv.br/';
       a.target = '_blank'; a.rel = 'noopener noreferrer';
       prova.append(a); prova.hidden = false;
-    } else $('qEnunciado').textContent = q.enunciado;
+    } else {
+      $('qEnunciado').textContent = q.enunciado;
+      const base = urlSegura(estado.exame.pdf_prova);
+      if (base) {
+        const a = el('a', 'btn pequeno', 'Ver na prova original (PDF)');
+        a.href = base + (q.pagina ? '#page=' + encodeURIComponent(q.pagina) : '');
+        a.target = '_blank'; a.rel = 'noopener noreferrer';
+        prova.append(a); prova.hidden = false;
+      }
+    }
     const alts = $('qAlts'); alts.textContent = '';
     const p = atual(q.id);
     letras(q).forEach(letra => {
