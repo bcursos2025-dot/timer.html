@@ -93,7 +93,7 @@ def principal():
     sem_com = sum(1 for q in questoes if not q.get('comentario'))
     obj = {'id': a.id, 'titulo': a.titulo, 'tipo': 'exame_gabarito', 'ano': a.ano, 'ordem': a.ordem, 'fonte': a.fonte,
            'aviso': 'O texto das questões é da %s: abra a prova oficial pelo botão e marque aqui a sua resposta. '
-                    'Gabarito conforme o gabarito definitivo divulgado pela banca; assuntos e comentários são do Norma.' % a.fonte,
+                    'Gabarito conforme o gabarito definitivo divulgado pela banca; assuntos são do Norma. Comentários só aparecem quando escritos por professores ou alunos, com o nome do autor.' % a.fonte,
            'pdf_prova': a.pdf_prova, 'pdf_gabarito': a.pdf_gabarito, 'questoes': questoes}
     os.makedirs(a.saida, exist_ok=True)
     destino = os.path.join(a.saida, a.id + '.json')

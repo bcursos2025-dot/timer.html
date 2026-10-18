@@ -1579,7 +1579,7 @@ document.querySelectorAll('.q-tab').forEach((btn) => {
       emBreve.textContent = '';
       const p = document.createElement('p');
       p.style.cssText = 'color:var(--text-dim); font-size:13.5px; margin:0 0 14px;';
-      p.textContent = 'As questões da OAB ficam organizadas por exame e por disciplina, com gabarito comentado e link para o artigo da lei.';
+      p.textContent = 'As questões da OAB ficam organizadas por exame e por disciplina, com o gabarito e o link para o artigo da lei.';
       const a = document.createElement('a');
       a.className = 'q-cta'; a.href = 'oab.html'; a.style.display = 'inline-flex';
       a.textContent = 'Abrir as questões da OAB';
