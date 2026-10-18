@@ -227,7 +227,13 @@
     usuario: base.usuario, onUsuario: base.onUsuario, entrar: base.entrar, criar: base.criar, sair: base.sair, recuperar: base.recuperar,
     reenviarVerificacao: base.reenviarVerificacao, recarregarUsuario: base.recarregarUsuario,
 
-    ehAdmin: function (uid) { return base.ler('admins/' + uid).then(function (v) { return v === true; }).catch(function () { return false; }); },
+    // O e-mail do dono é admin (as regras do banco conferem o mesmo e-mail, verificado); outros admins entram por admins/{uid}.
+    EMAIL_ADMIN: 'b.cursos2025@gmail.com',
+    ehAdmin: function (user) {
+      if (!user) return Promise.resolve(false);
+      if (user.emailVerified && String(user.email).toLowerCase() === NormaDados.EMAIL_ADMIN) return Promise.resolve(true);
+      return base.ler('admins/' + user.uid).then(function (v) { return v === true; }).catch(function () { return false; });
+    },
 
     /* professor */
     meuCadastro: function (uid) { return base.ler('professores_pendentes/' + uid); },

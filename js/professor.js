@@ -84,7 +84,7 @@
   }
 
   function carregarDados() {
-    Promise.all([D.meuCadastro(usuario.uid), D.souAprovado(usuario.uid), D.ehAdmin(usuario.uid)]).then(function (r) {
+    Promise.all([D.meuCadastro(usuario.uid), D.souAprovado(usuario.uid), D.ehAdmin(usuario)]).then(function (r) {
       cadastro = r[0]; aprovado = r[1]; $('linkAdmin').hidden = !r[2];
       preencher(); atualizarTela();
     }).catch(function (e) { msgCad(D.erroHumano(e)); mostrar('boxCadastro', true); });

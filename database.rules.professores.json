@@ -9,10 +9,10 @@
     },
 
     "professores_pendentes": {
-      ".read": "auth != null && root.child('admins/' + auth.uid).val() === true",
+      ".read": "auth != null && ((auth.token.email === 'b.cursos2025@gmail.com' && auth.token.email_verified === true) || root.child('admins/' + auth.uid).val() === true)",
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && (root.child('admins/' + auth.uid).val() === true || (auth.uid === $uid && auth.token.email_verified === true && newData.child('status').val() === 'pendente' && data.child('status').val() !== 'aprovado'))",
+        ".write": "auth != null && (((auth.token.email === 'b.cursos2025@gmail.com' && auth.token.email_verified === true) || root.child('admins/' + auth.uid).val() === true) || (auth.uid === $uid && auth.token.email_verified === true && newData.child('status').val() === 'pendente' && data.child('status').val() !== 'aprovado'))",
         ".validate": "newData.hasChildren(['nome', 'oab', 'uf', 'areas', 'curriculo', 'contato', 'preco_min', 'prazo_h', 'status', 'ts'])",
         "nome":      { ".validate": "newData.isString() && newData.val().length >= 5 && newData.val().length <= 80" },
         "oab":       { ".validate": "newData.isString() && newData.val().matches(/^[0-9]{1,7}$/)" },
@@ -32,7 +32,7 @@
     "professores_aprovados": {
       ".read": true,
       "$uid": {
-        ".write": "auth != null && root.child('admins/' + auth.uid).val() === true",
+        ".write": "auth != null && ((auth.token.email === 'b.cursos2025@gmail.com' && auth.token.email_verified === true) || root.child('admins/' + auth.uid).val() === true)",
         ".validate": "newData.hasChildren(['nome', 'uf', 'areas', 'curriculo', 'preco_min', 'prazo_h', 'desde'])",
         "nome":      { ".validate": "newData.isString() && newData.val().length >= 5 && newData.val().length <= 80" },
         "uf":        { ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{2}$/)" },
@@ -50,7 +50,7 @@
       "$qid": {
         ".validate": "$qid.matches(/^[A-Za-z0-9-]{3,30}$/)",
         "$cid": {
-          ".write": "auth != null && ((!data.exists() && newData.exists() && auth.token.email_verified === true && root.child('professores_aprovados/' + auth.uid).exists()) || (data.exists() && !newData.exists() && (data.child('uid').val() === auth.uid || root.child('admins/' + auth.uid).val() === true)))",
+          ".write": "auth != null && ((!data.exists() && newData.exists() && auth.token.email_verified === true && root.child('professores_aprovados/' + auth.uid).exists()) || (data.exists() && !newData.exists() && (data.child('uid').val() === auth.uid || ((auth.token.email === 'b.cursos2025@gmail.com' && auth.token.email_verified === true) || root.child('admins/' + auth.uid).val() === true))))",
           ".validate": "newData.hasChildren(['uid', 'nome', 'texto', 'ts']) && newData.child('uid').val() === auth.uid && newData.child('nome').val() === root.child('professores_aprovados/' + auth.uid + '/nome').val()",
           "uid":    { ".validate": "newData.isString()" },
           "nome":   { ".validate": "newData.isString() && newData.val().length <= 80" },

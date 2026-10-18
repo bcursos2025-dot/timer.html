@@ -61,10 +61,12 @@ Na mesma tela, botão **Simulador de regras**. Marque **Autenticado** e informe 
 
 ## Passo 4 — Tornar você administrador
 
-1. Abra `professor.html` e **crie a sua conta** (e-mail e senha). Confirme o e-mail.
-2. No console: **Authentication → Usuários**, copie o **UID** da sua conta.
-3. **Realtime Database → Dados**, passe o mouse na raiz, **+**, nome `admins`, e dentro dele **+** com o nome igual ao seu UID e valor `true` (booleano).
-4. Entre em `admin.html`: você vê os cadastros pendentes. Antes de aprovar, confira nome, número e seccional no [Cadastro Nacional dos Advogados](https://cna.oab.org.br/).
+O e-mail **b.cursos2025@gmail.com**, depois de confirmado, já é administrador (as regras do banco conferem esse e-mail; está em `database.rules.professores.json` e em `EMAIL_ADMIN` de `js/norma-dados.js`).
+
+1. Abra `professor.html` e **crie a conta com esse e-mail**. Confirme o e-mail pelo link que o Firebase envia e clique em **Já confirmei**.
+2. Deve aparecer o botão **Painel do admin**. Ele abre `admin.html`, onde você aprova ou recusa cadastros. Antes de aprovar, confira nome, número e seccional no [Cadastro Nacional dos Advogados](https://cna.oab.org.br/).
+
+Outros administradores: no console, **Realtime Database → Dados**, crie `admins/<UID da pessoa>` com valor `true`.
 
 ## Testar sem tocar no banco real
 

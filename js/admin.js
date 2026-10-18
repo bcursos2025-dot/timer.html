@@ -48,7 +48,7 @@
     $('boxEntrar').hidden = !!u || !!erro; $('boxNegado').hidden = true; $('lista').hidden = true;
     if (erro) return msg('Não consegui falar com o Firebase. Verifique a internet.');
     if (!u) return;
-    D.ehAdmin(u.uid).then(function (sim) { if (sim) pintar(); else $('boxNegado').hidden = false; });
+    D.ehAdmin(u).then(function (sim) { if (sim) pintar(); else $('boxNegado').hidden = false; });
   });
   $('btnEntrar').addEventListener('click', function () { window.NormaAuthUI.abrir('entrar'); });
   $('btnSair').addEventListener('click', function () { D.sair(); });
