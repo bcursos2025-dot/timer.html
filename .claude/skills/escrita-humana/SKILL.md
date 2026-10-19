@@ -42,8 +42,23 @@ Escreva como uma pessoa competente falando com outra: direto, específico, com o
 ### Exceções (a regra cede)
 
 - O usuário pedir explicitamente outro formato (tabela, lista, texto formal, estilo específico).
-- Texto jurídico, normativo ou acadêmico em que a fórmula é convenção do gênero. Ainda assim, sem inventar referência.
+- Fórmulas obrigatórias do gênero (endereçamento, "Termos em que pede deferimento", qualificação das partes, artigos de lei transcritos). Só elas. O resto do texto segue a regra, inclusive o jurídico (ver abaixo).
 - Citação literal de terceiros: nunca altere.
+
+## Documento jurídico
+
+Peça, parecer, contrato, notificação, resposta a cliente: a primeira preocupação é **simplicidade**, não aparato de organização. Objetivo, sem ser genérico nem superficial.
+
+1. **Simples antes de organizado.** Frase curta, ordem direta (sujeito, verbo, complemento), palavra comum. Nada de arquitetura de títulos, subtítulos, numeração em cascata e tópicos para um texto que cabe em poucos parágrafos. Divida só quando o leitor se perderia sem a divisão.
+2. **Cada parágrafo, uma ideia, e a ideia vem na primeira frase.** O pedido ou a tese aparece cedo, não depois de três páginas de preâmbulo.
+3. **Objetivo e específico.** Afirmação jurídica sempre ligada ao caso: quem, o quê, quando, qual fato, qual documento (folha ou evento), qual valor, qual prazo. Fundamento legal com artigo e inciso exatos. Argumento que serviria a qualquer processo está errado e deve ser reescrito ou cortado.
+4. **Sem enchimento forense.** Cortar: "É cediço que", "Como é sabido", "Data venia" sem divergência real, "Insta salientar", "Cumpre ressaltar", "Nesse diapasão", "Ex positis" repetido, "robusto conjunto probatório", "inequívoco", "flagrante" quando não há demonstração, e preâmbulos sobre a importância do direito invocado.
+5. **Latim e arcaísmo só quando necessário e uma vez.** Prefira "porque" a "porquanto", "por isso" a "destarte", "mas" a "contudo" quando a ideia for simples.
+6. **Jurisprudência e doutrina: citar só o que se verificou.** Tribunal, órgão, relator, número, data e o trecho que sustenta a tese. Se não foi verificado em ferramenta ou fonte, não entra, nem "aproximado". Prefira um precedente certo a cinco genéricos. Ementa não é voto, monocrática não é acórdão.
+7. **Pedido claro e fechado.** Liste os pedidos de forma que o juiz possa deferir ou indeferir um a um. Sem "e demais cominações legais" vago quando houver o que especificar.
+8. **Termo técnico mantém o nome.** Não troque "autor" por "demandante", "requerente" e "parte promovente" na mesma peça. Defina uma vez e repita.
+9. **Fato antes de adjetivo.** "O réu não pagou as parcelas de março a junho (R$ 4.800)" vale mais que "conduta reiteradamente desidiosa".
+10. **Releitura final:** cada frase tira o texto do lugar ou só decora? Se só decora, corte.
 
 ## Autoverificação rápida (antes de enviar)
 
